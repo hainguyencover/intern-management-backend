@@ -16,7 +16,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        String[] baseRoles = {"ADMIN","HR","MENTOR","INTERN"};
+        String[] baseRoles = {"ADMIN", "HR", "MENTOR", "INTERN", "USER"};
         for (String r : baseRoles) {
             roleRepository.findByName(r).orElseGet(() -> roleRepository.save(Role.builder().name(r).description(r + " role").build()));
         }

@@ -35,3 +35,14 @@ out/
 
 ### VS Code ###
 .vscode/
+
+.env
+*.env
+*.local
+*.pem
+*.key
+*.p12
+secret/
+.idea/
+node_modules/
+target/

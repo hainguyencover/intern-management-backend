@@ -19,6 +19,5 @@ public class SignupRequest {
 
     private String fullName;
 
-    @NotNull
     private Set<String> roles; // expected: ADMIN, HR, MENTOR, INTERN
 }

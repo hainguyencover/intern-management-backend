@@ -64,6 +64,7 @@ public class AuthService {
 
     @Transactional
     public String register(SignupRequest request) {
+
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username already taken");
         }
@@ -71,8 +72,14 @@ public class AuthService {
             throw new IllegalArgumentException("Email already in use");
         }
 
+        // Xử lý roles null hoặc rỗng → mặc định USER
+        Set<String> incomingRoles = request.getRoles();
+        if (incomingRoles == null || incomingRoles.isEmpty()) {
+            incomingRoles = Set.of("USER");
+        }
+
         Set<Role> roles = new HashSet<>();
-        for (String r : request.getRoles()) {
+        for (String r : incomingRoles) {
             Role role = roleRepository.findByName(r)
                     .orElseThrow(() -> new IllegalArgumentException("Role not found: " + r));
             roles.add(role);
@@ -90,4 +97,5 @@ public class AuthService {
         userRepository.save(user);
         return "User registered successfully";
     }
+
 }

@@ -3,6 +3,7 @@ package com.example.backend.security;
 import com.example.backend.entity.User;
 import com.example.backend.repository.UserRepository;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -25,9 +26,9 @@ public class CustomUserDetailsService implements UserDetailsService {
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())
                 .password(user.getPasswordHash())
-                .authorities((GrantedAuthority) user.getRoles().stream()
-                        .map(r -> "ROLE_" + r.getName())
-                        .collect(Collectors.toSet()))
+                .authorities(user.getRoles().stream()
+                        .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getName()))
+                        .collect(Collectors.toList()))
                 .accountExpired(false)
                 .accountLocked(false)
                 .credentialsExpired(false)
