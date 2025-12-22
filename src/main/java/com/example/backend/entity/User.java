@@ -1,60 +1,45 @@
 package com.example.backend.entity;
 
+import com.example.backend.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Set;
 
-@Entity
-@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@Entity
+@Table(
+        name = "users",
+        uniqueConstraints = @UniqueConstraint(name = "uk_users_email", columnNames = "email")
+)
+public class User extends BaseEntity {
 
-    @Column(nullable=false, length=100, unique=true)
-    private String username;
-
-    @Column(name = "password_hash", nullable=false)
-    private String passwordHash;
-
-    @Column(nullable=false, length=150, unique=true)
+    @Column(nullable = false, length = 255)
     private String email;
 
-    @Column(name="full_name", length=150)
+    @Column(name = "password_hash", nullable = false, length = 255)
+    private String passwordHash;
+
+    @Column(name = "full_name", nullable = false, length = 255)
     private String fullName;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_roles",
-            joinColumns = @JoinColumn(name="user_id"),
-            inverseJoinColumns = @JoinColumn(name="role_id"))
-    private Set<Role> roles;
-
     @Column(length = 50)
-    private String status;
+    private String phone;
 
-    @Column(name="avatar_url", length = 255)
-    private String avatarUrl;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private UserStatus status = UserStatus.ACTIVE;
 
-    @Column(name="created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name="updated_at")
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
 }
