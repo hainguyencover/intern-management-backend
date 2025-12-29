@@ -3,28 +3,48 @@ package com.example.backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-@Entity
-@Table(name = "intern_profiles")
+import java.time.LocalDate;
+
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class InternProfile {
-    @Id
-    private Long userId;
+@Entity
+@Table(
+        name = "intern_profiles",
+        uniqueConstraints = @UniqueConstraint(name = "uk_intern_profiles_user_id", columnNames = "user_id")
+)
+public class InternProfile extends BaseEntity {
 
-    @OneToOne
-    @MapsId
-    @JoinColumn(name = "user_id")
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "student_code", length = 50)
     private String studentCode;
+
+    private LocalDate dob;
+
+    @Column(length = 255)
     private String university;
+
+    @Column(length = 255)
     private String major;
-    private Double gpa;
+
+    @Column(length = 20)
     private String phone;
-    private java.sql.Date dob;
+
+    @Column(length = 500)
     private String address;
+
+    private Double gpa;
+
+    @Column(name = "cv_url")
     private String cvUrl;
+
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
+    @Column(name = "end_date")
+    private LocalDate endDate;
 }
