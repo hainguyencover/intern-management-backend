@@ -16,4 +16,6 @@ public interface InternDocumentRepository extends JpaRepository<InternDocument, 
     List<InternDocument> findByStatusOrderByUploadedAtDesc(String status);
 
     boolean existsByIntern_IdAndType(Long internId, String type);
+
+    boolean existsByIdAndIntern_Id(Long id, Long internId);
 }

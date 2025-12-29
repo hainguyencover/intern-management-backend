@@ -10,17 +10,46 @@ import java.util.Set;
 @Setter
 public class SignupRequest {
 
+
+    @NotBlank
+    private String fullName;
+
     @NotBlank
     @Email
     private String email;
 
     @NotBlank
-    @Size(min = 6)
+    @Size(min = 6, max = 64)
     private String password;
 
-    private String fullName;
-
+    @NotBlank
+    @Size(min = 8, max = 20)
     private String phone;
 
-    private Set<String> roles; // expected: ADMIN, HR, MENTOR, INTERN
+    @NotNull
+    @Min(1900)
+    @Max(2100)
+    private Integer dobYear;      // năm sinh
+
+    @NotBlank
+    private String address;
+
+    @NotBlank
+    private String studentCode;
+
+    @NotBlank
+    private String university;
+
+    @NotBlank
+    private String major;
+
+    @NotNull
+    @Min(1900)
+    @Max(2100)
+    private Integer startYear;
+
+    @NotNull
+    @Min(1900)
+    @Max(2100)
+    private Integer endYear;
 }
