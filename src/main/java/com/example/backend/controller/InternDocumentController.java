@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.response.InternDocumentResponse;
+import com.example.backend.entity.InternProfile;
 import com.example.backend.entity.User;
 import com.example.backend.exception.ApiException;
 import com.example.backend.repository.UserRepository;
@@ -83,9 +84,9 @@ public class InternDocumentController {
         return ResponseEntity.ok(docs);
     }
 
-    @PostMapping(path = { "/intern/documents", "/intern/documents/upload", "/documents/upload" })
+    @PostMapping(path = {"/intern/documents", "/intern/documents/upload", "/documents/upload"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<InternDocumentResponse> uploadMyDocument(
-            @RequestParam("type") DocumentType type,
+            @RequestParam("type") String type,
             @RequestParam("file") MultipartFile file) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
@@ -108,7 +109,14 @@ public class InternDocumentController {
                 "Intern profile not found for user '" + principalName + "' (userId=" + userId
                         + "). Please contact HR."));
 
-        InternDocumentResponse resp = documentService.uploadForIntern(ip.getId(), type, file);
+        DocumentType docType;
+        try {
+            docType = DocumentType.valueOf(type.strip());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Invalid document type: '" + type + "'");
+        }
+
+        InternDocumentResponse resp = documentService.uploadForIntern(ip.getId(), docType, file);
         return ResponseEntity.ok(resp);
     }
 
@@ -206,7 +214,7 @@ public class InternDocumentController {
     @PostMapping("/hr/documents/{id}/reject")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<InternDocumentResponse> rejectDocument(@PathVariable("id") Long documentId,
-            @RequestParam(value = "note", required = false) String note) {
+                                                                 @RequestParam(value = "note", required = false) String note) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String principalName = auth.getName();
         com.example.backend.entity.User user = userRepository.findByEmail(principalName)
@@ -221,7 +229,7 @@ public class InternDocumentController {
     @PutMapping("/documents/{id}/approve")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<InternDocumentResponse> approveDocumentPut(@PathVariable("id") Long documentId,
-            @RequestParam(value = "hrUserId", required = false) Long hrUserId) {
+                                                                     @RequestParam(value = "hrUserId", required = false) Long hrUserId) {
         Long actingHrId = hrUserId;
         if (actingHrId == null) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -238,8 +246,8 @@ public class InternDocumentController {
     @PutMapping("/documents/{id}/reject")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<InternDocumentResponse> rejectDocumentPut(@PathVariable("id") Long documentId,
-            @RequestParam(value = "hrUserId", required = false) Long hrUserId,
-            @RequestParam(value = "note", required = false) String note) {
+                                                                    @RequestParam(value = "hrUserId", required = false) Long hrUserId,
+                                                                    @RequestParam(value = "note", required = false) String note) {
         Long actingHrId = hrUserId;
         if (actingHrId == null) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -250,6 +258,38 @@ public class InternDocumentController {
         }
 
         InternDocumentResponse resp = documentService.reject(documentId, actingHrId, note);
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/hr/interns/{internId}/documents/contracts")
+    @PreAuthorize("hasRole('HR') or hasRole('ADMIN')")
+    public ResponseEntity<InternDocumentResponse> uploadInternshipContract(@PathVariable("internId") Long internId,
+                                                                           @RequestParam("file") MultipartFile file) {
+        internProfileRepository.findById(internId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found: " + internId));
+        InternDocumentResponse resp = documentService.uploadForIntern(
+                internId,
+                DocumentType.INTERNSHIP_CONTRACT,
+                file
+        );
+
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/intern/documents/{id}/confirm")
+    @PreAuthorize("hasRole('INTERN')")
+    public ResponseEntity<InternDocumentResponse> confirmMyContract(@PathVariable("id") Long documentId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found: " + email));
+
+        InternProfile ip = internProfileRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found"));
+
+        InternDocumentResponse resp = documentService.confirmContract(ip.getId(), documentId);
         return ResponseEntity.ok(resp);
     }
 }
