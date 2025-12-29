@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.response.InternDocumentResponse;
+import com.example.backend.entity.InternProfile;
 import com.example.backend.entity.User;
 import com.example.backend.exception.ApiException;
 import com.example.backend.repository.InternProfileRepository;
@@ -150,7 +151,14 @@ public class InternDocumentController {
         var ip = internProfileRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found for userId=" + userId));
 
-        InternDocumentResponse resp = documentService.uploadForIntern(ip.getId(), type, file);
+        DocumentType docType;
+        try {
+            docType = DocumentType.valueOf(type.strip());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Invalid document type: '" + type + "'");
+        }
+
+        InternDocumentResponse resp = documentService.uploadForIntern(ip.getId(), docType, file);
         return ResponseEntity.ok(resp);
     }
 
@@ -277,6 +285,38 @@ public class InternDocumentController {
             actingHrId = user.getId();
         }
         InternDocumentResponse resp = documentService.reject(documentId, actingHrId, note);
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/hr/interns/{internId}/documents/contracts")
+    @PreAuthorize("hasRole('HR') or hasRole('ADMIN')")
+    public ResponseEntity<InternDocumentResponse> uploadInternshipContract(@PathVariable("internId") Long internId,
+                                                                           @RequestParam("file") MultipartFile file) {
+        internProfileRepository.findById(internId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found: " + internId));
+        InternDocumentResponse resp = documentService.uploadForIntern(
+                internId,
+                DocumentType.INTERNSHIP_CONTRACT,
+                file
+        );
+
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/intern/documents/{id}/confirm")
+    @PreAuthorize("hasRole('INTERN')")
+    public ResponseEntity<InternDocumentResponse> confirmMyContract(@PathVariable("id") Long documentId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found: " + email));
+
+        InternProfile ip = internProfileRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found"));
+
+        InternDocumentResponse resp = documentService.confirmContract(ip.getId(), documentId);
         return ResponseEntity.ok(resp);
     }
 }
