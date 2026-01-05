@@ -19,15 +19,14 @@ public class ProgramGroup extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String name;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id")
-    private Department department;
+    // Không dùng entity Department/Mentor nữa -> chỉ lưu id
+    @Column(name = "department_id")
+    private Long departmentId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "mentor_id")
-    private Mentor mentor;
+    @Column(name = "mentor_id")
+    private Long mentorId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private GroupStatus status = GroupStatus.ACTIVE;
+    private GroupStatus status;
 }
