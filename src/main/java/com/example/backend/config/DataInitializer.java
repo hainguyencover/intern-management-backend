@@ -30,6 +30,7 @@ public class DataInitializer implements CommandLineRunner {
 
         Role adminRole = createRoleIfNotExists("ADMIN", "Administrator");
         Role hrRole = createRoleIfNotExists("HR", "Human Resources");
+        Role mentorRole = createRoleIfNotExists("MENTOR", "Mentor");
         Role internRole = createRoleIfNotExists("INTERN", "Intern");
 
         createUserIfNotExists("admin@company.com", "System Admin", "admin123", Set.of(adminRole));
