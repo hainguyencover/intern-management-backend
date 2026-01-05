@@ -1,11 +1,17 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.StoredFile;
 import com.example.backend.dto.request.LoginRequest;
 import com.example.backend.dto.request.SignupRequest;
 import com.example.backend.dto.response.JwtResponse;
+import com.example.backend.entity.InternDocument;
+import com.example.backend.entity.InternProfile;
 import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
+import com.example.backend.enums.DocumentType;
 import com.example.backend.enums.UserStatus;
+import com.example.backend.repository.InternDocumentRepository;
+import com.example.backend.repository.InternProfileRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtTokenProvider;
@@ -16,6 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,16 +36,26 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
+    private final InternProfileRepository internProfileRepository;
+    private final InternDocumentRepository internDocumentRepository;
+    private final LocalStorageService localStorageService;
+
     public AuthService(AuthenticationManager authenticationManager,
                        UserRepository userRepository,
                        RoleRepository roleRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtTokenProvider tokenProvider) {
+                       JwtTokenProvider tokenProvider,
+                       InternProfileRepository internProfileRepository,
+                       InternDocumentRepository internDocumentRepository,
+                       LocalStorageService localStorageService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
+        this.internProfileRepository = internProfileRepository;
+        this.internDocumentRepository = internDocumentRepository;
+        this.localStorageService = localStorageService;
     }
 
     @Transactional
@@ -72,28 +90,41 @@ public class AuthService {
             throw new IllegalArgumentException("Email already in use");
         }
 
-        // Xử lý roles null hoặc rỗng → mặc định USER
-        Set<String> incomingRoles = request.getRoles();
-        if (incomingRoles == null || incomingRoles.isEmpty()) {
-            incomingRoles = Set.of("INTERN"); // default
+        if (request.getEndYear() < request.getStartYear()) {
+            throw new IllegalArgumentException("endYear must be >= startYear");
         }
 
-        Set<Role> roles = new HashSet<>();
-        for (String r : incomingRoles) {
-            Role role = roleRepository.findByCode(r)
-                    .orElseThrow(() -> new IllegalArgumentException("Role not found: " + r));
-            roles.add(role);
-        }
+        // default role INTERN
+        Role internRole = roleRepository.findByCode("INTERN")
+                .orElseThrow(() -> new IllegalArgumentException("Role not found: INTERN"));
 
+        // 1) User
         User user = new User();
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName());
-        user.setPhone(request.getPhone());
+        user.setPhone(request.getPhone());          // nếu User có field phone
+        user.setAddress(request.getAddress());      // nếu User có field address
         user.setStatus(UserStatus.ACTIVE);
-        user.setRoles(roles);
+        user.setRoles(Set.of(internRole));
+        user = userRepository.save(user);
 
-        userRepository.save(user);
+        // 2) InternProfile
+        InternProfile ip = new InternProfile();
+        ip.setUser(user);
+        ip.setPhone(request.getPhone());            // nếu InternProfile có phone
+        ip.setAddress(request.getAddress());        // nếu InternProfile có address
+        ip.setStudentCode(request.getStudentCode());
+        ip.setUniversity(request.getUniversity());
+        ip.setMajor(request.getMajor());
+
+        // convert year -> LocalDate (01-01)
+        ip.setDob(LocalDate.of(request.getDobYear(), 1, 1));
+        ip.setStartDate(LocalDate.of(request.getStartYear(), 1, 1));
+        ip.setEndDate(LocalDate.of(request.getEndYear(), 12, 31));
+
+        internProfileRepository.save(ip);
+
         return "User registered successfully";
     }
 
