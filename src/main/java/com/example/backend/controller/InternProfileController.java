@@ -60,7 +60,7 @@ public class InternProfileController {
             @RequestParam(required = false) String university,
             @RequestParam(required = false) String major,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "5") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
 
