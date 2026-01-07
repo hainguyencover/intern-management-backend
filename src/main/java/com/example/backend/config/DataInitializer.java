@@ -30,6 +30,7 @@ public class DataInitializer implements CommandLineRunner {
 
         Role adminRole = createRoleIfNotExists("ADMIN", "Administrator");
         Role hrRole = createRoleIfNotExists("HR", "Human Resources");
+        Role mentorRole = createRoleIfNotExists("MENTOR", "Mentor");
         Role internRole = createRoleIfNotExists("INTERN", "Intern");
 
         createUserIfNotExists("admin@company.com", "System Admin", "admin123", Set.of(adminRole));
@@ -40,7 +41,7 @@ public class DataInitializer implements CommandLineRunner {
         log.info("Test credentials:");
         log.info("  Admin: admin@company.com / admin123");
         log.info("  HR:    hr@company.com / hr123");
-        log.info("  Intern:intern@student.com / intern123");
+        log.info("  Intern: intern@student.com / intern123");
     }
 
     private Role createRoleIfNotExists(String code, String name) {
