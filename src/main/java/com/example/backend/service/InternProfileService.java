@@ -3,11 +3,10 @@ package com.example.backend.service;
 import com.example.backend.dto.request.InternProfileRequest;
 import com.example.backend.dto.response.InternProfileResponse;
 import com.example.backend.dto.response.PageResponse;
-import com.example.backend.entity.InternProfile;
-import com.example.backend.entity.Role;
-import com.example.backend.entity.User;
+import com.example.backend.entity.*;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.exception.ApiException;
+import com.example.backend.repository.GroupMemberRepository;
 import com.example.backend.repository.InternProfileRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
@@ -23,10 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +33,7 @@ public class InternProfileService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final GroupMemberRepository groupMemberRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<InternProfileResponse> searchInterns(
@@ -262,6 +260,16 @@ public class InternProfileService {
         r.setCvUrl(ip.getCvUrl());
         r.setStartDate(ip.getStartDate());
         r.setEndDate(ip.getEndDate());
+
+
+        Long mentorId = groupMemberRepository
+                .findFirstByIntern_IdAndLeftAtIsNull(ip.getId())
+                .map(GroupMember::getGroup)
+                .map(ProgramGroup::getMentorId)
+                .orElse(null);
+
+        r.setMentorId(mentorId);
+
         return r;
     }
 }

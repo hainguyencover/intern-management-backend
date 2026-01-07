@@ -1,125 +1,87 @@
 package com.example.backend.service.impl;
 
+import com.example.backend.dto.DepartmentSummaryDto;
+import com.example.backend.dto.UserSummaryDto;
 import com.example.backend.dto.request.MentorCreateRequest;
-import com.example.backend.dto.response.MentorResponse;
+import com.example.backend.dto.response.MentorResponseDto;
 import com.example.backend.entity.Department;
 import com.example.backend.entity.Mentor;
-import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
-import com.example.backend.enums.UserStatus;
-import com.example.backend.exception.ApiException;
 import com.example.backend.repository.DepartmentRepository;
 import com.example.backend.repository.MentorRepository;
-import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.MentorService;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.Set;
-
 @Service
+@RequiredArgsConstructor
 public class MentorServiceImpl implements MentorService {
 
     private final MentorRepository mentorRepository;
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
-    private final DepartmentRepository departmentRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public MentorServiceImpl(
-            MentorRepository mentorRepository,
-            UserRepository userRepository,
-            RoleRepository roleRepository,
-            DepartmentRepository departmentRepository,
-            PasswordEncoder passwordEncoder
-    ) {
-        this.mentorRepository = mentorRepository;
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.departmentRepository = departmentRepository;
-        this.passwordEncoder = passwordEncoder;
+    // ✅ nếu createMentor cần tạo mentor theo userId/departmentId thì cần 2 repo này
+    private final UserRepository userRepository;
+    private final DepartmentRepository departmentRepository;
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Page<MentorResponseDto> getMentors(Integer page, Integer size) {
+        int p = (page == null || page < 0) ? 0 : page;
+        int s = (size == null || size <= 0) ? 200 : Math.min(size, 500);
+
+        Pageable pageable = PageRequest.of(p, s, Sort.by(Sort.Direction.DESC, "id"));
+        Page<Mentor> mentors = mentorRepository.findAll(pageable);
+
+        return mentors.map(this::toDto);
     }
+
 
     @Override
     @Transactional
-    public MentorResponse createMentor(MentorCreateRequest req) {
+    public MentorResponseDto createMentor(MentorCreateRequest request) {
+        // ✅ Tùy field của request bạn đang có. Mình giả định:
+        // request.getUserId(), request.getDepartmentId(), request.getTitle()
 
-        if (req.getEmail() == null || req.getEmail().trim().isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Email is required");
-        }
-        if (req.getPassword() == null || req.getPassword().trim().isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Password is required");
-        }
-        if (req.getFullName() == null || req.getFullName().trim().isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Full name is required");
-        }
-
-        String email = req.getEmail().trim().toLowerCase();
-
-        if (userRepository.existsByEmail(email)) {
-            throw new ApiException(HttpStatus.CONFLICT, "Email already exists: " + email);
-        }
-
-        Role mentorRole = roleRepository.findByCode("MENTOR")
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Role not found: MENTOR"));
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + request.getUserId()));
 
         Department dept = null;
-        if (req.getDepartmentId() != null) {
-            dept = departmentRepository.findById(req.getDepartmentId())
-                    .orElseThrow(() -> new ApiException(
-                            HttpStatus.NOT_FOUND,
-                            "Department not found: " + req.getDepartmentId()
-                    ));
+        if (request.getDepartmentId() != null) {
+            dept = departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new IllegalArgumentException("Department not found: " + request.getDepartmentId()));
         }
 
-        User u = new User();
-        u.setEmail(email);
-        u.setFullName(req.getFullName().trim());
-        u.setPhone(req.getPhone());
-        u.setPasswordHash(passwordEncoder.encode(req.getPassword()));
-        u.setStatus(UserStatus.ACTIVE);
+        Mentor mentor = new Mentor();
+        mentor.setUser(user);
+        mentor.setDepartment(dept);
+        mentor.setTitle(request.getTitle());
 
-        Set<Role> roles = new HashSet<>();
-        roles.add(mentorRole);
-        u.setRoles(roles);
-
-        User savedUser = userRepository.save(u);
-
-        Mentor m = new Mentor();
-        m.setUser(savedUser);
-        m.setDepartment(dept);
-        m.setTitle(req.getTitle());
-
-        Mentor savedMentor = mentorRepository.save(m);
-
-        return toResponse(savedMentor);
+        Mentor saved = mentorRepository.save(mentor);
+        return toDto(saved);
     }
 
-    private MentorResponse toResponse(Mentor m) {
-        MentorResponse r = new MentorResponse();
-        r.setId(m.getId());
-        r.setTitle(m.getTitle());
-        r.setCreatedAt(m.getCreatedAt());
+    private MentorResponseDto toDto(Mentor m) {
+        User u = m.getUser();
+        Department d = m.getDepartment();
 
-        if (m.getUser() != null) {
-            r.setUserId(m.getUser().getId());
-            r.setEmail(m.getUser().getEmail());
-            r.setFullName(m.getUser().getFullName());
-            r.setPhone(m.getUser().getPhone());
+        UserSummaryDto userDto = null;
+        if (u != null) {
+            userDto = new UserSummaryDto(u.getId(), u.getFullName(), u.getEmail());
         }
 
-        if (m.getDepartment() != null) {
-            MentorResponse.DepartmentLite d = new MentorResponse.DepartmentLite();
-            d.setId(m.getDepartment().getId());
-            d.setCode(m.getDepartment().getCode());
-            d.setName(m.getDepartment().getName());
-            r.setDepartment(d);
+        DepartmentSummaryDto deptDto = null;
+        if (d != null) {
+            deptDto = new DepartmentSummaryDto(d.getId(), d.getCode(), d.getName());
         }
 
-        return r;
+        return new MentorResponseDto(
+                m.getId(),
+                m.getTitle(),
+                userDto,
+                deptDto
+        );
     }
 }
