@@ -1,14 +1,17 @@
 package com.example.backend.dto.request;
 
-import lombok.Data;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class MentorCreateRequest {
-    private String email;
-    private String password;
-    private String fullName;
-    private String phone;
 
-    private Long departmentId;   // optional
-    private String title;        // optional
+    @NotNull
+    private Long userId;
+
+    private Long departmentId;
+
+    private String title;
 }

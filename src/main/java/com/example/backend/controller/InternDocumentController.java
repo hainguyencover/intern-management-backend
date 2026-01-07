@@ -129,7 +129,7 @@ public class InternDocumentController {
 
     @PostMapping(path = {"/intern/documents", "/intern/documents/upload", "/documents/upload"})
     public ResponseEntity<InternDocumentResponse> uploadMyDocument(
-            @RequestParam("type") DocumentType type,
+            @RequestParam("type") String type,
             @RequestParam("file") MultipartFile file
     ) {
         User user = currentUserOrThrow();

@@ -28,7 +28,7 @@ public class ScheduleService {
                 );
 
         GroupMember member = groupMemberRepository
-                .findFirstByInternIdAndLeftAtIsNull(intern.getId())
+                .findFirstByIntern_IdAndLeftAtIsNull(intern.getId())
                 .orElseThrow(() ->
                         new NotFoundException("Intern is not assigned to any active group")
                 );
