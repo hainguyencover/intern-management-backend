@@ -17,6 +17,8 @@ public interface InternDocumentService {
 
     InternDocumentResponse reject(Long documentId, Long hrUserId, String note);
 
+    InternDocumentResponse confirmContract(Long internId, Long documentId);
+
     com.example.backend.dto.StoredFile download(Long documentId, Long requesterUserId, boolean isHr);
 
     // Optionally: download or other admin actions
