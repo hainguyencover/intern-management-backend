@@ -83,11 +83,10 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**"
                         ).permitAll()
-
-//                        .requestMatchers(HttpMethod.GET, "/api/interns/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/interns/**").permitAll()
                         .requestMatchers("/api/interns/me/**").hasRole("INTERN")
                         .requestMatchers("/api/interns/**").hasAnyRole("HR","ADMIN","MENTOR")
-
+                        .requestMatchers("/api/hr/**").hasAnyRole("HR", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
