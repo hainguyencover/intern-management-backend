@@ -4,6 +4,7 @@ import com.example.backend.dto.StoredFile;
 import com.example.backend.dto.response.InternDocumentResponse;
 import com.example.backend.entity.InternDocument;
 import com.example.backend.entity.InternProfile; // <-- đổi nếu tên khác
+import com.example.backend.enums.DocumentStatus;
 import com.example.backend.enums.DocumentType;
 import com.example.backend.exception.ApiException;
 import com.example.backend.repository.InternDocumentRepository;
@@ -132,12 +133,16 @@ public class InternDocumentServiceImpl implements InternDocumentService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Only internship contract can be confirmed");
         }
 
-        if (!"PENDING".equalsIgnoreCase(doc.getStatus())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Contract is not in PENDING status");
+        if ("SIGNED".equalsIgnoreCase(doc.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Contract is already signed");
+        }
+
+        // Intern chỉ được xác nhận sau khi HR đã duyệt hợp đồng
+        if (!"APPROVED".equalsIgnoreCase(doc.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Contract must be APPROVED before confirming");
         }
 
         doc.setStatus("SIGNED");
-        doc.setReviewedAt(LocalDateTime.now());
 
         return toResponse(repo.save(doc));
     }

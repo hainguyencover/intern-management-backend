@@ -129,7 +129,7 @@ public class InternDocumentController {
 
     @PostMapping(path = {"/intern/documents", "/intern/documents/upload", "/documents/upload"})
     public ResponseEntity<InternDocumentResponse> uploadMyDocument(
-            @RequestParam("type") DocumentType type,
+            @RequestParam("type") String type,
             @RequestParam("file") MultipartFile file
     ) {
         User user = currentUserOrThrow();
@@ -257,7 +257,7 @@ public class InternDocumentController {
     }
 
     // legacy PUT endpoints
-    @PutMapping("/documents/{id}/approve")
+    @RequestMapping(value="/hr/documents/{id}/approve", method={RequestMethod.POST, RequestMethod.PUT})
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<InternDocumentResponse> approveDocumentPut(
             @PathVariable("id") Long documentId,
@@ -272,7 +272,7 @@ public class InternDocumentController {
         return ResponseEntity.ok(resp);
     }
 
-    @PutMapping("/documents/{id}/reject")
+    @RequestMapping(value="/hr/documents/{id}/reject", method={RequestMethod.POST, RequestMethod.PUT})
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<InternDocumentResponse> rejectDocumentPut(
             @PathVariable("id") Long documentId,
@@ -288,7 +288,7 @@ public class InternDocumentController {
         return ResponseEntity.ok(resp);
     }
 
-    @PostMapping("/hr/interns/{internId}/documents/contracts")
+    @PostMapping(value = "/hr/interns/{internId}/documents/contracts", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('HR') or hasRole('ADMIN')")
     public ResponseEntity<InternDocumentResponse> uploadInternshipContract(@PathVariable("internId") Long internId,
                                                                            @RequestParam("file") MultipartFile file) {
@@ -296,7 +296,7 @@ public class InternDocumentController {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found: " + internId));
         InternDocumentResponse resp = documentService.uploadForIntern(
                 internId,
-                DocumentType.INTERNSHIP_CONTRACT,
+                DocumentType.valueOf(DocumentType.INTERNSHIP_CONTRACT.name()),
                 file
         );
 

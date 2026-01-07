@@ -27,8 +27,8 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping(value = "/register")
-    public ResponseEntity<?> register(@Valid @ModelAttribute SignupRequest request) {
+    @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> register(@Valid @RequestBody SignupRequest request) {
         String msg = authService.register(request);
         return ResponseEntity.ok(Map.of("message", msg));
     }
