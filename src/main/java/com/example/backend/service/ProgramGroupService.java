@@ -52,7 +52,7 @@ public class ProgramGroupService {
                 .orElseThrow(() -> new NotFoundException("Intern not found: " + req.getInternId()));
 
         // Nếu intern đang thuộc group khác (active) -> đóng membership cũ
-        groupMemberRepository.findFirstByInternIdAndLeftAtIsNull(req.getInternId())
+        groupMemberRepository.findFirstByIntern_IdAndLeftAtIsNull(req.getInternId())
                 .ifPresent(old -> {
                     old.setLeftAt(LocalDateTime.now());
                     groupMemberRepository.save(old);

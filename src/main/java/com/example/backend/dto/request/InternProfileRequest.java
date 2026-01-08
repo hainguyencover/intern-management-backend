@@ -41,4 +41,5 @@ public class InternProfileRequest {
     private LocalDate startDate;
 
     private LocalDate endDate;
+
 }
