@@ -17,4 +17,7 @@ public class Department extends BaseEntity {
 
     @Column(nullable = false, length = 255)
     private String name;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
 }

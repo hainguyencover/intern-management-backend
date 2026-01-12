@@ -1,13 +1,17 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.DepartmentSummaryDto;
+import com.example.backend.dto.UserSummaryDto;
 import com.example.backend.dto.request.InternProfileRequest;
 import com.example.backend.dto.response.InternProfileResponse;
+import com.example.backend.dto.response.MentorResponseDto;
 import com.example.backend.dto.response.PageResponse;
 import com.example.backend.entity.*;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.exception.ApiException;
 import com.example.backend.repository.GroupMemberRepository;
 import com.example.backend.repository.InternProfileRepository;
+import com.example.backend.repository.MentorRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.repository.spec.InternSpecifications;
@@ -34,6 +38,7 @@ public class InternProfileService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final GroupMemberRepository groupMemberRepository;
+    private final MentorRepository mentorRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<InternProfileResponse> searchInterns(
@@ -261,15 +266,47 @@ public class InternProfileService {
         r.setStartDate(ip.getStartDate());
         r.setEndDate(ip.getEndDate());
 
+        // Priority 1: Direct mentor assignment
+        Mentor mentor = ip.getMentor();
 
-        Long mentorId = groupMemberRepository
-                .findFirstByIntern_IdAndLeftAtIsNull(ip.getId())
-                .map(GroupMember::getGroup)
-                .map(ProgramGroup::getMentorId)
-                .orElse(null);
+        Long mentorId = null;
+        if (mentor != null) {
+            mentorId = mentor.getId();
+            r.setMentor(toMentorDto(mentor));
+        } else {
+            // Priority 2: Fallback to Group Mentor (Legacy/Alternative)
+            var gmOpt = groupMemberRepository.findFirstByIntern_IdAndLeftAtIsNull(ip.getId());
+            if (gmOpt.isPresent()) {
+                mentorId = gmOpt.get().getGroup().getMentorId();
+                if (mentorId != null) {
+                    mentorRepository.findById(mentorId).ifPresent(m -> r.setMentor(toMentorDto(m)));
+                }
+            }
+        }
 
         r.setMentorId(mentorId);
 
         return r;
+    }
+
+    private MentorResponseDto toMentorDto(Mentor m) {
+        User u = m.getUser();
+        Department d = m.getDepartment();
+
+        UserSummaryDto userDto = null;
+        if (u != null) {
+            userDto = new UserSummaryDto(u.getId(), u.getFullName(), u.getEmail());
+        }
+
+        DepartmentSummaryDto deptDto = null;
+        if (d != null) {
+            deptDto = new DepartmentSummaryDto(d.getId(), d.getCode(), d.getName());
+        }
+
+        return new MentorResponseDto(
+                m.getId(),
+                m.getTitle(),
+                userDto,
+                deptDto);
     }
 }

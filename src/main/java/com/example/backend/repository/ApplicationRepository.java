@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -22,4 +23,6 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     Page<Application> findAllByStatus(ApplicationStatus status, Pageable pageable);
 
     List<Application> findByIntern_Id(Long internId);
+
+    boolean existsByIntern_IdAndStatusIn(Long internId, Collection<ApplicationStatus> statuses);
 }

@@ -18,7 +18,7 @@ public class MentorAssignmentController {
     }
 
     // HR gán mentor cho intern
-    @PostMapping("/{internId}/assign-mentor")
+    @PutMapping("/{internId}/assign-mentor")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<AssignMentorResponse> assignMentor(
             @PathVariable Long internId,

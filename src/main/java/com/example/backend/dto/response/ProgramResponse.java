@@ -6,6 +6,8 @@ import java.time.LocalDate;
 
 public record ProgramResponse(
         Long id,
+        Long departmentId,
+        String departmentName,
         String name,
         String description,
         LocalDate startDate,

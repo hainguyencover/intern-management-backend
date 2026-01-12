@@ -35,4 +35,12 @@ public class MentorController {
     ) {
         return mentorService.getMentors(page, size);
     }
+
+    // GET /api/mentors/{id}
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('HR','ADMIN')")
+    public ResponseEntity<MentorResponseDto> getMentorById(@PathVariable Long id) {
+        MentorResponseDto mentor = mentorService.getMentorById(id);
+        return ResponseEntity.ok(mentor);
+    }
 }
