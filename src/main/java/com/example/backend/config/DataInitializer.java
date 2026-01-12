@@ -22,6 +22,8 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final InternProfileRepository internProfileRepository;
+    private final MentorRepository mentorRepository;
+    private final DepartmentRepository departmentRepository;
 
     @Override
     @Transactional
@@ -33,15 +35,23 @@ public class DataInitializer implements CommandLineRunner {
         Role mentorRole = createRoleIfNotExists("MENTOR", "Mentor");
         Role internRole = createRoleIfNotExists("INTERN", "Intern");
 
+        // Ensure at least one Department exists
+        createDepartmentIfNotExists("IT", "Information Technology", "IT Department");
+
         createUserIfNotExists("admin@company.com", "System Admin", "admin123", Set.of(adminRole));
         createUserIfNotExists("hr@company.com", "HR Manager", "hr123", Set.of(hrRole));
         createUserIfNotExists("intern@student.com", "Intern Demo", "intern123", Set.of(internRole));
+        createUserIfNotExists("mentor1@company.com", "Mentor One", "mentor123", Set.of(mentorRole));
+        createUserIfNotExists("mentor2@company.com", "Mentor Two", "mentor123", Set.of(mentorRole));
 
         log.info("Data Initialization Complete!");
         log.info("Test credentials:");
         log.info("  Admin: admin@company.com / admin123");
         log.info("  HR:    hr@company.com / hr123");
+
         log.info("  Intern: intern@student.com / intern123");
+        log.info("  Mentor 1: mentor1@company.com / mentor123");
+        log.info("  Mentor 2: mentor2@company.com / mentor123");
     }
 
     private Role createRoleIfNotExists(String code, String name) {
@@ -55,31 +65,58 @@ public class DataInitializer implements CommandLineRunner {
                 });
     }
 
+    private void createDepartmentIfNotExists(String code, String name, String desc) {
+        if (departmentRepository.findByCode(code).isEmpty()) {
+            Department d = new Department();
+            d.setCode(code);
+            d.setName(name);
+            d.setDescription(desc);
+            departmentRepository.save(d);
+            log.info("Created default Department: {}", code);
+        }
+    }
+
     private void createUserIfNotExists(String email, String fullName, String rawPassword, Set<Role> roles) {
         String normalized = email.trim().toLowerCase();
-        if (userRepository.existsByEmail(normalized))
-            return;
+        
+        User u;
+        if (userRepository.existsByEmail(normalized)) {
+            u = userRepository.findByEmail(normalized).orElseThrow();
+        } else {
+            u = new User();
+            u.setEmail(normalized);
+            u.setFullName(fullName);
+            u.setPasswordHash(passwordEncoder.encode(rawPassword));
+            u.setStatus(UserStatus.ACTIVE);
+            u.setRoles(new HashSet<>(roles));
+            u = userRepository.save(u);
+            log.info("Created user: {}", u.getEmail());
+        }
 
-        User u = new User();
-        u.setEmail(normalized);
-        u.setFullName(fullName);
-        u.setPasswordHash(passwordEncoder.encode(rawPassword));
-        u.setStatus(UserStatus.ACTIVE);
-        u.setRoles(new HashSet<>(roles));
-
-        u = userRepository.save(u);
-
-        // If user has INTERN role, ensure an InternProfile exists for them to avoid 404
-        // later
+        // If user has INTERN role, ensure InternProfile
         boolean isIntern = roles.stream().anyMatch(r -> "INTERN".equalsIgnoreCase(r.getCode()));
         if (isIntern) {
-            boolean existsProfile = internProfileRepository.findByUser_Id(u.getId()).isPresent();
-            if (!existsProfile) {
+            if (internProfileRepository.findByUser_Id(u.getId()).isEmpty()) {
                 InternProfile ip = new InternProfile();
                 ip.setUser(u);
-                // other fields left null/empty; will be filled later
                 internProfileRepository.save(ip);
-                log.info("Auto-created InternProfile for user: {} (id={})", u.getEmail(), u.getId());
+                log.info("Auto-created InternProfile for user: {}", u.getEmail());
+            }
+        }
+
+        // If user has MENTOR role, ensure Mentor profile
+        boolean isMentor = roles.stream().anyMatch(r -> "MENTOR".equalsIgnoreCase(r.getCode()));
+        if (isMentor) {
+            if (mentorRepository.findByUser_Id(u.getId()).isEmpty()) {
+                // Determine department (e.g. IT)
+                Department itDept = departmentRepository.findByCode("IT").orElse(null);
+                
+                Mentor m = new Mentor();
+                m.setUser(u);
+                m.setDepartment(itDept);
+                m.setTitle("Senior Mentor"); // Default title
+                mentorRepository.save(m);
+                log.info("Auto-created Mentor profile for user: {}", u.getEmail());
             }
         }
     }

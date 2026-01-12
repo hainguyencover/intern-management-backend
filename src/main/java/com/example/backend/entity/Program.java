@@ -6,6 +6,9 @@ import lombok.*;
 
 import java.time.LocalDate;
 
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -13,9 +16,17 @@ import java.time.LocalDate;
 @Entity
 @Table(
         name = "programs",
-        indexes = @Index(name = "idx_programs_status", columnList = "status")
+        indexes = {
+                @Index(name = "idx_programs_status", columnList = "status"),
+                @Index(name = "idx_programs_department_status", columnList = "department_id,status")
+        }
 )
 public class Program extends BaseEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "department_id", nullable = false)
+    @NotFound(action = NotFoundAction.IGNORE)
+    private Department department;
 
     @Column(nullable = false, length = 255)
     private String name;

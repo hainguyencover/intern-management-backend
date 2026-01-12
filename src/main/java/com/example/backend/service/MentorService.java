@@ -9,4 +9,6 @@ public interface MentorService {
     Page<MentorResponseDto> getMentors(Integer page, Integer size);
 
     MentorResponseDto createMentor(MentorCreateRequest request);
+
+    MentorResponseDto getMentorById(Long id);
 }

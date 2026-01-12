@@ -10,5 +10,7 @@ public class AssignMentorResponse {
     private Long mentorId;
     private String mentorEmail;
     private String mentorFullName;
+    private Long mentorDepartmentId;
+    private String mentorDepartmentName;
     private LocalDateTime assignedAt;
 }

@@ -63,6 +63,14 @@ public class MentorServiceImpl implements MentorService {
         return toDto(saved);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public MentorResponseDto getMentorById(Long id) {
+        Mentor mentor = mentorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Mentor not found with id: " + id));
+        return toDto(mentor);
+    }
+
     private MentorResponseDto toDto(Mentor m) {
         User u = m.getUser();
         Department d = m.getDepartment();

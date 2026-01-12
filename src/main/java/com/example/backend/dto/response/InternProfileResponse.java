@@ -24,4 +24,5 @@ public class InternProfileResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long mentorId;
+    private MentorResponseDto mentor;
 }
