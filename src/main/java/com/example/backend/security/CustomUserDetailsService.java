@@ -1,5 +1,7 @@
 package com.example.backend.security;
 
+import com.example.backend.entity.Permission;
+import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.repository.UserRepository;
@@ -13,39 +15,48 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CustomUserDetailsService implements UserDetailsService {
 
-        private final UserRepository userRepository;
+    private final UserRepository userRepository;
 
-        @Override
-        @Transactional(readOnly = true)
-        public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-                String normalized = email.trim().toLowerCase();
-                log.info("Loading user by email: {}", normalized);
+    @Override
+    @Transactional(readOnly = true)
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        String normalized = email.trim().toLowerCase();
+        log.info("Loading user by email: {}", normalized);
 
-                User user = userRepository.findByEmail(normalized)
-                                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + normalized));
+        User user = userRepository.findByEmail(normalized)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + normalized));
 
-                Set<GrantedAuthority> authorities = user.getRoles().stream()
-                                .map(role -> {
-                                        String code = role.getCode() != null ? role.getCode() : "";
-                                        String authority = code.toUpperCase().startsWith("ROLE_") ? code
-                                                        : "ROLE_" + code;
-                                        return new SimpleGrantedAuthority(authority);
-                                })
-                                .collect(Collectors.toSet());
+        Set<GrantedAuthority> authorities = new HashSet<>();
 
-                return org.springframework.security.core.userdetails.User.builder()
-                                .username(user.getEmail())
-                                .password(user.getPasswordHash())
-                                .authorities(authorities)
-                                .disabled(user.getStatus() != UserStatus.ACTIVE)
-                                .build();
+        // Add role-based authorities (ROLE_ADMIN, ROLE_HR, etc.)
+        for (Role role : user.getRoles()) {
+            String code = role.getCode() != null ? role.getCode() : "";
+            String roleAuthority = code.toUpperCase().startsWith("ROLE_") ? code : "ROLE_" + code;
+            authorities.add(new SimpleGrantedAuthority(roleAuthority));
+
+            // Add permissions from role
+            if (role.getPermissions() != null) {
+                for (Permission permission : role.getPermissions()) {
+                    authorities.add(new SimpleGrantedAuthority(permission.getCode()));
+                }
+            }
         }
+
+        log.info("User {} has authorities: {}", normalized, authorities);
+
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getEmail())
+                .password(user.getPasswordHash())
+                .authorities(authorities)
+                .disabled(user.getStatus() != UserStatus.ACTIVE)
+                .build();
+    }
 }

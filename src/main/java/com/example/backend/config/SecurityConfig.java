@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,7 +24,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -35,7 +34,6 @@ public class SecurityConfig {
         this.jwtTokenProvider = jwtTokenProvider;
         this.customUserDetailsService = customUserDetailsService;
     }
-
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
@@ -76,6 +74,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(
@@ -83,10 +82,16 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**"
                         ).permitAll()
+
+                        // Admin endpoints - protected by method security
+                        .requestMatchers("/api/admin/**").authenticated()
+
+                        // Other endpoints
                         .requestMatchers(HttpMethod.GET, "/api/interns/**").permitAll()
                         .requestMatchers("/api/interns/me/**").hasRole("INTERN")
-                        .requestMatchers("/api/interns/**").hasAnyRole("HR","ADMIN","MENTOR")
+                        .requestMatchers("/api/interns/**").hasAnyRole("HR", "ADMIN", "MENTOR")
                         .requestMatchers("/api/hr/**").hasAnyRole("HR", "ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
@@ -96,6 +101,13 @@ public class SecurityConfig {
                             response.getWriter().write(
                                     "{\"error\":\"Unauthorized\",\"message\":\"" +
                                             authException.getMessage() + "\"}"
+                            );
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(403);
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    "{\"error\":\"Forbidden\",\"message\":\"Bạn không có quyền truy cập\"}"
                             );
                         })
                 );
