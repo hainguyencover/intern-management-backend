@@ -19,7 +19,12 @@ public class CustomUserDetails implements UserDetails {
         this.email = user.getEmail();
         this.password = user.getPasswordHash();
         this.authorities = user.getRoles().stream()
-                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getName()))
+                .flatMap(role -> {
+                    var auths = new java.util.ArrayList<SimpleGrantedAuthority>();
+                    auths.add(new SimpleGrantedAuthority("ROLE_" + role.getCode()));
+                    role.getPermissions().forEach(p -> auths.add(new SimpleGrantedAuthority(p.getCode())));
+                    return auths.stream();
+                })
                 .toList();
     }
 
@@ -32,10 +37,33 @@ public class CustomUserDetails implements UserDetails {
         return email;
     }
 
-    @Override public String getPassword() { return password; }
-    @Override public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
-    @Override public boolean isAccountNonExpired() { return true; }
-    @Override public boolean isAccountNonLocked() { return true; }
-    @Override public boolean isCredentialsNonExpired() { return true; }
-    @Override public boolean isEnabled() { return true; }
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
 }

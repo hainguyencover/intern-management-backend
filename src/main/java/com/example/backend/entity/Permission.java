@@ -18,6 +18,9 @@ public class Permission extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String name;
 
+    @Column(length = 50)
+    private String module; // USER, TASK, SYSTEM, etc.
+
     @Column(length = 500)
     private String description;
 }

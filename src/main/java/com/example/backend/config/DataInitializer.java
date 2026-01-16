@@ -19,6 +19,7 @@ import java.util.Set;
 public class DataInitializer implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
+    private final PermissionRepository permissionRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final InternProfileRepository internProfileRepository;
@@ -34,6 +35,38 @@ public class DataInitializer implements CommandLineRunner {
         Role hrRole = createRoleIfNotExists("HR", "Human Resources");
         Role mentorRole = createRoleIfNotExists("MENTOR", "Mentor");
         Role internRole = createRoleIfNotExists("INTERN", "Intern");
+
+        // Seed Permissions
+        createPermissionIfNotExists("USER_CREATE", "Create Users");
+        createPermissionIfNotExists("USER_READ", "View Users");
+        createPermissionIfNotExists("USER_UPDATE", "Update Users");
+        createPermissionIfNotExists("USER_LOCK", "Lock/Unlock Users");
+        createPermissionIfNotExists("USER_RESET_PASSWORD", "Reset User Password");
+        createPermissionIfNotExists("ROLE_READ", "View Roles");
+        createPermissionIfNotExists("ROLE_UPDATE", "Update Roles");
+        createPermissionIfNotExists("PERMISSION_READ", "View Permissions");
+        createPermissionIfNotExists("PERMISSION_UPDATE", "Update Permissions");
+        createPermissionIfNotExists("BACKUP_RUN", "Run System Backup");
+        createPermissionIfNotExists("BACKUP_READ", "View Backups");
+        createPermissionIfNotExists("AUDIT_READ", "View Audit Logs");
+
+        // Assign Permissions to Roles (Basic setup)
+        assignPermissionToRole(adminRole, "USER_CREATE");
+        assignPermissionToRole(adminRole, "USER_READ");
+        assignPermissionToRole(adminRole, "USER_UPDATE");
+        assignPermissionToRole(adminRole, "USER_LOCK");
+        assignPermissionToRole(adminRole, "USER_RESET_PASSWORD");
+        assignPermissionToRole(adminRole, "ROLE_READ");
+        assignPermissionToRole(adminRole, "ROLE_UPDATE");
+        assignPermissionToRole(adminRole, "PERMISSION_READ");
+        assignPermissionToRole(adminRole, "PERMISSION_UPDATE");
+        assignPermissionToRole(adminRole, "BACKUP_RUN");
+        assignPermissionToRole(adminRole, "BACKUP_READ");
+        assignPermissionToRole(adminRole, "AUDIT_READ");
+
+        // HR Permissions (Subset)
+        assignPermissionToRole(hrRole, "USER_READ");
+        assignPermissionToRole(hrRole, "USER_CREATE"); // HR can create interns/mentors maybe?
 
         // Ensure at least one Department exists
         createDepartmentIfNotExists("IT", "Information Technology", "IT Department");
@@ -55,7 +88,6 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private Role createRoleIfNotExists(String code, String name) {
-        // store role codes without ROLE_ prefix (e.g. ADMIN, HR, INTERN)
         return roleRepository.findByCode(code)
                 .orElseGet(() -> {
                     Role r = new Role();
@@ -63,6 +95,25 @@ public class DataInitializer implements CommandLineRunner {
                     r.setName(name);
                     return roleRepository.save(r);
                 });
+    }
+
+    private Permission createPermissionIfNotExists(String code, String name) {
+        return permissionRepository.findByCode(code)
+                .orElseGet(() -> {
+                    Permission p = new Permission();
+                    p.setCode(code);
+                    p.setName(name);
+                    return permissionRepository.save(p);
+                });
+    }
+
+    private void assignPermissionToRole(Role role, String permissionCode) {
+        permissionRepository.findByCode(permissionCode).ifPresent(p -> {
+            if (role.getPermissions().stream().noneMatch(rp -> rp.getCode().equals(permissionCode))) {
+                role.getPermissions().add(p);
+                roleRepository.save(role);
+            }
+        });
     }
 
     private void createDepartmentIfNotExists(String code, String name, String desc) {
@@ -78,7 +129,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void createUserIfNotExists(String email, String fullName, String rawPassword, Set<Role> roles) {
         String normalized = email.trim().toLowerCase();
-        
+
         User u;
         if (userRepository.existsByEmail(normalized)) {
             u = userRepository.findByEmail(normalized).orElseThrow();
@@ -110,7 +161,7 @@ public class DataInitializer implements CommandLineRunner {
             if (mentorRepository.findByUser_Id(u.getId()).isEmpty()) {
                 // Determine department (e.g. IT)
                 Department itDept = departmentRepository.findByCode("IT").orElse(null);
-                
+
                 Mentor m = new Mentor();
                 m.setUser(u);
                 m.setDepartment(itDept);

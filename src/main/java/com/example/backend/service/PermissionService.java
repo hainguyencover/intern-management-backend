@@ -1,0 +1,73 @@
+package com.example.backend.service;
+
+import com.example.backend.dto.request.UpdateRolePermissionsRequest;
+import com.example.backend.dto.response.PermissionResponse;
+import com.example.backend.dto.response.RoleWithPermissionsResponse;
+import com.example.backend.entity.Permission;
+import com.example.backend.entity.Role;
+import com.example.backend.repository.PermissionRepository;
+import com.example.backend.repository.RoleRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class PermissionService {
+
+    private final PermissionRepository permissionRepository;
+    private final RoleRepository roleRepository;
+
+    public List<PermissionResponse> getAllPermissions() {
+        return permissionRepository.findAllByOrderByModuleAscCodeAsc().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    public RoleWithPermissionsResponse getRoleWithPermissions(Long roleId) {
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new IllegalArgumentException("Role không tồn tại"));
+
+        RoleWithPermissionsResponse response = new RoleWithPermissionsResponse();
+        response.setId(role.getId());
+        response.setCode(role.getCode());
+        response.setName(role.getName());
+        response.setPermissions(role.getPermissions().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList()));
+
+        return response;
+    }
+
+    @Transactional
+    public RoleWithPermissionsResponse updateRolePermissions(Long roleId, UpdateRolePermissionsRequest request) {
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new IllegalArgumentException("Role không tồn tại"));
+
+        // Clear existing permissions
+        role.setPermissions(new HashSet<>());
+
+        // Add new permissions
+        if (request.getPermissionIds() != null && !request.getPermissionIds().isEmpty()) {
+            List<Permission> permissions = permissionRepository.findAllById(request.getPermissionIds());
+            role.setPermissions(new HashSet<>(permissions));
+        }
+
+        role = roleRepository.save(role);
+        return getRoleWithPermissions(role.getId());
+    }
+
+    private PermissionResponse mapToResponse(Permission permission) {
+        PermissionResponse response = new PermissionResponse();
+        response.setId(permission.getId());
+        response.setCode(permission.getCode());
+        response.setName(permission.getName());
+        response.setModule(permission.getModule()); // Use module field correctly
+        response.setDescription(permission.getDescription());
+        return response;
+    }
+}
