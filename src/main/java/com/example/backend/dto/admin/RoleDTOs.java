@@ -1,6 +1,7 @@
 package com.example.backend.dto.admin;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -11,6 +12,7 @@ public class RoleDTOs {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @Builder
     public static class RoleResponse {
         private Long id;
         private String code;
@@ -21,6 +23,7 @@ public class RoleDTOs {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @Builder
     public static class PermissionResponse {
         private Long id;
         private String code;
@@ -31,6 +34,7 @@ public class RoleDTOs {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @Builder
     public static class UpdateRolePermissionsRequest {
         private Set<String> permissionCodes;
     }

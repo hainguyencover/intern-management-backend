@@ -1,6 +1,7 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.admin.UserDTOs;
+import com.example.backend.dto.request.CreateUserRequest;
+import com.example.backend.dto.response.UserResponse;
 import com.example.backend.entity.*;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.repository.*;
@@ -31,30 +32,37 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public UserDTOs.UserResponse createUser(UserDTOs.CreateUserRequest request) {
+    public UserResponse createUser(CreateUserRequest request) {
         // Validate email unique
         String email = request.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email đã tồn tại");
         }
 
-        // Generate random password
-        String tempPassword = generateRandomPassword();
+        // Use custom password if provided, otherwise generate random
+        String passwordToUse;
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            passwordToUse = request.getPassword();
+        } else {
+            passwordToUse = generateRandomPassword();
+        }
 
         // Create user
         User user = new User();
         user.setEmail(email);
         user.setFullName(request.getFullName());
         user.setPhone(request.getPhone());
-        user.setPasswordHash(passwordEncoder.encode(tempPassword));
+        user.setPasswordHash(passwordEncoder.encode(passwordToUse));
         user.setStatus(UserStatus.ACTIVE);
 
         // Assign roles
         Set<Role> roles = new HashSet<>();
-        for (String roleCode : request.getRoleCodes()) {
-            Role role = roleRepository.findByCode(roleCode)
-                    .orElseThrow(() -> new IllegalArgumentException("Role không tồn tại: " + roleCode));
-            roles.add(role);
+        if (request.getRoleCodes() != null) {
+            for (String roleCode : request.getRoleCodes()) {
+                Role role = roleRepository.findByCode(roleCode)
+                        .orElseThrow(() -> new IllegalArgumentException("Role không tồn tại: " + roleCode));
+                roles.add(role);
+            }
         }
         user.setRoles(roles);
 
@@ -63,13 +71,14 @@ public class AdminUserService {
         // Create profile based on role
         createProfileForRole(user, request);
 
-        log.info("Created user {} with temporary password: {}", email, tempPassword);
+        log.info("Created user {} with password provided: {}", email,
+                (request.getPassword() != null ? "YES" : "NO - Generated: " + passwordToUse));
         // TODO: Send email with temp password
 
         return mapToResponse(user);
     }
 
-    private void createProfileForRole(User user, UserDTOs.CreateUserRequest request) {
+    private void createProfileForRole(User user, CreateUserRequest request) {
         boolean isIntern = user.getRoles().stream()
                 .anyMatch(r -> "INTERN".equalsIgnoreCase(r.getCode()));
         boolean isMentor = user.getRoles().stream()
@@ -82,7 +91,6 @@ public class AdminUserService {
             profile.setUniversity(request.getUniversity());
             profile.setMajor(request.getMajor());
             internProfileRepository.save(profile);
-            log.info("Created InternProfile for user {}", user.getEmail());
         }
 
         if (isMentor) {
@@ -94,38 +102,41 @@ public class AdminUserService {
                 mentor.setDepartment(dept);
             }
             mentorRepository.save(mentor);
-            log.info("Created Mentor profile for user {}", user.getEmail());
         }
     }
 
     @Transactional(readOnly = true)
-    public Page<UserDTOs.UserResponse> getAllUsers(String keyword, Pageable pageable) {
-        Page<User> users = userRepository.findAllWithRoles(keyword, pageable);
-        // Explicitly initialize roles to ensure no LazyInitializationException occurs
-        users.forEach(u -> org.hibernate.Hibernate.initialize(u.getRoles()));
+    public Page<UserResponse> getAllUsers(String role, String status, String keyword, Pageable pageable) {
+        UserStatus userStatus = null;
+        if (status != null && !status.isEmpty()) {
+            try {
+                userStatus = UserStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid status or handle it
+            }
+        }
+        // Use the new repository method that supports filtering by role and keyword
+        Page<User> users = userRepository.searchByRoleAndKeyword(role, userStatus, keyword, pageable);
         return users.map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
-    public UserDTOs.UserResponse getUserById(Long id) {
+    public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User không tồn tại"));
         return mapToResponse(user);
     }
 
     @Transactional
-    public void updateUserStatus(Long id, String status) {
+    public UserResponse updateUserStatus(Long id, com.example.backend.dto.request.UpdateUserStatusRequest request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User không tồn tại"));
 
-        try {
-            UserStatus userStatus = UserStatus.valueOf(status.toUpperCase());
-            user.setStatus(userStatus);
-            userRepository.save(user);
-            log.info("Updated user {} status to {}", user.getEmail(), status);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid status: " + status);
-        }
+        user.setStatus(request.getStatus());
+        userRepository.save(user);
+        log.info("Updated user {} status to {}", user.getEmail(), request.getStatus());
+
+        return mapToResponse(user);
     }
 
     @Transactional
@@ -176,8 +187,16 @@ public class AdminUserService {
         return newPassword;
     }
 
-    private UserDTOs.UserResponse mapToResponse(User user) {
-        UserDTOs.UserResponse response = new UserDTOs.UserResponse();
+    @Transactional
+    public void deleteUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User không tồn tại"));
+        userRepository.delete(user);
+        log.info("Deleted user: {}", id);
+    }
+
+    private UserResponse mapToResponse(User user) {
+        UserResponse response = new UserResponse();
         response.setId(user.getId());
         response.setEmail(user.getEmail());
         response.setFullName(user.getFullName());

@@ -4,12 +4,9 @@ import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Set;
-
 @Getter
 @Setter
 public class SignupRequest {
-
 
     @NotBlank
     private String fullName;
@@ -29,7 +26,7 @@ public class SignupRequest {
     @NotNull
     @Min(1900)
     @Max(2100)
-    private Integer dobYear;      // năm sinh
+    private Integer dobYear; // năm sinh
 
     @NotBlank
     private String address;

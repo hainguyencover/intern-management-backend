@@ -1,231 +1,204 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.DepartmentSummaryDto;
-import com.example.backend.dto.UserSummaryDto;
+import com.example.backend.dto.InternSearchCriteria;
 import com.example.backend.dto.request.InternProfileRequest;
 import com.example.backend.dto.response.InternProfileResponse;
-import com.example.backend.dto.response.MentorResponseDto;
-import com.example.backend.dto.response.PageResponse;
-import com.example.backend.entity.*;
+import com.example.backend.entity.InternProfile;
+import com.example.backend.entity.Mentor;
+import com.example.backend.entity.Role;
+import com.example.backend.entity.User;
 import com.example.backend.enums.UserStatus;
-import com.example.backend.exception.ApiException;
-import com.example.backend.repository.GroupMemberRepository;
-import com.example.backend.repository.InternProfileRepository;
-import com.example.backend.repository.MentorRepository;
-import com.example.backend.repository.RoleRepository;
-import com.example.backend.repository.UserRepository;
-import com.example.backend.repository.spec.InternSpecifications;
+import com.example.backend.exception.NotFoundException;
+import com.example.backend.exception.ResourceNotFoundException;
+import com.example.backend.repository.*;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class InternProfileService {
 
     private final InternProfileRepository internProfileRepository;
     private final UserRepository userRepository;
+    private final MentorRepository mentorRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final GroupMemberRepository groupMemberRepository;
-    private final MentorRepository mentorRepository;
 
-    @Transactional(readOnly = true)
-    public PageResponse<InternProfileResponse> searchInterns(
-            String search, String university, String major,
-            int page, int size, String sortBy, String sortDir) {
+    @Transactional
+    public InternProfileResponse createIntern(InternProfileRequest request) {
+        User user;
+        if (request.getUserId() != null) {
+            user = userRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new RuntimeException("User not found: " + request.getUserId()));
+        } else if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+            if (userOpt.isPresent()) {
+                user = userOpt.get();
+            } else {
+                // Auto-create user
+                if (request.getFullName() == null || request.getFullName().isBlank()) {
+                    throw new IllegalArgumentException("Full name is required for new user creation");
+                }
+                user = new User();
+                user.setEmail(request.getEmail());
+                user.setFullName(request.getFullName());
+                user.setFullName(request.getFullName());
 
-        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
+                // Use custom password if provided, otherwise generate random
+                String passwordToUse;
+                if (request.getPassword() != null && !request.getPassword().isBlank()) {
+                    passwordToUse = request.getPassword();
+                } else {
+                    passwordToUse = UUID.randomUUID().toString().substring(0, 8);
+                }
 
-        var spec = InternSpecifications.filter(search, university, major);
-        Page<InternProfile> profiles = internProfileRepository.findAll(spec, pageable);
+                user.setPasswordHash(passwordEncoder.encode(passwordToUse));
+                user.setStatus(UserStatus.ACTIVE);
 
-        Page<InternProfileResponse> respPage = profiles.map(this::toResponse);
-        return PageResponse.of(respPage);
+                Role internRole = roleRepository.findByCode("INTERN")
+                        .orElseThrow(() -> new RuntimeException("Role INTERN not found"));
+                user.setRoles(Set.of(internRole));
+
+                user = userRepository.save(user);
+                log.info("Auto-created user {} with password: {}", user.getEmail(), passwordToUse);
+            }
+        } else {
+            throw new IllegalArgumentException("User ID or Email must be provided");
+        }
+
+        if (internProfileRepository.existsByUser_Id(user.getId())) {
+            throw new RuntimeException("Intern profile already exists for user: " + user.getId());
+        }
+
+        InternProfile profile = new InternProfile();
+        profile.setUser(user);
+        profile.setStudentCode(request.getStudentCode());
+        profile.setDob(request.getDob());
+        profile.setUniversity(request.getUniversity());
+        profile.setMajor(request.getMajor());
+        profile.setPhone(request.getPhone());
+        profile.setAddress(request.getAddress());
+        profile.setGpa(request.getGpa());
+        profile.setStartDate(request.getStartDate());
+        profile.setEndDate(request.getEndDate());
+
+        if (request.getMentorId() != null) {
+            Mentor mentor = mentorRepository.findById(request.getMentorId())
+                    .orElseThrow(() -> new RuntimeException("Mentor not found: " + request.getMentorId()));
+            profile.setMentor(mentor);
+        }
+
+        profile = internProfileRepository.save(profile);
+        log.info("Created intern profile for user: {}", user.getEmail());
+
+        return mapToResponse(profile);
     }
 
     @Transactional
-    public InternProfileResponse createIntern(InternProfileRequest req) {
-        if (req.getStartDate() != null && req.getEndDate() != null && req.getStartDate().isAfter(req.getEndDate())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "startDate must be <= endDate");
-        }
+    public InternProfileResponse updateIntern(Long id, InternProfileRequest request) {
+        InternProfile profile = internProfileRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Intern profile not found: " + id));
 
-        String email = req.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmail(email)) {
-            throw new ApiException(HttpStatus.CONFLICT, "Email already exists");
-        }
+        updateProfileData(profile, request);
 
-        User user = new User();
-        user.setEmail(email);
-        user.setFullName(req.getFullName().trim());
-        user.setPhone(req.getPhone());
-        user.setStatus(UserStatus.ACTIVE);
+        profile = internProfileRepository.save(profile);
+        log.info("Updated intern profile: {}", id);
 
-        String tempPassword = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
-        user.setPasswordHash(passwordEncoder.encode(tempPassword));
-
-        Role internRole = roleRepository.findByCode("INTERN")
-                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Role INTERN missing"));
-        user.getRoles().add(internRole);
-
-        user = userRepository.save(user);
-
-        InternProfile ip = new InternProfile();
-        ip.setUser(user);
-        ip.setStudentCode(req.getStudentCode());
-        ip.setDob(req.getDob());
-        ip.setUniversity(req.getUniversity());
-        ip.setMajor(req.getMajor());
-        ip.setPhone(req.getPhone());
-        ip.setAddress(req.getAddress());
-        ip.setGpa(req.getGpa());
-        ip.setCvUrl(req.getCvUrl());
-        ip.setStartDate(req.getStartDate());
-        ip.setEndDate(req.getEndDate());
-
-        InternProfile saved = internProfileRepository.save(ip);
-        return toResponse(saved);
-    }
-
-    @Transactional
-    public InternProfileResponse createForCurrentUser(InternProfileRequest req) {
-        if (req.getStartDate() != null && req.getEndDate() != null && req.getStartDate().isAfter(req.getEndDate())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "startDate must be <= endDate");
-        }
-
-        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(principal)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found: " + principal));
-
-        // check if profile already exists
-        if (internProfileRepository.findByUser_Id(user.getId()).isPresent()) {
-            throw new ApiException(HttpStatus.CONFLICT, "Intern profile already exists for user");
-        }
-
-        InternProfile ip = new InternProfile();
-        ip.setUser(user);
-        ip.setStudentCode(req.getStudentCode());
-        ip.setDob(req.getDob());
-        ip.setUniversity(req.getUniversity());
-        ip.setMajor(req.getMajor());
-        ip.setPhone(req.getPhone());
-        ip.setAddress(req.getAddress());
-        ip.setGpa(req.getGpa());
-        ip.setCvUrl(req.getCvUrl());
-        ip.setStartDate(req.getStartDate());
-        ip.setEndDate(req.getEndDate());
-
-        InternProfile saved = internProfileRepository.save(ip);
-        // update user's fullName and phone if provided
-        if (req.getFullName() != null) {
-            user.setFullName(req.getFullName().trim());
-        }
-        if (req.getPhone() != null) {
-            user.setPhone(req.getPhone());
-        }
-        userRepository.save(user);
-
-        return toResponse(saved);
-    }
-
-    @Transactional
-    public InternProfileResponse updateForCurrentUser(InternProfileRequest req) {
-        if (req.getStartDate() != null && req.getEndDate() != null && req.getStartDate().isAfter(req.getEndDate())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "startDate must be <= endDate");
-        }
-
-        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(principal)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found: " + principal));
-
-        InternProfile ip = internProfileRepository.findByUser_Id(user.getId())
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
-                        "Intern profile not found for user: " + principal));
-
-        // update user fields
-        String newEmail = req.getEmail().trim().toLowerCase();
-        if (!newEmail.equalsIgnoreCase(user.getEmail()) && userRepository.existsByEmail(newEmail)) {
-            throw new ApiException(HttpStatus.CONFLICT, "Email already exists");
-        }
-        user.setEmail(newEmail);
-        user.setFullName(req.getFullName().trim());
-        user.setPhone(req.getPhone());
-        userRepository.save(user);
-
-        ip.setStudentCode(req.getStudentCode());
-        ip.setDob(req.getDob());
-        ip.setUniversity(req.getUniversity());
-        ip.setMajor(req.getMajor());
-        ip.setPhone(req.getPhone());
-        ip.setAddress(req.getAddress());
-        ip.setGpa(req.getGpa());
-        ip.setCvUrl(req.getCvUrl());
-        ip.setStartDate(req.getStartDate());
-        ip.setEndDate(req.getEndDate());
-
-        InternProfile saved = internProfileRepository.save(ip);
-        return toResponse(saved);
-    }
-
-    @Transactional
-    public InternProfileResponse updateIntern(Long id, InternProfileRequest req) {
-        if (req.getStartDate() != null && req.getEndDate() != null && req.getStartDate().isAfter(req.getEndDate())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "startDate must be <= endDate");
-        }
-
-        InternProfile ip = internProfileRepository.findById(id)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern not found: " + id));
-
-        User user = ip.getUser();
-
-        String newEmail = req.getEmail().trim().toLowerCase();
-        if (!newEmail.equalsIgnoreCase(user.getEmail()) && userRepository.existsByEmail(newEmail)) {
-            throw new ApiException(HttpStatus.CONFLICT, "Email already exists");
-        }
-
-        user.setEmail(newEmail);
-        user.setFullName(req.getFullName().trim());
-        user.setPhone(req.getPhone());
-        userRepository.save(user);
-
-        ip.setStudentCode(req.getStudentCode());
-        ip.setDob(req.getDob());
-        ip.setUniversity(req.getUniversity());
-        ip.setMajor(req.getMajor());
-        ip.setPhone(req.getPhone());
-        ip.setAddress(req.getAddress());
-        ip.setGpa(req.getGpa());
-        ip.setCvUrl(req.getCvUrl());
-        ip.setStartDate(req.getStartDate());
-        ip.setEndDate(req.getEndDate());
-
-        InternProfile saved = internProfileRepository.save(ip);
-        return toResponse(saved);
-    }
-
-    @Transactional(readOnly = true)
-    public InternProfileResponse getInternById(Long id) {
-        InternProfile ip = internProfileRepository.findById(id)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern not found: " + id));
-        return toResponse(ip);
+        return mapToResponse(profile);
     }
 
     @Transactional
     public void deleteIntern(Long id) {
-        InternProfile ip = intern_profile_or_404(id);
-        internProfileRepository.delete(ip);
-        userRepository.delete(ip.getUser());
+        delete(id);
+    }
+
+    @Transactional(readOnly = true)
+    public InternProfileResponse getInternProfileById(Long id) {
+        InternProfile profile = internProfileRepository.findByIdWithUser(id)
+                .orElseThrow(() -> new RuntimeException("Intern profile not found: " + id));
+        return mapToResponse(profile);
+    }
+
+    @Transactional(readOnly = true)
+    public InternProfileResponse getInternProfileByUserId(Long userId) {
+        InternProfile profile = internProfileRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new RuntimeException("Intern profile not found for user: " + userId));
+        return mapToResponse(profile);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!internProfileRepository.existsById(id)) {
+            throw new NotFoundException("Intern profile", id);
+        }
+        internProfileRepository.deleteById(id);
+        log.info("Deleted intern profile: {}", id);
+    }
+
+    @Transactional(readOnly = true)
+    public InternProfileResponse getInternProfile(Long id) {
+        InternProfile profile = internProfileRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Intern profile not found"));
+        return mapToResponse(profile);
+    }
+
+    @Transactional(readOnly = true)
+    public InternProfileResponse getMyProfile(Long userId) {
+        InternProfile profile = internProfileRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Intern profile not found"));
+        return mapToResponse(profile);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InternProfileResponse> searchInterns(InternSearchCriteria criteria, Pageable pageable) {
+        Specification<InternProfile> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (criteria.getUniversity() != null && !criteria.getUniversity().trim().isEmpty()) {
+                predicates.add(cb.equal(root.get("university"), criteria.getUniversity()));
+            }
+
+            if (criteria.getMajor() != null && !criteria.getMajor().trim().isEmpty()) {
+                predicates.add(cb.equal(root.get("major"), criteria.getMajor()));
+            }
+
+            if (criteria.getMinGpa() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("gpa"), criteria.getMinGpa()));
+            }
+
+            if (criteria.getMaxGpa() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("gpa"), criteria.getMaxGpa()));
+            }
+
+            if (criteria.getMentorId() != null) {
+                predicates.add(cb.equal(root.get("mentor").get("id"), criteria.getMentorId()));
+            }
+
+            if (criteria.getKeyword() != null && !criteria.getKeyword().trim().isEmpty()) {
+                String likePattern = "%" + criteria.getKeyword().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("user").get("fullName")), likePattern),
+                        cb.like(cb.lower(root.get("user").get("email")), likePattern),
+                        cb.like(cb.lower(root.get("studentCode")), likePattern)));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return internProfileRepository.findAll(spec, pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
@@ -238,75 +211,188 @@ public class InternProfileService {
         return internProfileRepository.findAllMajors();
     }
 
-    private InternProfile intern_profile_or_404(Long id) {
-        return internProfileRepository.findById(id)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern not found: " + id));
+    @Transactional
+    public void deleteInternProfile(Long id) {
+        InternProfile profile = internProfileRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Intern profile not found: " + id));
+
+        internProfileRepository.delete(profile);
+        log.info("Deleted intern profile: {}", id);
     }
 
-    private InternProfileResponse toResponse(InternProfile ip) {
-        InternProfileResponse r = new InternProfileResponse();
-        r.setInternId(ip.getId());
-        User u = ip.getUser();
-        r.setUserId(u != null ? u.getId() : null);
-        if (u != null) {
-            r.setFullName(u.getFullName());
-            r.setEmail(u.getEmail());
-            // prefer profile phone if present
-            r.setPhone(ip.getPhone() != null ? ip.getPhone() : u.getPhone());
-            r.setCreatedAt(u.getCreatedAt());
-            r.setUpdatedAt(u.getUpdatedAt());
-        }
-        r.setStudentCode(ip.getStudentCode());
-        r.setDob(ip.getDob());
-        r.setUniversity(ip.getUniversity());
-        r.setMajor(ip.getMajor());
-        r.setAddress(ip.getAddress());
-        r.setGpa(ip.getGpa());
-        r.setCvUrl(ip.getCvUrl());
-        r.setStartDate(ip.getStartDate());
-        r.setEndDate(ip.getEndDate());
+    private InternProfileResponse mapToResponse(InternProfile profile) {
+        return InternProfileResponse.builder()
+                .id(profile.getId())
+                .userId(profile.getUser().getId())
+                .email(profile.getUser().getEmail())
+                .fullName(profile.getUser().getFullName())
+                .studentCode(profile.getStudentCode())
+                .dob(profile.getDob())
+                .university(profile.getUniversity())
+                .major(profile.getMajor())
+                .phone(profile.getPhone())
+                .address(profile.getAddress())
+                .gpa(profile.getGpa())
+                .cvUrl(profile.getCvUrl())
+                .startDate(profile.getStartDate())
+                .endDate(profile.getEndDate())
+                .mentorId(profile.getMentor() != null ? profile.getMentor().getId() : null)
+                .mentorName(profile.getMentor() != null ? profile.getMentor().getUser().getFullName() : null)
+                .createdAt(profile.getCreatedAt())
+                .updatedAt(profile.getUpdatedAt())
+                .build();
+    }
 
-        // Priority 1: Direct mentor assignment
-        Mentor mentor = ip.getMentor();
+    @Transactional(readOnly = true)
+    public Page<InternProfileResponse> search(String university, String major, String keyword,
+            int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Long mentorId = null;
-        if (mentor != null) {
-            mentorId = mentor.getId();
-            r.setMentor(toMentorDto(mentor));
-        } else {
-            // Priority 2: Fallback to Group Mentor (Legacy/Alternative)
-            var gmOpt = groupMemberRepository.findFirstByIntern_IdAndLeftAtIsNull(ip.getId());
-            if (gmOpt.isPresent()) {
-                mentorId = gmOpt.get().getGroup().getMentorId();
-                if (mentorId != null) {
-                    mentorRepository.findById(mentorId).ifPresent(m -> r.setMentor(toMentorDto(m)));
-                }
+        Specification<InternProfile> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (university != null && !university.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("university")), "%" + university.toLowerCase() + "%"));
             }
-        }
 
-        r.setMentorId(mentorId);
+            if (major != null && !major.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("major")), "%" + major.toLowerCase() + "%"));
+            }
 
-        return r;
+            if (keyword != null && !keyword.isBlank()) {
+                String likePattern = "%" + keyword.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("user").get("fullName")), likePattern),
+                        cb.like(cb.lower(root.get("user").get("email")), likePattern),
+                        cb.like(cb.lower(root.get("studentCode")), likePattern)));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return internProfileRepository.findAll(spec, pageable)
+                .map(this::toResponse);
     }
 
-    private MentorResponseDto toMentorDto(Mentor m) {
-        User u = m.getUser();
-        Department d = m.getDepartment();
+    @Transactional(readOnly = true)
+    public InternProfileResponse getById(Long id) {
+        InternProfile profile = internProfileRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Intern profile", id));
+        return toResponse(profile);
+    }
 
-        UserSummaryDto userDto = null;
-        if (u != null) {
-            userDto = new UserSummaryDto(u.getId(), u.getFullName(), u.getEmail());
+    @Transactional
+    public InternProfileResponse updateMyProfile(InternProfileRequest request, String email) {
+        InternProfile profile = internProfileRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Intern profile not found"));
+        updateProfileData(profile, request);
+        return mapToResponse(internProfileRepository.save(profile));
+    }
+
+    private void updateProfileData(InternProfile profile, InternProfileRequest request) {
+        if (request.getStudentCode() != null)
+            profile.setStudentCode(request.getStudentCode());
+        if (request.getDob() != null)
+            profile.setDob(request.getDob());
+        if (request.getUniversity() != null)
+            profile.setUniversity(request.getUniversity());
+        if (request.getMajor() != null)
+            profile.setMajor(request.getMajor());
+        if (request.getPhone() != null)
+            profile.setPhone(request.getPhone());
+        if (request.getAddress() != null)
+            profile.setAddress(request.getAddress());
+        if (request.getGpa() != null)
+            profile.setGpa(request.getGpa());
+        if (request.getStartDate() != null)
+            profile.setStartDate(request.getStartDate());
+        if (request.getEndDate() != null)
+            profile.setEndDate(request.getEndDate());
+
+        if (request.getMentorId() != null) {
+            Mentor mentor = mentorRepository.findById(request.getMentorId())
+                    .orElseThrow(() -> new RuntimeException("Mentor not found: " + request.getMentorId()));
+            profile.setMentor(mentor);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public InternProfileResponse getByUserId(Long userId) {
+        InternProfile profile = internProfileRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new NotFoundException("Intern profile not found for user: " + userId));
+        return toResponse(profile);
+    }
+
+    private InternProfileResponse toResponse(InternProfile profile) {
+        InternProfileResponse response = new InternProfileResponse();
+        response.setId(profile.getId());
+        response.setUserId(profile.getUser().getId());
+        response.setEmail(profile.getUser().getEmail());
+        response.setFullName(profile.getUser().getFullName());
+        response.setPhone(profile.getUser().getPhone());
+        response.setStudentCode(profile.getStudentCode());
+        response.setDob(profile.getDob());
+        response.setUniversity(profile.getUniversity());
+        response.setMajor(profile.getMajor());
+        response.setAddress(profile.getAddress());
+        response.setGpa(profile.getGpa());
+        response.setCvUrl(profile.getCvUrl());
+        response.setStartDate(profile.getStartDate());
+        response.setEndDate(profile.getEndDate());
+
+        if (profile.getMentor() != null) {
+            response.setMentorId(profile.getMentor().getId());
+            response.setMentorName(profile.getMentor().getUser().getFullName());
         }
 
-        DepartmentSummaryDto deptDto = null;
-        if (d != null) {
-            deptDto = new DepartmentSummaryDto(d.getId(), d.getCode(), d.getName());
-        }
+        response.setCreatedAt(profile.getCreatedAt());
+        response.setUpdatedAt(profile.getUpdatedAt());
 
-        return new MentorResponseDto(
-                m.getId(),
-                m.getTitle(),
-                userDto,
-                deptDto);
+        return response;
+    }
+
+    @Transactional
+    public void assignMentorByUserId(Long internId, Long mentorUserId) {
+        InternProfile profile = internProfileRepository.findById(internId)
+                .orElseThrow(() -> new NotFoundException("Intern profile", internId));
+
+        if (mentorUserId == null) {
+            profile.setMentor(null);
+        } else {
+            // Find Mentor profile OR auto-create if user is MENTOR but profile missing
+            Mentor mentor = mentorRepository.findByUser_Id(mentorUserId)
+                    .orElseGet(() -> {
+                        // Check if user exists and should have a profile
+                        User user = userRepository.findById(mentorUserId)
+                                .orElseThrow(() -> new NotFoundException("User not found", mentorUserId));
+
+                        boolean isMentorRole = user.getRoles().stream()
+                                .anyMatch(r -> "MENTOR".equalsIgnoreCase(r.getCode()));
+
+                        if (isMentorRole) {
+                            log.warn("Mentor profile missing for user {}, auto-creating...", mentorUserId);
+                            Mentor newMentor = new Mentor();
+                            newMentor.setUser(user);
+                            newMentor.setTitle("Mentor"); // Default title
+                            return mentorRepository.save(newMentor);
+                        } else {
+                            throw new NotFoundException("Mentor profile for user", mentorUserId);
+                        }
+                    });
+
+            profile.setMentor(mentor);
+        }
+        internProfileRepository.save(profile);
+        log.info("Assigned mentor (User ID: {}) to intern {}", mentorUserId, internId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.example.backend.dto.InternCountStatDto> getInternStatsByUniversity() {
+        return internProfileRepository.countInternsGroupedByUniversity();
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.example.backend.dto.InternCountStatDto> getInternStatsByMajor() {
+        return internProfileRepository.countInternsGroupedByMajor();
     }
 }

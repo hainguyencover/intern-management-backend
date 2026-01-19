@@ -1,12 +1,13 @@
 package com.example.backend.dto.request;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
-@Getter
-@Setter
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class AssignInternRequest {
-    @NotNull
+
+    @NotNull(message = "Intern ID is required")
     private Long internId;
 }

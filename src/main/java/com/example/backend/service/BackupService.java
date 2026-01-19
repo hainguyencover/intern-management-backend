@@ -1,25 +1,25 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.response.BackupJobResponse;
 import com.example.backend.entity.BackupJob;
 import com.example.backend.entity.User;
 import com.example.backend.repository.BackupJobRepository;
+import com.example.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,12 +27,10 @@ import java.util.stream.Collectors;
 public class BackupService {
 
     private final BackupJobRepository backupJobRepository;
+    private final UserRepository userRepository;
 
-    @Value("${app.backup.path:./backups}")
-    private String backupPath;
-
-    @Value("${app.backup.retention-days:7}")
-    private int retentionDays;
+    @Value("${app.backup.dir:backups}")
+    private String backupDir;
 
     @Value("${spring.datasource.url}")
     private String dbUrl;
@@ -44,124 +42,111 @@ public class BackupService {
     private String dbPassword;
 
     @Transactional
-    public BackupJobResponse runBackupManually(User user) {
+    public BackupJob runManualBackup(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+
         return executeBackup("MANUAL", user);
     }
 
-    @Scheduled(cron = "${app.backup.cron:0 0 2 * * *}") // 2:00 AM daily
+    @Scheduled(cron = "${app.backup.cron:0 0 2 * * *}") // Default: 2:00 AM daily
     @Transactional
     public void runScheduledBackup() {
-        log.info("Starting scheduled backup...");
+        log.info("Starting scheduled backup");
         executeBackup("SCHEDULED", null);
-        cleanOldBackups();
     }
 
-    private BackupJobResponse executeBackup(String type, User user) {
+    private BackupJob executeBackup(String type, User createdBy) {
         BackupJob job = new BackupJob();
         job.setType(type);
         job.setStatus("RUNNING");
         job.setStartedAt(LocalDateTime.now());
-        job.setCreatedBy(user);
+        job.setCreatedBy(createdBy);
+
         job = backupJobRepository.save(job);
 
         try {
-            // Create backup directory if not exists
-            Path backupDir = Paths.get(backupPath);
-            if (!Files.exists(backupDir)) {
-                Files.createDirectories(backupDir);
+            Path backupPath = Paths.get(backupDir);
+            if (!Files.exists(backupPath)) {
+                Files.createDirectories(backupPath);
             }
 
-            // Generate filename
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-            String filename = String.format("backup_%s.sql", timestamp);
-            String filePath = Paths.get(backupPath, filename).toString();
+            String filename = "backup_" + timestamp + ".sql";
+            String filePath = backupPath.resolve(filename).toString();
 
-            // Extract database name from URL
-            String dbName = extractDbName(dbUrl);
+            // Extract database name from JDBC URL
+            String dbName = extractDatabaseName(dbUrl);
 
             // Execute mysqldump
             ProcessBuilder pb = new ProcessBuilder(
                     "mysqldump",
-                    "-u", dbUsername,
-                    "-p" + dbPassword,
-                    "--single-transaction",
-                    "--quick",
-                    "--lock-tables=false",
+                    "--user=" + dbUsername,
+                    "--password=" + dbPassword,
+                    "--result-file=" + filePath,
                     dbName
             );
-            pb.redirectOutput(new File(filePath));
-            pb.redirectErrorStream(true);
 
             Process process = pb.start();
             int exitCode = process.waitFor();
 
             if (exitCode == 0) {
-                // Success
-                File backupFile = new File(filePath);
+                long fileSize = Files.size(Paths.get(filePath));
+
                 job.setStatus("SUCCESS");
                 job.setFilePath(filePath);
-                job.setFileSize(backupFile.length());
+                job.setFileSize(fileSize);
+                job.setFinishedAt(LocalDateTime.now());
                 job.setMessage("Backup completed successfully");
+
+                log.info("Backup completed: {}", filename);
             } else {
-                job.setStatus("FAILED");
-                job.setMessage("mysqldump failed with exit code: " + exitCode);
-            }
-
-        } catch (IOException | InterruptedException e) {
-            log.error("Backup failed", e);
-            job.setStatus("FAILED");
-            job.setMessage("Error: " + e.getMessage());
-        } finally {
-            job.setFinishedAt(LocalDateTime.now());
-            backupJobRepository.save(job);
-        }
-
-        return mapToResponse(job);
-    }
-
-    private void cleanOldBackups() {
-        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(retentionDays);
-        List<BackupJob> oldJobs = backupJobRepository.findByStartedAtBeforeAndStatus(cutoffDate, "SUCCESS");
-
-        for (BackupJob job : oldJobs) {
-            try {
-                if (job.getFilePath() != null) {
-                    Files.deleteIfExists(Paths.get(job.getFilePath()));
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                StringBuilder errorMsg = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    errorMsg.append(line).append("\n");
                 }
-                job.setStatus("DELETED");
-                backupJobRepository.save(job);
-            } catch (IOException e) {
-                log.error("Failed to delete old backup: " + job.getFilePath(), e);
+
+                job.setStatus("FAILED");
+                job.setFinishedAt(LocalDateTime.now());
+                job.setMessage("Backup failed: " + errorMsg.toString());
+
+                log.error("Backup failed: {}", errorMsg.toString());
             }
+
+        } catch (Exception e) {
+            job.setStatus("FAILED");
+            job.setFinishedAt(LocalDateTime.now());
+            job.setMessage("Backup failed: " + e.getMessage());
+
+            log.error("Backup failed", e);
         }
+
+        return backupJobRepository.save(job);
     }
 
-    public List<BackupJobResponse> getBackupHistory() {
-        return backupJobRepository.findTop30ByOrderByStartedAtDesc().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    @Transactional(readOnly = true)
+    public Page<BackupJob> getBackupHistory(Pageable pageable) {
+        return backupJobRepository.findAllOrderByStartedAtDesc(pageable);
     }
 
-    private BackupJobResponse mapToResponse(BackupJob job) {
-        BackupJobResponse response = new BackupJobResponse();
-        response.setId(job.getId());
-        response.setType(job.getType());
-        response.setStatus(job.getStatus());
-        response.setFilePath(job.getFilePath());
-        response.setFileSize(job.getFileSize());
-        response.setStartedAt(job.getStartedAt());
-        response.setFinishedAt(job.getFinishedAt());
-        response.setMessage(job.getMessage());
-        return response;
+    @Transactional
+    public void cleanupOldBackups(int retentionDays) {
+        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(retentionDays);
+        backupJobRepository.deleteOldSuccessfulBackups(cutoffDate);
+        log.info("Cleaned up backups older than {} days", retentionDays);
     }
 
-    private String extractDbName(String url) {
-        // Extract database name from jdbc:mysql://localhost:3306/ims_db
-        int lastSlash = url.lastIndexOf('/');
-        int questionMark = url.indexOf('?', lastSlash);
+    private String extractDatabaseName(String jdbcUrl) {
+        // Example: jdbc:mysql://localhost:3306/ims_db
+        int lastSlash = jdbcUrl.lastIndexOf('/');
+        int questionMark = jdbcUrl.indexOf('?', lastSlash);
+
         if (questionMark > 0) {
-            return url.substring(lastSlash + 1, questionMark);
+            return jdbcUrl.substring(lastSlash + 1, questionMark);
+        } else {
+            return jdbcUrl.substring(lastSlash + 1);
         }
-        return url.substring(lastSlash + 1);
     }
 }

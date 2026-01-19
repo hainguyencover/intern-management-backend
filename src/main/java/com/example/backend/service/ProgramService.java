@@ -1,186 +1,184 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.request.ProgramCreateRequest;
-import com.example.backend.dto.request.ProgramUpdateRequest;
+import com.example.backend.dto.request.CreateProgramRequest;
 import com.example.backend.dto.response.ProgramResponse;
-import com.example.backend.dto.request.ProgramUpsertRequest;
-import com.example.backend.entity.Department;
-import com.example.backend.entity.Program;
+import com.example.backend.entity.*;
 import com.example.backend.enums.ProgramStatus;
-import com.example.backend.exception.BadRequestException;
 import com.example.backend.exception.NotFoundException;
-import com.example.backend.repository.DepartmentRepository;
-import com.example.backend.repository.ProgramRepository;
+import com.example.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProgramService {
 
     private final ProgramRepository programRepository;
     private final DepartmentRepository departmentRepository;
+    private final ProgramGroupRepository groupRepository;
+    private final GroupMemberRepository memberRepository;
 
-    @Transactional
-    public ProgramResponse create(ProgramUpsertRequest req) {
-        validateDates(req.startDate(), req.endDate());
-
-        Program p = new Program();
-        p.setName(req.name());
-        p.setDescription(req.description());
-        p.setStartDate(req.startDate());
-        p.setEndDate(req.endDate());
-        p.setStatus(req.status() != null ? req.status() : ProgramStatus.DRAFT);
-
-        p = programRepository.save(p);
-        return toResponse(p);
-    }
-
-    @Transactional
-    public ProgramResponse update(Long id, ProgramUpsertRequest req) {
-        validateDates(req.startDate(), req.endDate());
-
-        Program p = programRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Program not found: " + id));
-
-        // rule MVP: FINISHED không cho sửa
-        if (p.getStatus() == ProgramStatus.CLOSED) {
-            throw new BadRequestException("Program is CLOSED, cannot be updated.");
-        }
-
-        p.setName(req.name());
-        p.setDescription(req.description());
-        p.setStartDate(req.startDate());
-        p.setEndDate(req.endDate());
-        if (req.status() != null) p.setStatus(req.status());
-
-        return toResponse(p);
+    @Transactional(readOnly = true)
+    public Page<ProgramResponse> search(Long departmentId, ProgramStatus status,
+            String keyword, Pageable pageable) {
+        return programRepository.search(departmentId, status, keyword, pageable)
+                .map(p -> {
+                    ProgramResponse res = new ProgramResponse(p);
+                    res.setTotalGroups((long) groupRepository.findByProgramId(p.getId()).size());
+                    return res;
+                });
     }
 
     @Transactional(readOnly = true)
-    public ProgramResponse get(Long id) {
-        return programRepository.findById(id).map(this::toResponse)
-                .orElseThrow(() -> new NotFoundException("Program not found: " + id));
+    public ProgramResponse getById(Long id) {
+        Program program = programRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Program not found with id: " + id));
+        ProgramResponse response = new ProgramResponse(program);
+        // Đếm groups và interns
+        response.setTotalGroups((long) groupRepository.findByProgramId(id).size());
+        response.setTotalInterns(memberRepository.countByGroup_ProgramId(id));
+        return response;
     }
-
-    @Transactional(readOnly = true)
-    public List<ProgramResponse> list() {
-        return programRepository.findAll().stream().map(this::toResponse).toList();
-    }
-
-    private void validateDates(LocalDate start, LocalDate end) {
-        if (start == null || end == null) {
-            throw new BadRequestException("startDate/endDate is required");
-        }
-        if (start.isAfter(end)) {
-            throw new BadRequestException("startDate must be <= endDate");
-        }
-    }
-
 
     @Transactional
-    public ProgramResponse createProgram(ProgramCreateRequest req) {
-        Department dept = departmentRepository.findById(req.getDepartmentId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Department not found"));
+    public ProgramResponse createProgram(CreateProgramRequest request) {
+        Department department = departmentRepository.findById(request.getDepartmentId())
+                .orElseThrow(() -> new RuntimeException("Department not found: " + request.getDepartmentId()));
 
-        validateDate(req.getStartDate(), req.getEndDate());
+        if (request.getStartDate().isAfter(request.getEndDate())) {
+            throw new RuntimeException("Start date must be before end date");
+        }
 
         Program program = new Program();
-        program.setDepartment(dept);
-        program.setName(req.getName().trim());
-        program.setDescription(req.getDescription());
-        program.setStartDate(req.getStartDate());
-        program.setEndDate(req.getEndDate());
+        program.setDepartment(department);
+        program.setName(request.getName());
+        program.setDescription(request.getDescription());
+        program.setStartDate(request.getStartDate());
+        program.setEndDate(request.getEndDate());
         program.setStatus(ProgramStatus.DRAFT);
 
-        Program saved = programRepository.save(program);
-        return toResponse(saved);
-    }
+        program = programRepository.save(program);
+        log.info("Created program: {}", program.getName());
 
-    @Transactional(readOnly = true)
-    public Page<ProgramResponse> listPrograms(Long departmentId, ProgramStatus status, int page, int size) {
-        PageRequest pr = PageRequest.of(page, size);
-
-        Page<Program> result;
-        if (departmentId != null && status != null) {
-            result = programRepository.findAllByDepartment_IdAndStatus(departmentId, status, pr);
-        } else if (departmentId != null) {
-            result = programRepository.findAllByDepartment_Id(departmentId, pr);
-        } else if (status != null) {
-            result = programRepository.findAllByStatus(status, pr);
-        } else {
-            result = programRepository.findAll(pr);
-        }
-
-        return result.map(this::toResponse);
-    }
-
-    @Transactional(readOnly = true)
-    public ProgramResponse getProgram(Long id) {
-        Program program = programRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Program not found"));
-        return toResponse(program);
+        return mapToResponse(program);
     }
 
     @Transactional
-    public ProgramResponse updateProgram(Long id, ProgramUpdateRequest req) {
-        Program program = programRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Program not found"));
+    public ProgramResponse updateProgram(Long id, CreateProgramRequest request) {
+        Program program = programRepository.findByIdWithDepartment(id)
+                .orElseThrow(() -> new RuntimeException("Program not found: " + id));
 
-        if (req.getDepartmentId() != null) {
-            Department dept = departmentRepository.findById(req.getDepartmentId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Department not found"));
-            program.setDepartment(dept);
+        if (request.getDepartmentId() != null) {
+            Department department = departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new RuntimeException("Department not found: " + request.getDepartmentId()));
+            program.setDepartment(department);
         }
 
-        validateDate(req.getStartDate(), req.getEndDate());
+        if (request.getName() != null) {
+            program.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            program.setDescription(request.getDescription());
+        }
+        if (request.getStartDate() != null) {
+            program.setStartDate(request.getStartDate());
+        }
+        if (request.getEndDate() != null) {
+            program.setEndDate(request.getEndDate());
+        }
 
-        program.setName(req.getName().trim());
-        program.setDescription(req.getDescription());
-        program.setStartDate(req.getStartDate());
-        program.setEndDate(req.getEndDate());
+        if (program.getStartDate().isAfter(program.getEndDate())) {
+            throw new RuntimeException("Start date must be before end date");
+        }
 
-        return toResponse(programRepository.save(program));
+        program = programRepository.save(program);
+        log.info("Updated program: {}", id);
+
+        return mapToResponse(program);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProgramResponse> getAll(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return programRepository.findAll(pageable).map(this::mapToResponse);
     }
 
     @Transactional
-    // Optional: publish DRAFT -> ACTIVE (vì enum hiện tại là DRAFT/ACTIVE/CLOSED)
-    public ProgramResponse publishProgram(Long id) {
+    public ProgramResponse updateProgramStatus(Long id, ProgramStatus status) {
         Program program = programRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Program not found"));
+                .orElseThrow(() -> new RuntimeException("Program not found: " + id));
 
-        if (program.getStatus() != ProgramStatus.DRAFT) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only DRAFT program can be published");
-        }
-        program.setStatus(ProgramStatus.ACTIVE);
+        program.setStatus(status);
+        program = programRepository.save(program);
 
-        return toResponse(programRepository.save(program));
+        log.info("Updated program {} status to {}", id, status);
+        return mapToResponse(program);
     }
 
-    private void validateDate(LocalDate start, LocalDate end) {
-        if (start != null && end != null && start.isAfter(end)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate must be <= endDate");
-        }
+    @Transactional(readOnly = true)
+    public ProgramResponse getProgramById(Long id) {
+        Program program = programRepository.findByIdWithDepartment(id)
+                .orElseThrow(() -> new RuntimeException("Program not found: " + id));
+        return mapToResponse(program);
     }
 
-    private ProgramResponse toResponse(Program p) {
-        return new ProgramResponse(
-                p.getId(),
-                p.getDepartment() != null ? p.getDepartment().getId() : null,
-                p.getDepartment() != null ? p.getDepartment().getName() : "Unknown Department",
-                p.getName(),
-                p.getDescription(),
-                p.getStartDate(),
-                p.getEndDate(),
-                p.getStatus()
-        );
+    @Transactional(readOnly = true)
+    public Page<ProgramResponse> getAllPrograms(Pageable pageable) {
+        return programRepository.findAll(pageable)
+                .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProgramResponse> getProgramsByStatus(ProgramStatus status, Pageable pageable) {
+        return programRepository.findByStatus(status, pageable)
+                .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProgramResponse> getProgramsByDepartmentId(Long departmentId) {
+        return programRepository.findByDepartmentId(departmentId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProgramResponse> getCurrentlyActivePrograms() {
+        return programRepository.findCurrentlyActive().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteProgram(Long id) {
+        Program program = programRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Program not found: " + id));
+
+        programRepository.delete(program);
+        log.info("Deleted program: {}", id);
+    }
+
+    private ProgramResponse mapToResponse(Program program) {
+        ProgramResponse response = new ProgramResponse();
+        response.setId(program.getId());
+        response.setName(program.getName());
+        response.setDepartmentId(program.getDepartment().getId());
+        response.setDepartmentName(program.getDepartment().getName());
+        response.setDescription(program.getDescription());
+        response.setStartDate(program.getStartDate());
+        response.setEndDate(program.getEndDate());
+        response.setStatus(ProgramStatus.valueOf(program.getStatus().name()));
+        response.setCreatedAt(program.getCreatedAt());
+        response.setUpdatedAt(program.getUpdatedAt());
+        return response;
     }
 }

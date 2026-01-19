@@ -3,7 +3,6 @@ package com.example.backend.security;
 import com.example.backend.entity.Permission;
 import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
-import com.example.backend.enums.UserStatus;
 import com.example.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,11 +51,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         log.info("User {} has authorities: {}", normalized, authorities);
 
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail())
-                .password(user.getPasswordHash())
-                .authorities(authorities)
-                .disabled(user.getStatus() != UserStatus.ACTIVE)
-                .build();
+        return new CustomUserDetails(user);
     }
 }

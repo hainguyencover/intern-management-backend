@@ -1,16 +1,41 @@
 package com.example.backend.dto.response;
 
 import com.example.backend.enums.ProgramStatus;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
-public record ProgramResponse(
-        Long id,
-        Long departmentId,
-        String departmentName,
-        String name,
-        String description,
-        LocalDate startDate,
-        LocalDate endDate,
-        ProgramStatus status
-) {}
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProgramResponse {
+
+    private Long id;
+    private Long departmentId;
+    private String departmentName;
+    private String name;
+    private String description;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private ProgramStatus status;
+    private Long totalGroups;
+    private Long totalInterns;
+    private java.time.LocalDateTime createdAt;
+    private java.time.LocalDateTime updatedAt;
+
+    // Constructor từ entity
+    public ProgramResponse(com.example.backend.entity.Program program) {
+        this.id = program.getId();
+        this.departmentId = program.getDepartment() != null ? program.getDepartment().getId() : null;
+        this.departmentName = program.getDepartment() != null ? program.getDepartment().getName() : null;
+        this.name = program.getName();
+        this.description = program.getDescription();
+        this.startDate = program.getStartDate();
+        this.endDate = program.getEndDate();
+        this.status = program.getStatus();
+        this.createdAt = program.getCreatedAt();
+        this.updatedAt = program.getUpdatedAt();
+    }
+}

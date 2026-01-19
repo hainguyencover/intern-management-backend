@@ -11,10 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-        name = "attendances",
-        indexes = @Index(name = "idx_attendances_date", columnList = "date")
-)
+@Table(name = "attendances", indexes = @Index(name = "idx_attendances_date", columnList = "date"))
 public class Attendance extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -35,4 +32,7 @@ public class Attendance extends BaseEntity {
 
     @Column(length = 1000)
     private String note;
+
+    @Column(length = 20)
+    private String status; // PRESENT, LATE, ABSENT, LEAVE
 }

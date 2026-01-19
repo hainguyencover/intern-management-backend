@@ -1,219 +1,225 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.request.AssignInternRequest;
-import com.example.backend.dto.request.CreateGroupRequest;
-import com.example.backend.dto.request.ProgramGroupCreateRequest;
 import com.example.backend.dto.response.GroupResponse;
-import com.example.backend.dto.response.MemberResponse;
-import com.example.backend.dto.response.ProgramGroupResponse;
-import com.example.backend.entity.GroupMember;
-import com.example.backend.entity.InternProfile;
-import com.example.backend.entity.Mentor;
-import com.example.backend.entity.Program;
-import com.example.backend.entity.ProgramGroup;
-import com.example.backend.enums.ApplicationStatus;
+import com.example.backend.entity.*;
 import com.example.backend.enums.GroupStatus;
-import com.example.backend.exception.NotFoundException;
 import com.example.backend.repository.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.util.StringUtils;
 
+import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProgramGroupService {
 
-    private final ProgramGroupRepository programGroupRepository;
-    private final GroupMemberRepository groupMemberRepository;
+    private final ProgramGroupRepository groupRepository;
     private final ProgramRepository programRepository;
+    private final GroupMemberRepository memberRepository;
     private final InternProfileRepository internProfileRepository;
-    private final MentorRepository mentorRepository;
-    private final ApplicationRepository applicationRepository;
 
-    /**
-     * API cũ: /api/program-groups
-     * -> Trả ProgramGroupResponse để không phá controller cũ
-     */
     @Transactional
-    public ProgramGroupResponse createGroup(ProgramGroupCreateRequest req) {
-        Program program = programRepository.findById(req.getProgramId())
-                .orElseThrow(() -> new NotFoundException("Program not found: " + req.getProgramId()));
-
-        // mentorId trong req hiện đang dùng để set group.mentorId
-        Mentor mentor = mentorRepository.findById(req.getMentorId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mentor not found"));
+    public GroupResponse createGroup(ProgramGroup request) {
+        Program program = programRepository.findById(request.getProgram().getId())
+                .orElseThrow(() -> new RuntimeException("Program not found: " + request.getProgram().getId()));
 
         ProgramGroup group = new ProgramGroup();
         group.setProgram(program);
-
-        // mentorId: bắt buộc
-        group.setMentorId(req.getMentorId());
-
-        // departmentId: ưu tiên req (nếu có), không thì lấy từ program.department
-        Long deptId = req.getDepartmentId() != null
-                ? req.getDepartmentId()
-                : (program.getDepartment() != null ? program.getDepartment().getId() : null);
-        group.setDepartmentId(deptId);
-
-        // name: nếu null/blank thì default
-        String name = (req.getName() == null || req.getName().isBlank())
-                ? ("Group - " + safeFullName(mentor))
-                : req.getName().trim();
-        group.setName(name);
-
+        group.setName(request.getName());
+        group.setDepartmentId(request.getDepartmentId());
+        group.setMentorId(request.getMentorId());
         group.setStatus(GroupStatus.ACTIVE);
 
-        ProgramGroup saved = programGroupRepository.save(group);
-        return toProgramGroupResponse(saved);
-    }
+        group = groupRepository.save(group);
+        log.info("Created program group: {}", group.getName());
 
-    /**
-     * API HR mới: /api/hr/programs/{programId}/groups
-     * -> Trả GroupResponse (có mentorName + memberCount)
-     */
-    @Transactional
-    public GroupResponse createGroupHr(Long programId, CreateGroupRequest req) {
-        ProgramGroupCreateRequest old = new ProgramGroupCreateRequest();
-        old.setProgramId(programId);
-        old.setMentorId(req.getMentorId());
-        old.setName(req.getName());
-        // departmentId optional: nếu bạn muốn set theo program thì để null
-        old.setDepartmentId(null);
-
-        // tạo group (tạo thật)
-        ProgramGroupResponse created = createGroup(old);
-
-        // trả về DTO HR (đủ info)
-        ProgramGroup g = programGroupRepository.findById(created.getId())
-                .orElseThrow(() -> new NotFoundException("Program group not found: " + created.getId()));
-
-        Mentor mentor = mentorRepository.findById(g.getMentorId()).orElse(null);
-        return toGroupResponse(g, mentor);
-    }
-
-    public List<GroupResponse> listGroups(Long programId) {
-        programRepository.findById(programId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Program not found"));
-
-        List<ProgramGroup> groups = programGroupRepository.findByProgram_Id(programId);
-
-        return groups.stream().map(g -> {
-            Mentor mentor = null;
-            if (g.getMentorId() != null) {
-                mentor = mentorRepository.findById(g.getMentorId()).orElse(null);
-            }
-            return toGroupResponse(g, mentor);
-        }).toList();
-    }
-
-    public List<MemberResponse> listMembers(Long groupId) {
-        ProgramGroup group = programGroupRepository.findById(groupId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
-
-        return groupMemberRepository.findActiveMembersByGroupId(group.getId())
-                .stream()
-                .map(gm -> MemberResponse.builder()
-                        .internId(gm.getIntern().getId())
-                        .internName(safeFullName(gm.getIntern()))
-                        .joinedAt(gm.getJoinedAt())
-                        .build())
-                .toList();
+        return mapToResponse(group);
     }
 
     @Transactional
-    public void assignIntern(Long groupId, AssignInternRequest req) {
-        ProgramGroup group = programGroupRepository.findById(groupId)
-                .orElseThrow(() -> new NotFoundException("Program group not found: " + groupId));
+    public void assignIntern(Long groupId, Long internId) {
+        ProgramGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found: " + groupId));
 
-        InternProfile intern = internProfileRepository.findById(req.getInternId())
-                .orElseThrow(() -> new NotFoundException("Intern not found: " + req.getInternId()));
+        InternProfile intern = internProfileRepository.findById(internId)
+                .orElseThrow(() -> new RuntimeException("Intern not found: " + internId));
 
-        // eligibility
-        boolean eligible = applicationRepository.existsByIntern_IdAndStatusIn(
-                intern.getId(),
-                Set.of(ApplicationStatus.APPROVED, ApplicationStatus.CONTRACT_SIGNED)
-        );
-        if (!eligible) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Intern is not eligible (Application must be APPROVED or CONTRACT_SIGNED)");
-        }
-
-        // chặn trùng trong group
-        if (groupMemberRepository.existsActiveInGroup(group.getId(), intern.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Intern already in this group");
-        }
-
-        // chặn trùng trong cùng program
-        Long programId = group.getProgram().getId();
-        if (groupMemberRepository.existsActiveInProgram(intern.getId(), programId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Intern already assigned to another group in this program");
+        if (memberRepository.existsByGroupIdAndInternId(groupId, internId)) {
+            throw new RuntimeException("Intern already assigned to this group");
         }
 
         GroupMember member = new GroupMember();
         member.setGroup(group);
         member.setIntern(intern);
         member.setJoinedAt(LocalDateTime.now());
-        member.setLeftAt(null);
 
-        groupMemberRepository.save(member);
+        memberRepository.save(member);
+        log.info("Assigned intern {} to group {}", internId, groupId);
     }
 
+    @Transactional(readOnly = true)
+    public List<GroupResponse> getGroupsByProgramId(Long programId) {
+        return groupRepository.findByProgramId(programId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<GroupResponse> search(Long programId, String statusStr, String keyword, Pageable pageable) {
+        Specification<ProgramGroup> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (programId != null) {
+                predicates.add(cb.equal(root.get("program").get("id"), programId));
+            }
+
+            if (StringUtils.hasText(keyword)) {
+                String likePattern = "%" + keyword.toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("name")), likePattern));
+            }
+
+            if (StringUtils.hasText(statusStr)) {
+                try {
+                    GroupStatus status = GroupStatus.valueOf(statusStr.toUpperCase());
+                    predicates.add(cb.equal(root.get("status"), status));
+                } catch (IllegalArgumentException e) {
+                    // Invalid status, ignore or maybe return empty?
+                    // For now, let's ignore checking status if it's invalid (like "SUBMITTED")
+                    log.warn("Invalid GroupStatus: {}", statusStr);
+                }
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return groupRepository.findAll(spec, pageable).map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public GroupResponse getGroupById(Long id) {
+        ProgramGroup group = groupRepository.findByIdWithProgram(id)
+                .orElseThrow(() -> new RuntimeException("Group not found: " + id));
+        return mapToResponse(group);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.example.backend.dto.response.GroupMemberResponse> getMembers(Long groupId) {
+        return memberRepository.findByGroupId(groupId).stream()
+                .map(member -> com.example.backend.dto.response.GroupMemberResponse.builder()
+                        .id(member.getId())
+                        .groupId(member.getGroup().getId())
+                        .internId(member.getIntern().getId())
+                        .internName(member.getIntern().getUser().getFullName())
+                        .studentCode(member.getIntern().getStudentCode())
+                        .joinedAt(member.getJoinedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public GroupResponse update(Long id, com.example.backend.dto.request.UpdateGroupRequest request) {
+        ProgramGroup group = groupRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Group not found: " + id));
+
+        if (request.getName() != null) {
+            group.setName(request.getName());
+        }
+        if (request.getMentorId() != null) {
+            group.setMentorId(request.getMentorId());
+        }
+        if (request.getStatus() != null) {
+            group.setStatus(request.getStatus());
+        }
+        if (request.getWorkStartTime() != null) {
+            group.setWorkStartTime(request.getWorkStartTime());
+        }
+        if (request.getWorkEndTime() != null) {
+            group.setWorkEndTime(request.getWorkEndTime());
+        }
+        if (request.getWorkDays() != null) {
+            group.setWorkDays(request.getWorkDays());
+        }
+
+        group = groupRepository.save(group);
+        log.info("Updated program group: {}", id);
+        return mapToResponse(group);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!groupRepository.existsById(id)) {
+            throw new RuntimeException("Group not found: " + id);
+        }
+        groupRepository.deleteById(id);
+        log.info("Deleted program group: {}", id);
+    }
+
+    @Transactional
+    public void assignInterns(Long groupId, List<Long> internIds) {
+        for (Long internId : internIds) {
+            try {
+                assignIntern(groupId, internId);
+            } catch (Exception e) {
+                log.warn("Failed to assign intern {} to group {}: {}", internId, groupId, e.getMessage());
+            }
+        }
+    }
+
+    @Transactional
     public void removeIntern(Long groupId, Long internId) {
-        ProgramGroup group = programGroupRepository.findById(groupId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+        GroupMember member = memberRepository.findByGroupIdAndInternId(groupId, internId)
+                .orElseThrow(() -> new RuntimeException("Member not found in group"));
 
-        GroupMember gm = groupMemberRepository.findActiveMembership(group.getId(), internId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Member not found in group"));
-
-        gm.setLeftAt(LocalDateTime.now());
-        groupMemberRepository.save(gm);
+        memberRepository.delete(member);
+        log.info("Removed intern {} from group {}", internId, groupId);
     }
 
-    private GroupResponse toGroupResponse(ProgramGroup g, Mentor mentor) {
-        long memberCount = groupMemberRepository.countActiveByGroupId(g.getId());
-        return GroupResponse.builder()
-                .id(g.getId())
-                .programId(g.getProgram().getId())
-                .departmentId(g.getDepartmentId())
-                .mentorId(g.getMentorId())
-                .mentorName(mentor == null ? null : safeFullName(mentor))
-                .name(g.getName())
-                .status(g.getStatus())
-                .memberCount(memberCount)
-                .build();
+    // Alias for controller calling getByProgramId
+    @Transactional(readOnly = true)
+    public List<GroupResponse> getByProgramId(Long programId) {
+        return getGroupsByProgramId(programId);
     }
 
-    private ProgramGroupResponse toProgramGroupResponse(ProgramGroup g) {
-        return ProgramGroupResponse.builder()
-                .id(g.getId())
-                .programId(g.getProgram().getId())
-                .name(g.getName())
-                .status(g.getStatus())
-                .departmentId(g.getDepartmentId())
-                .mentorId(g.getMentorId())
-                .build();
+    // Alias for controller calling getById
+    @Transactional(readOnly = true)
+    public GroupResponse getById(Long id) {
+        return getGroupById(id);
     }
 
-    private String safeFullName(Mentor mentor) {
-        try {
-            if (mentor != null && mentor.getUser() != null) return mentor.getUser().getFullName();
-        } catch (Exception ignored) {
-        }
-        return "Mentor#" + (mentor == null ? "null" : mentor.getId());
+    // Alias for controller calling create
+    @Transactional
+    public GroupResponse create(com.example.backend.dto.request.GroupRequest request) {
+        Program program = programRepository.findById(request.getProgramId())
+                .orElseThrow(() -> new RuntimeException("Program not found: " + request.getProgramId()));
+
+        ProgramGroup group = new ProgramGroup();
+        group.setProgram(program);
+        group.setName(request.getName());
+        group.setDepartmentId(request.getDepartmentId());
+        group.setMentorId(request.getMentorId());
+        group.setStatus(GroupStatus.ACTIVE);
+        group.setWorkStartTime(request.getWorkStartTime());
+        group.setWorkEndTime(request.getWorkEndTime());
+        group.setWorkDays(request.getWorkDays());
+
+        group = groupRepository.save(group);
+        log.info("Created program group: {}", group.getName());
+
+        return mapToResponse(group);
     }
 
-    private String safeFullName(InternProfile intern) {
-        try {
-            if (intern != null && intern.getUser() != null) return intern.getUser().getFullName();
-        } catch (Exception ignored) {
-        }
-        return "Intern#" + (intern == null ? "null" : intern.getId());
+    private GroupResponse mapToResponse(ProgramGroup group) {
+        return new GroupResponse(group);
     }
 }
