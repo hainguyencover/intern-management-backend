@@ -29,4 +29,13 @@ public class ProgramGroup extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private GroupStatus status;
+
+    @Column(name = "work_start_time")
+    private java.time.LocalTime workStartTime;
+
+    @Column(name = "work_end_time")
+    private java.time.LocalTime workEndTime;
+
+    @Column(name = "work_days", length = 100)
+    private String workDays; // Comma separated: MONDAY,TUESDAY...
 }

@@ -1,6 +1,5 @@
 package com.example.backend.controller;
 
-import com.example.backend.entity.Department;
 import com.example.backend.service.DepartmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,24 +18,30 @@ public class DepartmentController {
     private final DepartmentService departmentService;
 
     @GetMapping
-    public ResponseEntity<List<Department>> getAll() {
+    public ResponseEntity<List<com.example.backend.dto.response.DepartmentResponse>> getAll() {
         return ResponseEntity.ok(departmentService.getAllDepartments());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<com.example.backend.dto.response.DepartmentResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(departmentService.getDepartmentById(id));
+    }
+
     @PostMapping
-    public ResponseEntity<Department> create(@Valid @RequestBody com.example.backend.dto.request.DepartmentRequest req) {
-        return ResponseEntity.ok(departmentService.create(req));
+    public ResponseEntity<com.example.backend.dto.response.DepartmentResponse> create(
+            @Valid @RequestBody com.example.backend.dto.request.DepartmentRequest req) {
+        return ResponseEntity.ok(departmentService.createDepartment(req));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Department> update(@PathVariable Long id,
-                                             @Valid @RequestBody com.example.backend.dto.request.DepartmentRequest req) {
-        return ResponseEntity.ok(departmentService.update(id, req));
+    public ResponseEntity<com.example.backend.dto.response.DepartmentResponse> update(@PathVariable Long id,
+            @Valid @RequestBody com.example.backend.dto.request.DepartmentRequest req) {
+        return ResponseEntity.ok(departmentService.updateDepartment(id, req));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        departmentService.delete(id);
+        departmentService.deleteDepartment(id);
         return ResponseEntity.noContent().build();
     }
 }

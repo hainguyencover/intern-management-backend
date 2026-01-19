@@ -1,81 +1,98 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.response.AuditLogResponse;
 import com.example.backend.entity.AuditLog;
 import com.example.backend.repository.AuditLogRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
 
-    public Page<AuditLogResponse> getAuditLogs(
+    @Transactional
+    public void log(Long actorId, String actorEmail, String action, String entityType,
+            Long entityId, String status, String message) {
+        createAuditLog(actorId, actorEmail, action, entityType, entityId, message, null, null);
+    }
+
+    @Transactional
+    public void createAuditLog(Long actorId, String actorEmail, String action, String entityType,
+            Long entityId, String message, String beforeJson, String afterJson) {
+        AuditLog auditLog = new AuditLog();
+        auditLog.setActorId(actorId);
+        auditLog.setActorEmail(actorEmail);
+        auditLog.setAction(action);
+        auditLog.setEntityType(entityType);
+        auditLog.setEntityId(entityId);
+        auditLog.setStatus("SUCCESS"); // Default status
+        auditLog.setMessage(message);
+        auditLog.setBeforeJson(beforeJson);
+        auditLog.setAfterJson(afterJson);
+        auditLog.setCreatedAt(LocalDateTime.now());
+
+        auditLogRepository.save(auditLog);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AuditLog> getAuditLogs(
             Long actorId,
             String action,
             String entityType,
             LocalDateTime fromDate,
             LocalDateTime toDate,
             Pageable pageable) {
-        Page<AuditLog> logs = auditLogRepository.findByFilters(
-                actorId, action, entityType, fromDate, toDate, pageable);
-        return logs.map(this::mapToResponse);
+        Specification<AuditLog> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (actorId != null) {
+                predicates.add(cb.equal(root.get("actorId"), actorId));
+            }
+
+            if (action != null && !action.trim().isEmpty()) {
+                predicates.add(cb.equal(root.get("action"), action));
+            }
+
+            if (entityType != null && !entityType.trim().isEmpty()) {
+                predicates.add(cb.equal(root.get("entityType"), entityType));
+            }
+
+            if (fromDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), fromDate));
+            }
+
+            if (toDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), toDate));
+            }
+
+            query.orderBy(cb.desc(root.get("createdAt")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return auditLogRepository.findAll(spec, pageable);
     }
 
-    public AuditLogResponse getAuditLogById(Long id) {
-        AuditLog log = auditLogRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Audit log không tồn tại"));
-        return mapToResponse(log);
+    @Transactional(readOnly = true)
+    public AuditLog getAuditLogById(Long id) {
+        return auditLogRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Audit log not found: " + id));
     }
 
-    public void createAuditLog(
-            Long actorId,
-            String actorEmail,
-            String action,
-            String entityType,
-            Long entityId,
-            String message,
-            String beforeJson,
-            String afterJson) {
-        AuditLog log = new AuditLog();
-        log.setActorId(actorId);
-        log.setActorEmail(actorEmail);
-        log.setAction(action);
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        log.setMessage(message);
-        log.setBeforeJson(beforeJson);
-        log.setAfterJson(afterJson);
-        log.setStatus("SUCCESS");
-        log.setCreatedAt(LocalDateTime.now());
-
-        // Note: IP address handling might need RequestContextHolder or passed argument
-        // For now leaving null or "N/A"
-        log.setIpAddress("N/A");
-
-        auditLogRepository.save(log);
-    }
-
-    private AuditLogResponse mapToResponse(AuditLog log) {
-        AuditLogResponse response = new AuditLogResponse();
-        response.setId(log.getId());
-        response.setActorId(log.getActorId());
-        response.setActorEmail(log.getActorEmail());
-        response.setAction(log.getAction());
-        response.setEntityType(log.getEntityType());
-        response.setEntityId(log.getEntityId());
-        response.setStatus(log.getStatus());
-        response.setIpAddress(log.getIpAddress());
-        response.setMessage(log.getMessage());
-        response.setBeforeJson(log.getBeforeJson());
-        response.setAfterJson(log.getAfterJson());
-        response.setCreatedAt(log.getCreatedAt());
-        return response;
+    @Transactional(readOnly = true)
+    public List<AuditLog> getEntityHistory(String entityType, Long entityId) {
+        return auditLogRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(entityType, entityId);
     }
 }

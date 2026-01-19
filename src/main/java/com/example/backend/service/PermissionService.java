@@ -22,12 +22,14 @@ public class PermissionService {
     private final PermissionRepository permissionRepository;
     private final RoleRepository roleRepository;
 
+    @Transactional(readOnly = true)
     public List<PermissionResponse> getAllPermissions() {
         return permissionRepository.findAllByOrderByModuleAscCodeAsc().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public RoleWithPermissionsResponse getRoleWithPermissions(Long roleId) {
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new IllegalArgumentException("Role không tồn tại"));

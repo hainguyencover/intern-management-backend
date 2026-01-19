@@ -2,7 +2,7 @@ package com.example.backend.dto.response;
 
 import lombok.*;
 
-import java.util.Set;
+import java.util.List;
 
 @Getter
 @Setter
@@ -16,5 +16,13 @@ public class JwtResponse {
     private Long id;
     private String email;
     private String fullName;
-    private Set<String> roles;
+    private List<String> roles;
+
+    public JwtResponse(String token, Long id, String email, String fullName, List<String> roles) {
+        this.token = token;
+        this.id = id;
+        this.email = email;
+        this.fullName = fullName;
+        this.roles = roles;
+    }
 }

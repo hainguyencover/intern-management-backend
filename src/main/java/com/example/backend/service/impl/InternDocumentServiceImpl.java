@@ -3,12 +3,12 @@ package com.example.backend.service.impl;
 import com.example.backend.dto.StoredFile;
 import com.example.backend.dto.response.InternDocumentResponse;
 import com.example.backend.entity.InternDocument;
-import com.example.backend.entity.InternProfile; // <-- đổi nếu tên khác
-import com.example.backend.enums.DocumentStatus;
+import com.example.backend.entity.InternProfile;
 import com.example.backend.enums.DocumentType;
 import com.example.backend.exception.ApiException;
 import com.example.backend.repository.InternDocumentRepository;
-import com.example.backend.repository.InternProfileRepository; // <-- nếu chưa có thì tạo
+import com.example.backend.repository.InternProfileRepository;
+import com.example.backend.repository.UserRepository;
 import com.example.backend.service.InternDocumentService;
 import com.example.backend.service.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +28,8 @@ public class InternDocumentServiceImpl implements InternDocumentService {
     private final InternDocumentRepository repo;
     private final InternProfileRepository internRepo;
     private final StorageService storage;
+    private final UserRepository userRepository;
+    private final com.example.backend.service.NotificationService notificationService;
 
     @Override
     public InternDocumentResponse uploadForIntern(Long internId, DocumentType type, MultipartFile file) {
@@ -52,6 +54,9 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         doc.setReviewedAt(null);
         doc.setReviewNote(null);
 
+        // Notify HR (optional, but good for workflow)
+        // notificationService.createNotification(...);
+
         return toResponse(repo.save(doc));
     }
 
@@ -74,11 +79,23 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         InternDocument doc = repo.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
 
+        com.example.backend.entity.User hr = userRepository.findById(hrUserId)
+                .orElseThrow(() -> new RuntimeException("HR User not found: " + hrUserId));
+
         doc.setStatus("APPROVED");
         doc.setReviewedAt(LocalDateTime.now());
-        // TODO: set reviewedBy = User(HR) via UserRepository if needed
+        doc.setReviewedBy(hr);
 
-        return toResponse(repo.save(doc));
+        InternDocument saved = repo.save(doc);
+
+        // Notify Intern
+        notificationService.createNotification(
+                doc.getIntern().getUser().getId(),
+                com.example.backend.enums.NotificationType.APPLICATION,
+                "Tài liệu được duyệt",
+                "Tài liệu " + doc.getType() + " của bạn đã được chấp thuận.");
+
+        return toResponse(saved);
     }
 
     @Override
@@ -86,12 +103,24 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         InternDocument doc = repo.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
 
+        com.example.backend.entity.User hr = userRepository.findById(hrUserId)
+                .orElseThrow(() -> new RuntimeException("HR User not found: " + hrUserId));
+
         doc.setStatus("REJECTED");
         doc.setReviewedAt(LocalDateTime.now());
         doc.setReviewNote(note);
-        // TODO: set reviewedBy = User(HR)
+        doc.setReviewedBy(hr);
 
-        return toResponse(repo.save(doc));
+        InternDocument saved = repo.save(doc);
+
+        // Notify Intern
+        notificationService.createNotification(
+                doc.getIntern().getUser().getId(),
+                com.example.backend.enums.NotificationType.APPLICATION,
+                "Tài liệu bị từ chối",
+                "Tài liệu " + doc.getType() + " bị từ chối. Lý do: " + note);
+
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -116,8 +145,7 @@ public class InternDocumentServiceImpl implements InternDocumentService {
                 d.getUploadedAt(),
                 reviewedById,
                 d.getReviewedAt(),
-                d.getReviewNote()
-        );
+                d.getReviewNote());
     }
 
     @Override
@@ -146,5 +174,4 @@ public class InternDocumentServiceImpl implements InternDocumentService {
 
         return toResponse(repo.save(doc));
     }
-
 }
