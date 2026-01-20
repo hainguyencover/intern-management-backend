@@ -7,7 +7,6 @@ import com.example.backend.dto.request.ResetPasswordRequest;
 import com.example.backend.dto.response.JwtResponse;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.entity.InternProfile;
-import com.example.backend.entity.Permission;
 import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
 import com.example.backend.enums.UserStatus;
@@ -41,6 +40,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final InternProfileRepository internProfileRepository;
+    private final com.example.backend.repository.ApplicationRepository applicationRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
@@ -142,12 +142,6 @@ public class AuthService {
                 .map(Role::getCode)
                 .collect(Collectors.toSet());
 
-        // Extract permissions
-        Set<String> permissions = user.getRoles().stream()
-                .flatMap(role -> role.getPermissions().stream())
-                .map(Permission::getCode)
-                .collect(Collectors.toSet());
-
         log.info("User registered and logged in successfully: {}", normalizedEmail);
 
         return JwtResponse.builder()
@@ -179,7 +173,7 @@ public class AuthService {
                 .map(Role::getCode)
                 .collect(Collectors.toSet());
 
-        return UserResponse.builder()
+        var builder = UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
@@ -187,10 +181,29 @@ public class AuthService {
                 .address(user.getAddress())
                 .status(user.getStatus().name())
                 .roles(new ArrayList<>(roles))
-
                 .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
-                .build();
+                .updatedAt(user.getUpdatedAt());
+
+        // US10: Populate intern info if user is INTERN
+        if (roles.contains("INTERN")) {
+            internProfileRepository.findByUser_Id(user.getId()).ifPresent(ip -> {
+                builder.internId(ip.getId());
+
+                // Find latest application status
+                List<com.example.backend.entity.Application> apps = applicationRepository.findByIntern_Id(ip.getId());
+                if (!apps.isEmpty()) {
+                    // Sort by appliedAt desc or ID desc to get latest
+                    apps.sort((a1, a2) -> {
+                        if (a1.getAppliedAt() == null || a2.getAppliedAt() == null)
+                            return 0;
+                        return a2.getAppliedAt().compareTo(a1.getAppliedAt());
+                    });
+                    builder.applicationStatus(apps.get(0).getStatus().name());
+                }
+            });
+        }
+
+        return builder.build();
     }
 
     /**

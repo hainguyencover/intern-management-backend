@@ -38,13 +38,16 @@ public class InternController {
             @RequestParam(required = false) String major,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Boolean excludeBusy,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         log.info("Search interns - university: {}, major: {}, keyword: {}", university, major, keyword);
         InternSearchCriteria criteria = InternSearchCriteria.builder()
                 .university(university)
                 .major(major)
                 .keyword(keyword)
+                .keyword(keyword)
                 .status(status)
+                .excludeBusy(excludeBusy)
                 .build();
         Page<InternProfileResponse> interns = internProfileService.searchInterns(criteria, pageable);
         return ResponseEntity.ok(interns);

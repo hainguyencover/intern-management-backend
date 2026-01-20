@@ -57,6 +57,12 @@ public class ProgramController {
         return ResponseEntity.ok(programService.createProgram(req));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ProgramResponse> update(@PathVariable Long id, @Valid @RequestBody CreateProgramRequest req) {
+        return ResponseEntity.ok(programService.updateProgram(id, req));
+    }
+
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     public ResponseEntity<Void> updateStatus(

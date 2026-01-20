@@ -27,8 +27,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
         String path = request.getServletPath();
 
-        if (path.startsWith("/api/auth/")
-                || path.startsWith("/swagger-ui/")
+        // Allow filter to run for all paths so that @PreAuthorize works correctly
+        // SecurityConfig handles the permitAll() for login/register
+        if (path.startsWith("/swagger-ui/")
                 || path.startsWith("/v3/api-docs")) {
             filterChain.doFilter(request, response);
             return;

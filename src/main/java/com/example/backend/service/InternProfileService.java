@@ -7,6 +7,8 @@ import com.example.backend.entity.InternProfile;
 import com.example.backend.entity.Mentor;
 import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
+import com.example.backend.entity.GroupMember;
+import com.example.backend.enums.GroupStatus;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.exception.NotFoundException;
 import com.example.backend.exception.ResourceNotFoundException;
@@ -167,11 +169,12 @@ public class InternProfileService {
             List<Predicate> predicates = new ArrayList<>();
 
             if (criteria.getUniversity() != null && !criteria.getUniversity().trim().isEmpty()) {
-                predicates.add(cb.equal(root.get("university"), criteria.getUniversity()));
+                predicates.add(
+                        cb.like(cb.lower(root.get("university")), "%" + criteria.getUniversity().toLowerCase() + "%"));
             }
 
             if (criteria.getMajor() != null && !criteria.getMajor().trim().isEmpty()) {
-                predicates.add(cb.equal(root.get("major"), criteria.getMajor()));
+                predicates.add(cb.like(cb.lower(root.get("major")), "%" + criteria.getMajor().toLowerCase() + "%"));
             }
 
             if (criteria.getMinGpa() != null) {
@@ -191,7 +194,18 @@ public class InternProfileService {
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("user").get("fullName")), likePattern),
                         cb.like(cb.lower(root.get("user").get("email")), likePattern),
-                        cb.like(cb.lower(root.get("studentCode")), likePattern)));
+                        cb.like(cb.lower(root.get("studentCode")), likePattern),
+                        cb.like(cb.lower(root.get("university")), likePattern),
+                        cb.like(cb.lower(root.get("major")), likePattern),
+                        cb.like(root.get("gpa").as(String.class), likePattern)));
+            }
+
+            if (Boolean.TRUE.equals(criteria.getExcludeBusy())) {
+                jakarta.persistence.criteria.Subquery<Long> subquery = query.subquery(Long.class);
+                jakarta.persistence.criteria.Root<GroupMember> gm = subquery.from(GroupMember.class);
+                subquery.select(gm.get("intern").get("id"));
+                subquery.where(cb.equal(gm.get("group").get("status"), GroupStatus.ACTIVE));
+                predicates.add(cb.not(root.get("id").in(subquery)));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

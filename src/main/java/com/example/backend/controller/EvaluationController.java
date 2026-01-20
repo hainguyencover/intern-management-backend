@@ -37,10 +37,14 @@ public class EvaluationController {
 
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('MENTOR', 'INTERN')")
-    public ResponseEntity<List<com.example.backend.dto.response.EvaluationResponse>> getMyEvaluations(
-            @AuthenticationPrincipal CustomUserDetails principal) {
+    public ResponseEntity<?> getMyEvaluations(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) String keyword,
+            org.springframework.data.domain.Pageable pageable) {
         if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_MENTOR"))) {
-            return ResponseEntity.ok(evaluationService.getMentorEvaluations(principal.getId()));
+            return ResponseEntity
+                    .ok(evaluationService.getMentorEvaluations(principal.getId(), period, keyword, pageable));
         } else if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_INTERN"))) {
             return ResponseEntity.ok(evaluationService.getInternEvaluations(principal.getId()));
         }

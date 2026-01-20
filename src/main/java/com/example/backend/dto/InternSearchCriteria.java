@@ -17,6 +17,7 @@ public class InternSearchCriteria {
     private String status;
     private String keyword; // Search in name, email, student code
     private Long mentorId;
+    private Boolean excludeBusy; // New field
     private String sortBy;
     private String sortDirection;
 }

@@ -21,6 +21,7 @@ public class WeeklyReportService {
         private final EvaluationRepository evaluationRepository;
         private final InternProfileRepository internRepository;
         private final UserRepository userRepository;
+        private final MentorRepository mentorRepository;
 
         @Transactional(readOnly = true)
         public com.example.backend.dto.response.FinalReportDto getFinalReport(Long internId) {
@@ -135,34 +136,22 @@ public class WeeklyReportService {
 
         @Transactional(readOnly = true)
         public org.springframework.data.domain.Page<com.example.backend.dto.WeeklyReportDto> mentorGroupReports(
-                        Long mentorUserId, Long groupId, String status,
+                        Long mentorUserId, Long groupId, Long internId, String status,
                         org.springframework.data.domain.Pageable pageable) {
-                // Here getting reports by mentor's group requires querying GroupMembers or
-                // Reports linked to Interns in Group
-                // For MVP, if we don't have direct Group link in Report, we query by Mentor's
-                // assignees?
-                // Existing repo methods: findByMentor_Id (User mentor).
-                // But reports are initially not assigned to a mentor in database? The Entity
-                // has `mentor` field.
-                // It is set usually upon review. Before review, it is null?
-                // Or if Intern belongs to a Group with Mentor, we can imply ownership.
 
-                // Using existing repo method for now assuming reports are linked to mentor or
-                // we filter by interns
-                // Since we don't have complex specification ready, we'll just return all for
-                // mentor's ID (which would be reviews)
-                // OR we need to fetch all reports from interns assigned to this mentor.
+                // Get Mentor Profile ID from User ID
+                Mentor mentor = mentorRepository.findByUser_Id(mentorUserId)
+                                .orElseThrow(() -> new NotFoundException(
+                                                "Mentor profile not found for user: " + mentorUserId));
 
-                // Fallback: simple query by mentorId (User ID) if the entity stores it on
-                // creation
-                // Logic: Reports are submitted, Mentor claims/reviews them.
-                // Better logic: Find reports where intern.group.mentor.id == mentorId.
-                // Let's rely on finding by Mentor ID if 'mentor' field is populated on submit
-                // or unrelated.
-                // Entity: `private User mentor;`
-
-                // Better logic: Find reports where intern.mentor.user.id == mentorId.
-                return reportRepository.findByIntern_Mentor_User_Id(mentorUserId, pageable).map(this::mapToDto);
+                // Query using Mentor Profile ID and Filters
+                return reportRepository.findReportsForMentor(
+                                mentor.getId(),
+                                com.example.backend.enums.GroupStatus.ACTIVE,
+                                internId,
+                                status != null && !status.isEmpty() ? status : null,
+                                pageable)
+                                .map(this::mapToDto);
         }
 
         @Transactional
@@ -177,7 +166,11 @@ public class WeeklyReportService {
                                 .orElseThrow(() -> new NotFoundException("Mentor user not found"));
 
                 report.setMentor(mentor);
-                report.setMentorFeedback(req.mentorComment());
+                report.setMentor(mentor);
+                report.setMentorFeedback(req.feedback());
+                if (req.rating() != null) {
+                        report.setRating(req.rating());
+                }
                 report.setStatus("REVIEWED");
                 report.setReviewedAt(LocalDateTime.now());
 
@@ -272,16 +265,20 @@ public class WeeklyReportService {
                                 report.getIntern().getId(),
                                 report.getIntern().getUser().getFullName(),
                                 report.getWeekNumber(),
+                                report.getWeekStart(),
+                                report.getWeekEnd(),
                                 report.getReportDate(),
                                 report.getCompletedWork(),
                                 report.getPlannedWork(),
                                 report.getChallenges(),
                                 report.getLearnings(),
+                                report.getLearnings(), // summary alias
                                 com.example.backend.enums.WeeklyReportStatus.valueOf(report.getStatus()), // Ensure Enum
                                                                                                           // matches
                                                                                                           // string
                                                                                                           // in DB
                                 report.getMentorFeedback(),
+                                report.getRating(),
                                 mentorUser != null ? mentorUser.getId() : null,
                                 mentorUser != null ? mentorUser.getFullName() : null,
                                 report.getCreatedAt(),
