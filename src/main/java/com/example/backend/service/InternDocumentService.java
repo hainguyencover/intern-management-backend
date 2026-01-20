@@ -7,7 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface InternDocumentService {
-    InternDocumentResponse uploadForIntern(Long internId, DocumentType type, MultipartFile file);
+    InternDocumentResponse uploadForIntern(Long internId, DocumentType type, MultipartFile file, Long uploaderId);
 
     List<InternDocumentResponse> getMyDocuments(Long internId);
 

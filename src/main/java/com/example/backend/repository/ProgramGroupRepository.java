@@ -34,7 +34,7 @@ public interface ProgramGroupRepository extends JpaRepository<ProgramGroup, Long
          */
         List<ProgramGroup> findByStatus(GroupStatus status);
 
-        @Query("SELECT g FROM ProgramGroup g " +
+        @Query("SELECT g FROM ProgramGroup g JOIN FETCH g.program " +
                         "WHERE g.mentorId = :mentorId AND g.status = :status")
         List<ProgramGroup> findByMentorIdAndStatus(
                         @Param("mentorId") Long mentorId,

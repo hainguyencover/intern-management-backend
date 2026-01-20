@@ -22,4 +22,8 @@ public class UserResponse {
     private List<String> roles;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // US10 fields
+    private Long internId;
+    private String applicationStatus;
 }

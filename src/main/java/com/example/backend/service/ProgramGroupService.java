@@ -41,6 +41,9 @@ public class ProgramGroupService {
         group.setMentorId(request.getMentorId());
         group.setStatus(GroupStatus.ACTIVE);
 
+        validateMentorSchedule(request.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
+                group.getWorkEndTime(), program, null);
+
         group = groupRepository.save(group);
         log.info("Created program group: {}", group.getName());
 
@@ -121,6 +124,7 @@ public class ProgramGroupService {
                         .groupId(member.getGroup().getId())
                         .internId(member.getIntern().getId())
                         .internName(member.getIntern().getUser().getFullName())
+                        .internEmail(member.getIntern().getUser().getEmail())
                         .studentCode(member.getIntern().getStudentCode())
                         .joinedAt(member.getJoinedAt())
                         .build())
@@ -149,6 +153,13 @@ public class ProgramGroupService {
         }
         if (request.getWorkDays() != null) {
             group.setWorkDays(request.getWorkDays());
+        }
+
+        // Validate schedule if mentor is set (assuming mentor is mandatory for active
+        // groups)
+        if (group.getStatus() == GroupStatus.ACTIVE && group.getMentorId() != null) {
+            validateMentorSchedule(group.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
+                    group.getWorkEndTime(), group.getProgram(), id);
         }
 
         group = groupRepository.save(group);
@@ -213,6 +224,9 @@ public class ProgramGroupService {
         group.setWorkEndTime(request.getWorkEndTime());
         group.setWorkDays(request.getWorkDays());
 
+        validateMentorSchedule(request.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
+                group.getWorkEndTime(), program, null);
+
         group = groupRepository.save(group);
         log.info("Created program group: {}", group.getName());
 
@@ -222,4 +236,72 @@ public class ProgramGroupService {
     private GroupResponse mapToResponse(ProgramGroup group) {
         return new GroupResponse(group);
     }
+
+    private void validateMentorSchedule(Long mentorId, String workDaysStr, java.time.LocalTime start,
+            java.time.LocalTime end, Program currentProgram, Long excludeGroupId) {
+        if (mentorId == null || !StringUtils.hasText(workDaysStr) || start == null || end == null) {
+            return;
+        }
+
+        List<ProgramGroup> activeGroups = groupRepository.findByMentorIdAndStatus(mentorId, GroupStatus.ACTIVE);
+
+        for (ProgramGroup g : activeGroups) {
+            if (excludeGroupId != null && g.getId().equals(excludeGroupId)) {
+                continue;
+            }
+
+            // Must overlap in DATE (Program duration) first
+            if (currentProgram != null && g.getProgram() != null && !hasDateOverlap(
+                    currentProgram.getStartDate(), currentProgram.getEndDate(),
+                    g.getProgram().getStartDate(), g.getProgram().getEndDate())) {
+                continue; // Different periods (e.g. Jan vs Mar) -> No conflict
+            }
+
+            if (g.getWorkDays() == null || g.getWorkStartTime() == null || g.getWorkEndTime() == null) {
+                continue;
+            }
+
+            if (hasDayOverlap(workDaysStr, g.getWorkDays())
+                    && hasTimeOverlap(start, end, g.getWorkStartTime(), g.getWorkEndTime())) {
+                throw new com.example.backend.exception.BadRequestException(
+                        "Mentor đã có lịch dạy tại nhóm: " + g.getName() + " (Chương trình: " + g.getProgram().getName()
+                                + ")");
+            }
+        }
+    }
+
+    private boolean hasDayOverlap(String days1, String days2) {
+        String[] d1 = days1.split(",");
+        String[] d2 = days2.split(",");
+        for (String s1 : d1) {
+            for (String s2 : d2) {
+                if (s1.trim().equalsIgnoreCase(s2.trim())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean hasTimeOverlap(java.time.LocalTime start1, java.time.LocalTime end1, java.time.LocalTime start2,
+            java.time.LocalTime end2) {
+        return start1.isBefore(end2) && start2.isBefore(end1);
+    }
+
+    private boolean hasDateOverlap(java.time.LocalDate start1, java.time.LocalDate end1, java.time.LocalDate start2,
+            java.time.LocalDate end2) {
+        // If undefined dates, assume infinite -> overlap
+        if (start1 == null && end1 == null)
+            return true;
+        if (start2 == null && end2 == null)
+            return true;
+
+        java.time.LocalDate s1 = start1 != null ? start1 : java.time.LocalDate.MIN;
+        java.time.LocalDate e1 = end1 != null ? end1 : java.time.LocalDate.MAX;
+        java.time.LocalDate s2 = start2 != null ? start2 : java.time.LocalDate.MIN;
+        java.time.LocalDate e2 = end2 != null ? end2 : java.time.LocalDate.MAX;
+
+        return s1.isBefore(e2) && s2.isBefore(e1);
+    }
+
 }

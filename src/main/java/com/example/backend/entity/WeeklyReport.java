@@ -54,6 +54,9 @@ public class WeeklyReport extends BaseEntity {
         @Column(name = "mentor_feedback", columnDefinition = "TEXT")
         private String mentorFeedback;
 
+        @Column(name = "rating")
+        private Integer rating;
+
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "mentor_id")
         private User mentor;

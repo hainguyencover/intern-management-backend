@@ -5,6 +5,7 @@ import com.example.backend.dto.response.DocumentResponse;
 import com.example.backend.entity.*;
 import com.example.backend.exception.*;
 import com.example.backend.repository.*;
+import com.example.backend.enums.ApplicationStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ public class DocumentService {
     private final InternDocumentRepository documentRepository;
     private final InternProfileRepository internProfileRepository;
     private final UserRepository userRepository;
+    private final ApplicationRepository applicationRepository;
 
     @Value("${app.upload.dir:uploads/documents}")
     private String uploadDir;
@@ -96,6 +98,46 @@ public class DocumentService {
 
         document = documentRepository.save(document);
         log.info("Verified document {} with status: {}", documentId, request.getDecision());
+
+        // US10 Fix: Update Application Status and Intern Status based on Document
+        // Approval
+        String decision = request.getDecision();
+        boolean isApproved = "APPROVE".equalsIgnoreCase(decision) || "APPROVED".equalsIgnoreCase(decision);
+
+        if (isApproved) {
+            List<Application> apps = applicationRepository.findByIntern_Id(document.getIntern().getId());
+            if (!apps.isEmpty()) {
+                // Find latest app
+                apps.sort((a1, a2) -> {
+                    if (a1.getAppliedAt() == null || a2.getAppliedAt() == null)
+                        return 0;
+                    return a2.getAppliedAt().compareTo(a1.getAppliedAt());
+                });
+                Application latestApp = apps.get(0);
+
+                // Case 1: CV or Letter Approved -> Application APPROVED
+                if ("CV".equals(document.getType()) || "APPLICATION_LETTER".equals(document.getType())) {
+                    if (latestApp.getStatus() == ApplicationStatus.SUBMITTED ||
+                            latestApp.getStatus() == ApplicationStatus.DRAFT) { // Maybe Draft too?
+
+                        latestApp.setStatus(ApplicationStatus.APPROVED);
+                        applicationRepository.save(latestApp);
+                        log.info("Auto-updated Application {} status to APPROVED", latestApp.getId());
+                    }
+                }
+
+                // Case 2: Contract Approved -> Application CONTRACT_SIGNED
+                if ("INTERNSHIP_CONTRACT".equals(document.getType()) || "CONTRACT".equals(document.getType())) {
+                    if (latestApp.getStatus() == ApplicationStatus.APPROVED ||
+                            latestApp.getStatus() == ApplicationStatus.CONTRACT_SENT) {
+
+                        latestApp.setStatus(ApplicationStatus.CONTRACT_SIGNED);
+                        applicationRepository.save(latestApp);
+                        log.info("Auto-updated Application {} status to CONTRACT_SIGNED", latestApp.getId());
+                    }
+                }
+            }
+        }
 
         return mapToResponse(document);
     }

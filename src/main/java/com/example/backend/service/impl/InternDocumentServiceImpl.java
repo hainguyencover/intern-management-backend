@@ -30,9 +30,11 @@ public class InternDocumentServiceImpl implements InternDocumentService {
     private final StorageService storage;
     private final UserRepository userRepository;
     private final com.example.backend.service.NotificationService notificationService;
+    private final com.example.backend.repository.ApplicationRepository appRepo;
 
     @Override
-    public InternDocumentResponse uploadForIntern(Long internId, DocumentType type, MultipartFile file) {
+    public InternDocumentResponse uploadForIntern(Long internId, DocumentType type, MultipartFile file,
+            Long uploaderId) {
         InternProfile intern = internRepo.findById(internId)
                 .orElseThrow(() -> new RuntimeException("Intern not found: " + internId));
 
@@ -46,13 +48,31 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         doc.setIntern(intern);
         doc.setType(type.name());
         doc.setFileUrl(stored.fileUrl());
-        doc.setStatus("PENDING");
         doc.setUploadedAt(LocalDateTime.now());
 
-        // reset review fields
-        doc.setReviewedBy(null);
-        doc.setReviewedAt(null);
-        doc.setReviewNote(null);
+        // Determine status based on uploader
+        boolean isSelfUpload = intern.getUser().getId().equals(uploaderId);
+
+        if (isSelfUpload) {
+            doc.setStatus("PENDING");
+            // reset review fields
+            doc.setReviewedBy(null);
+            doc.setReviewedAt(null);
+            doc.setReviewNote(null);
+        } else {
+            // HR/Admin upload -> Auto Approve
+            doc.setStatus("APPROVED");
+            com.example.backend.entity.User uploader = userRepository.findById(uploaderId)
+                    .orElseThrow(() -> new RuntimeException("Uploader not found"));
+            doc.setReviewedBy(uploader);
+            doc.setReviewedAt(LocalDateTime.now());
+            doc.setReviewNote("Uploaded by HR/Admin");
+
+            // Update Application Status to CONTRACT_SENT if it's a contract
+            if (DocumentType.INTERNSHIP_CONTRACT == type) {
+                updateApplicationStatus(internId, com.example.backend.enums.ApplicationStatus.CONTRACT_SENT);
+            }
+        }
 
         // Notify HR (optional, but good for workflow)
         // notificationService.createNotification(...);
@@ -165,13 +185,48 @@ public class InternDocumentServiceImpl implements InternDocumentService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Contract is already signed");
         }
 
-        // Intern chỉ được xác nhận sau khi HR đã duyệt hợp đồng
-        if (!"APPROVED".equalsIgnoreCase(doc.getStatus())) {
+        // Intern chỉ được xác nhận sau khi HR đã duyệt hợp đồng (chấp nhận cả APPROVED
+        // và APPROVE do lịch sử dữ liệu)
+        String st = doc.getStatus();
+        if (!"APPROVED".equalsIgnoreCase(st) && !"APPROVE".equalsIgnoreCase(st)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Contract must be APPROVED before confirming");
         }
 
         doc.setStatus("SIGNED");
+        InternDocument saved = repo.save(doc);
 
-        return toResponse(repo.save(doc));
+        updateApplicationStatus(internId, com.example.backend.enums.ApplicationStatus.CONTRACT_SIGNED);
+
+        return toResponse(saved);
+    }
+
+    private void updateApplicationStatus(Long internId, com.example.backend.enums.ApplicationStatus newStatus) {
+        List<com.example.backend.entity.Application> apps = appRepo.findByIntern_Id(internId);
+        if (!apps.isEmpty()) {
+            // Find latest app
+            apps.sort((a1, a2) -> {
+                if (a1.getAppliedAt() == null || a2.getAppliedAt() == null)
+                    return 0;
+                return a2.getAppliedAt().compareTo(a1.getAppliedAt());
+            });
+            com.example.backend.entity.Application latestApp = apps.get(0);
+
+            boolean canUpdate = false;
+            com.example.backend.enums.ApplicationStatus current = latestApp.getStatus();
+
+            if (newStatus == com.example.backend.enums.ApplicationStatus.CONTRACT_SENT) {
+                if (current == com.example.backend.enums.ApplicationStatus.APPROVED)
+                    canUpdate = true;
+            } else if (newStatus == com.example.backend.enums.ApplicationStatus.CONTRACT_SIGNED) {
+                if (current == com.example.backend.enums.ApplicationStatus.CONTRACT_SENT ||
+                        current == com.example.backend.enums.ApplicationStatus.APPROVED)
+                    canUpdate = true;
+            }
+
+            if (canUpdate) {
+                latestApp.setStatus(newStatus);
+                appRepo.save(latestApp);
+            }
+        }
     }
 }

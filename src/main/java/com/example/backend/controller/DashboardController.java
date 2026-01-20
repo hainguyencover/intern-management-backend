@@ -36,4 +36,14 @@ public class DashboardController {
     public ResponseEntity<List<InternCountStatDto>> getUniversityStats() {
         return ResponseEntity.ok(statisticsService.getUniversityStats());
     }
+
+    @GetMapping("/intern")
+    @PreAuthorize("hasRole('INTERN')")
+    public ResponseEntity<com.example.backend.dto.response.DashboardDtos.InternDashboardResponse> getInternDashboard(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.example.backend.security.CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(statisticsService.getInternDashboard(userDetails.getId()));
+    }
 }

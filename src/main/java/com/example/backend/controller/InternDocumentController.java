@@ -192,7 +192,7 @@ public class InternDocumentController {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Invalid document type: '" + type + "'");
         }
 
-        InternDocumentResponse resp = documentService.uploadForIntern(targetInternId, docType, file);
+        InternDocumentResponse resp = documentService.uploadForIntern(targetInternId, docType, file, userId);
         return ResponseEntity.ok(resp);
     }
 
@@ -210,7 +210,8 @@ public class InternDocumentController {
     // Download: shared logic
     // ----------------------------
     @GetMapping("/documents/{id}/download")
-    public ResponseEntity<Resource> downloadDocument(@PathVariable("id") Long documentId) {
+    public ResponseEntity<Resource> downloadDocument(@PathVariable("id") Long documentId,
+            @RequestParam(required = false, defaultValue = "false") boolean inline) {
         User user = currentUserOrThrow();
 
         // ✅ check quyền
@@ -227,32 +228,32 @@ public class InternDocumentController {
         String filename = filenameFromFileUrl(fileUrl);
         boolean pdf = isPdfFilename(filename);
 
-        // (Tuỳ chọn) HR chỉ cho tải PDF — nếu bạn muốn strict
-        // boolean isHr = hasRole(user.getId(), "HR");
-        // if (isHr && !pdf) throw new ApiException(HttpStatus.NOT_ACCEPTABLE, "HR can
-        // download only PDF files");
-
         Resource resource = storage.loadFileAsResource(fileUrl);
 
         MediaType contentType = pdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM;
 
+        String disposition = inline ? "inline" : "attachment";
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename=\"" + filename + "\"")
                 .contentType(contentType)
                 .body(resource);
     }
 
     // ✅ alias để FE gọi /api/documents/download/{id}
+    // ✅ alias để FE gọi /api/documents/download/{id}
     @GetMapping("/documents/download/{id}")
-    public ResponseEntity<Resource> downloadDocumentAlias(@PathVariable("id") Long documentId) {
-        return downloadDocument(documentId);
+    public ResponseEntity<Resource> downloadDocumentAlias(@PathVariable("id") Long documentId,
+            @RequestParam(required = false, defaultValue = "false") boolean inline) {
+        return downloadDocument(documentId, inline);
     }
 
     // ✅ HR alias đúng URL FE đang gọi: /api/hr/documents/download/{id}
     @GetMapping({ "/hr/documents/download/{id}", "/hr/documents/{id}/download" })
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<Resource> hrDownload(@PathVariable("id") Long documentId) {
-        return downloadDocument(documentId);
+    public ResponseEntity<Resource> hrDownload(@PathVariable("id") Long documentId,
+            @RequestParam(required = false, defaultValue = "false") boolean inline) {
+        return downloadDocument(documentId, inline);
     }
 
     // ----------------------------
@@ -325,10 +326,12 @@ public class InternDocumentController {
             @RequestParam("file") MultipartFile file) {
         internProfileRepository.findById(internId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found: " + internId));
+        User user = currentUserOrThrow();
         InternDocumentResponse resp = documentService.uploadForIntern(
                 internId,
                 DocumentType.valueOf(DocumentType.INTERNSHIP_CONTRACT.name()),
-                file);
+                file,
+                user.getId());
 
         return ResponseEntity.ok(resp);
     }
@@ -349,4 +352,5 @@ public class InternDocumentController {
         InternDocumentResponse resp = documentService.confirmContract(ip.getId(), documentId);
         return ResponseEntity.ok(resp);
     }
+
 }

@@ -26,13 +26,15 @@ public class MentorWeeklyReportController {
     @GetMapping
     public ResponseEntity<Page<WeeklyReportDto>> getReports(
             @RequestParam(required = false) Long groupId,
+            @RequestParam(required = false) Long internId, // Added support for filters.internId
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal CustomUserDetails principal) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("submittedAt").descending());
         // For MVP, passing mentorId to filter reports 'owned' or 'visible' to mentor
-        return ResponseEntity.ok(weeklyReportService.mentorGroupReports(principal.getId(), groupId, status, pageable));
+        return ResponseEntity
+                .ok(weeklyReportService.mentorGroupReports(principal.getId(), groupId, internId, status, pageable));
     }
 
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")

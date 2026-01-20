@@ -35,11 +35,14 @@ public class ApplicationService {
     private final ApplicationReviewRepository reviewRepository;
     private final InternProfileRepository internProfileRepository;
     private final UserRepository userRepository;
+    private final EmailService emailService;
 
     @Transactional
-    public ApplicationResponse submit(ApplicationSubmitRequest request, Long internId) {
-        InternProfile intern = internProfileRepository.findById(internId)
-                .orElseThrow(() -> new NotFoundException("Intern profile", internId));
+    public ApplicationResponse submit(ApplicationSubmitRequest request, Long userId) {
+        InternProfile intern = internProfileRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new NotFoundException("Intern profile not found for user: " + userId));
+
+        Long internId = intern.getId();
 
         // Check if already has pending/approved application
         boolean hasPending = applicationRepository.existsByInternIdAndStatus(
@@ -162,6 +165,17 @@ public class ApplicationService {
 
         application = applicationRepository.save(application);
         log.info("Reviewed application {} with decision: {}", applicationId, request.decision());
+
+        // Send notification email
+        try {
+            String toEmail = application.getIntern().getUser().getEmail();
+            String internName = application.getIntern().getUser().getFullName();
+            String decisionStr = (request.decision() == ReviewDecision.APPROVE) ? "ĐƯỢC CHẤP NHẬN" : "BỊ TỪ CHỐI";
+
+            emailService.sendApplicationResultEmail(toEmail, internName, decisionStr, request.comment());
+        } catch (Exception e) {
+            log.warn("Failed to send notification email", e);
+        }
 
         return mapToResponse(application);
     }
