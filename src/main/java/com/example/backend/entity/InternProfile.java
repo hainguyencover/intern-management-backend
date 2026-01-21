@@ -20,6 +20,11 @@ public class InternProfile extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "mentor_id")
+    private Mentor mentor;
+
+
     @Column(name = "student_code", length = 50)
     private String studentCode;
 

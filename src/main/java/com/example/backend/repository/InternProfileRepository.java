@@ -20,6 +20,10 @@ public interface InternProfileRepository
     @EntityGraph(attributePaths = { "user" })
     Page<InternProfile> findAll(Specification<InternProfile> spec, Pageable pageable);
 
+    @Override
+    @EntityGraph(attributePaths = {"user", "mentor", "mentor.user"})
+    List<InternProfile> findAll();
+
     @EntityGraph(attributePaths = { "user" })
     Optional<InternProfile> findById(Long id);
 
@@ -34,4 +38,13 @@ public interface InternProfileRepository
 
     @Query("select distinct ip.major from InternProfile ip where ip.major is not null")
     List<String> findAllMajors();
+
+    @EntityGraph(attributePaths = {"user", "mentor", "mentor.user"})
+    @Query("select ip from InternProfile ip")
+    List<InternProfile> findAllWithUserAndMentor();
+
+    @EntityGraph(attributePaths = {"user", "mentor", "mentor.user"})
+    List<InternProfile> findByIdIn(List<Long> ids);
+
+    boolean existsByIdAndMentor_Id(Long internId, Long mentorId);
 }

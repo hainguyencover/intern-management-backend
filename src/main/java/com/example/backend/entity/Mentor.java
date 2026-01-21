@@ -11,7 +11,6 @@ import lombok.*;
         uniqueConstraints = @UniqueConstraint(name = "uk_mentors_user_id", columnNames = "user_id")
 )
 public class Mentor extends BaseEntity {
-
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

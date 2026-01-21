@@ -22,7 +22,14 @@ public class Evaluation extends BaseEntity {
     @Column(length = 50)
     private String period;
 
-    private Integer score;
+    @Column(name = "skill_score")
+    private Integer skillScore; // 0-10
+
+    @Column(name = "attitude_score")
+    private Integer attitudeScore; // 0-10
+
+    @Column(name = "overall_score")
+    private Integer overallScore;
 
     @Column(length = 2000)
     private String comment;
