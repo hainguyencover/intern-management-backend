@@ -4,6 +4,7 @@ import com.example.backend.dto.DepartmentSummaryDto;
 import com.example.backend.dto.UserSummaryDto;
 import com.example.backend.dto.request.MentorCreateRequest;
 import com.example.backend.dto.response.MentorResponseDto;
+import com.example.backend.dto.response.MentorWorkloadResponse;
 import com.example.backend.entity.Department;
 import com.example.backend.entity.Mentor;
 import com.example.backend.entity.User;
@@ -83,5 +84,14 @@ public class MentorServiceImpl implements MentorService {
                 userDto,
                 deptDto
         );
+    }
+
+    @Override
+    public Page<MentorWorkloadResponse> getMentorWorkload(Integer page, Integer size, String search) {
+        int p = (page == null || page < 0) ? 0 : page;
+        int s = (size == null || size <= 0 || size > 200) ? 20 : size;
+
+        Pageable pageable = PageRequest.of(p, s, Sort.by(Sort.Direction.DESC, "id"));
+        return mentorRepository.findMentorWorkload(search, pageable);
     }
 }
