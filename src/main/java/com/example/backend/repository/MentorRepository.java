@@ -14,7 +14,9 @@ import java.util.Optional;
 @Repository
 public interface MentorRepository extends JpaRepository<Mentor, Long> {
     Optional<Mentor> findByUser_Id(Long userId);
+
     Optional<Mentor> findByUser_Email(String email);
+
     /**
      * Find all mentors in a department
      */
@@ -53,5 +55,12 @@ public interface MentorRepository extends JpaRepository<Mentor, Long> {
     /**
      * Find mentors by title
      */
-    List<Mentor> findByTitleContainingIgnoreCase(String title);
+    /**
+     * Find mentors excluding those who have INTERN role
+     */
+    @Query("SELECT m FROM Mentor m JOIN m.user u WHERE NOT EXISTS (SELECT r FROM u.roles r WHERE r.code = 'INTERN' OR r.code = 'ROLE_INTERN')")
+    Page<Mentor> findMentorsExcludingInterns(Pageable pageable);
+
+    @Query("SELECT m FROM Mentor m JOIN FETCH m.user u WHERE NOT EXISTS (SELECT r FROM u.roles r WHERE r.code = 'INTERN' OR r.code = 'ROLE_INTERN') ORDER BY m.user.fullName")
+    List<Mentor> findAllWithUserExcludingInterns();
 }

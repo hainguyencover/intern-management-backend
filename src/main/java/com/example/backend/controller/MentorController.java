@@ -43,6 +43,14 @@ public class MentorController {
         return ResponseEntity.ok(mentor);
     }
 
+    // GET /api/mentors/user/{userId}
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("hasAnyRole('HR','ADMIN')")
+    public ResponseEntity<MentorResponse> getMentorByUserId(@PathVariable Long userId) {
+        MentorResponse mentor = mentorService.getMentorByUserId(userId);
+        return ResponseEntity.ok(mentor);
+    }
+
     // GET /api/mentors/me/dashboard
     @GetMapping("/me/dashboard")
     @PreAuthorize("hasRole('MENTOR')")

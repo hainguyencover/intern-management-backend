@@ -111,6 +111,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName());
         user.setPhone(request.getPhone());
+        user.setAddress(request.getAddress()); // Map address
         user.setStatus(UserStatus.ACTIVE);
 
         // Assign INTERN role by default
@@ -124,11 +125,28 @@ public class AuthService {
         user = userRepository.save(user);
         log.info("User created successfully: {}", normalizedEmail);
 
-        // Auto-create InternProfile for INTERN role
+        // Auto-create InternProfile for INTERN role with detailed info
         InternProfile internProfile = new InternProfile();
         internProfile.setUser(user);
+        internProfile.setStudentCode(request.getStudentCode());
+        internProfile.setUniversity(request.getUniversity());
+        internProfile.setMajor(request.getMajor());
+        internProfile.setAddress(request.getAddress()); // Also valid in profile
+        internProfile.setPhone(request.getPhone()); // Also valid in profile
+
+        // Handle Date Conversions
+        if (request.getDobYear() != null && request.getDobYear() > 1900) {
+            internProfile.setDob(java.time.LocalDate.of(request.getDobYear(), 1, 1));
+        }
+        if (request.getStartYear() != null) {
+            internProfile.setStartDate(java.time.LocalDate.of(request.getStartYear(), 1, 1));
+        }
+        if (request.getEndYear() != null) {
+            internProfile.setEndDate(java.time.LocalDate.of(request.getEndYear(), 1, 1));
+        }
+
         internProfileRepository.save(internProfile);
-        log.info("InternProfile auto-created for user: {}", user.getId());
+        log.info("InternProfile auto-created with details for user: {}", user.getId());
 
         // Auto login after registration
         Authentication authentication = authenticationManager.authenticate(

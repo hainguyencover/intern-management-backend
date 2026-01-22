@@ -17,9 +17,7 @@ import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -37,6 +35,7 @@ public class InternProfileService {
     private final MentorRepository mentorRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final GroupMemberRepository groupMemberRepository;
 
     @Transactional
     public InternProfileResponse createIntern(InternProfileRequest request) {
@@ -235,7 +234,7 @@ public class InternProfileService {
     }
 
     private InternProfileResponse mapToResponse(InternProfile profile) {
-        return InternProfileResponse.builder()
+        var responseBuilder = InternProfileResponse.builder()
                 .id(profile.getId())
                 .userId(profile.getUser().getId())
                 .email(profile.getUser().getEmail())
@@ -253,54 +252,82 @@ public class InternProfileService {
                 .mentorId(profile.getMentor() != null ? profile.getMentor().getId() : null)
                 .mentorName(profile.getMentor() != null ? profile.getMentor().getUser().getFullName() : null)
                 .createdAt(profile.getCreatedAt())
-                .updatedAt(profile.getUpdatedAt())
-                .build();
-    }
+                .updatedAt(profile.getUpdatedAt());
 
-    @Transactional(readOnly = true)
-    public Page<InternProfileResponse> search(String university, String major, String keyword,
-            int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        // Fetch active group to sync dates from Program
+        com.example.backend.entity.GroupMember member = groupMemberRepository
+                .findFirstByIntern_IdAndLeftAtIsNull(profile.getId()).orElse(null);
 
-        Specification<InternProfile> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+        if (member != null && member.getGroup() != null) {
+            responseBuilder.programGroupId(member.getGroup().getId())
+                    .programGroupName(member.getGroup().getName());
 
-            if (university != null && !university.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("university")), "%" + university.toLowerCase() + "%"));
+            if (member.getGroup().getProgram() != null) {
+                // Prioritize Program dates over profile dates for display
+                responseBuilder.startDate(member.getGroup().getProgram().getStartDate());
+                responseBuilder.endDate(member.getGroup().getProgram().getEndDate());
+
+                // Sync status from Program/Group logic
+                if ("CLOSED".equals(member.getGroup().getProgram().getStatus().name())) {
+                    responseBuilder.status("FINISHED");
+                } else {
+                    responseBuilder.status("ACTIVE");
+                }
+            } else {
+                responseBuilder.status("ACTIVE");
             }
-
-            if (major != null && !major.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("major")), "%" + major.toLowerCase() + "%"));
+        } else {
+            // Not in any group -> UNASSIGNED or FINISHED based on dates?
+            java.time.LocalDate now = java.time.LocalDate.now();
+            if (profile.getEndDate() != null && profile.getEndDate().isBefore(now)) {
+                responseBuilder.status("FINISHED");
+            } else if (profile.getStartDate() != null && profile.getStartDate().isAfter(now)) {
+                responseBuilder.status("WAITING");
+            } else {
+                responseBuilder.status("ACTIVE");
             }
+        }
 
-            if (keyword != null && !keyword.isBlank()) {
-                String likePattern = "%" + keyword.toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("user").get("fullName")), likePattern),
-                        cb.like(cb.lower(root.get("user").get("email")), likePattern),
-                        cb.like(cb.lower(root.get("studentCode")), likePattern)));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        return internProfileRepository.findAll(spec, pageable)
-                .map(this::toResponse);
-    }
-
-    @Transactional(readOnly = true)
-    public InternProfileResponse getById(Long id) {
-        InternProfile profile = internProfileRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Intern profile", id));
-        return toResponse(profile);
+        return responseBuilder.build();
     }
 
     @Transactional
     public InternProfileResponse updateMyProfile(InternProfileRequest request, String email) {
-        InternProfile profile = internProfileRepository.findByUser_Email(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Intern profile not found"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("User not found: " + email));
+
+        InternProfile profile = internProfileRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new NotFoundException("Intern profile not found"));
+
         updateProfileData(profile, request);
-        return mapToResponse(internProfileRepository.save(profile));
+
+        profile = internProfileRepository.save(profile);
+        return mapToResponse(profile);
+    }
+
+    @Transactional
+    public void assignMentorByUserId(Long internId, Long mentorUserId) {
+        InternProfile profile = internProfileRepository.findById(internId)
+                .orElseThrow(() -> new NotFoundException("Intern profile", internId));
+
+        Mentor mentor = null;
+        if (mentorUserId != null) {
+            mentor = mentorRepository.findByUser_Id(mentorUserId)
+                    .orElseThrow(() -> new NotFoundException("Mentor profile for user", mentorUserId));
+        }
+
+        profile.setMentor(mentor);
+        internProfileRepository.save(profile);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.example.backend.dto.InternCountStatDto> getInternStatsByUniversity() {
+        return internProfileRepository.countInternsGroupedByUniversity();
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.example.backend.dto.InternCountStatDto> getInternStatsByMajor() {
+        return internProfileRepository.countInternsGroupedByMajor();
     }
 
     private void updateProfileData(InternProfile profile, InternProfileRequest request) {
@@ -328,85 +355,5 @@ public class InternProfileService {
                     .orElseThrow(() -> new RuntimeException("Mentor not found: " + request.getMentorId()));
             profile.setMentor(mentor);
         }
-    }
-
-    @Transactional(readOnly = true)
-    public InternProfileResponse getByUserId(Long userId) {
-        InternProfile profile = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new NotFoundException("Intern profile not found for user: " + userId));
-        return toResponse(profile);
-    }
-
-    private InternProfileResponse toResponse(InternProfile profile) {
-        InternProfileResponse response = new InternProfileResponse();
-        response.setId(profile.getId());
-        response.setUserId(profile.getUser().getId());
-        response.setEmail(profile.getUser().getEmail());
-        response.setFullName(profile.getUser().getFullName());
-        response.setPhone(profile.getUser().getPhone());
-        response.setStudentCode(profile.getStudentCode());
-        response.setDob(profile.getDob());
-        response.setUniversity(profile.getUniversity());
-        response.setMajor(profile.getMajor());
-        response.setAddress(profile.getAddress());
-        response.setGpa(profile.getGpa());
-        response.setCvUrl(profile.getCvUrl());
-        response.setStartDate(profile.getStartDate());
-        response.setEndDate(profile.getEndDate());
-
-        if (profile.getMentor() != null) {
-            response.setMentorId(profile.getMentor().getId());
-            response.setMentorName(profile.getMentor().getUser().getFullName());
-        }
-
-        response.setCreatedAt(profile.getCreatedAt());
-        response.setUpdatedAt(profile.getUpdatedAt());
-
-        return response;
-    }
-
-    @Transactional
-    public void assignMentorByUserId(Long internId, Long mentorUserId) {
-        InternProfile profile = internProfileRepository.findById(internId)
-                .orElseThrow(() -> new NotFoundException("Intern profile", internId));
-
-        if (mentorUserId == null) {
-            profile.setMentor(null);
-        } else {
-            // Find Mentor profile OR auto-create if user is MENTOR but profile missing
-            Mentor mentor = mentorRepository.findByUser_Id(mentorUserId)
-                    .orElseGet(() -> {
-                        // Check if user exists and should have a profile
-                        User user = userRepository.findById(mentorUserId)
-                                .orElseThrow(() -> new NotFoundException("User not found", mentorUserId));
-
-                        boolean isMentorRole = user.getRoles().stream()
-                                .anyMatch(r -> "MENTOR".equalsIgnoreCase(r.getCode()));
-
-                        if (isMentorRole) {
-                            log.warn("Mentor profile missing for user {}, auto-creating...", mentorUserId);
-                            Mentor newMentor = new Mentor();
-                            newMentor.setUser(user);
-                            newMentor.setTitle("Mentor"); // Default title
-                            return mentorRepository.save(newMentor);
-                        } else {
-                            throw new NotFoundException("Mentor profile for user", mentorUserId);
-                        }
-                    });
-
-            profile.setMentor(mentor);
-        }
-        internProfileRepository.save(profile);
-        log.info("Assigned mentor (User ID: {}) to intern {}", mentorUserId, internId);
-    }
-
-    @Transactional(readOnly = true)
-    public List<com.example.backend.dto.InternCountStatDto> getInternStatsByUniversity() {
-        return internProfileRepository.countInternsGroupedByUniversity();
-    }
-
-    @Transactional(readOnly = true)
-    public List<com.example.backend.dto.InternCountStatDto> getInternStatsByMajor() {
-        return internProfileRepository.countInternsGroupedByMajor();
     }
 }

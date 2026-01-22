@@ -19,4 +19,13 @@ public class RegisterRequest {
     private String password;
 
     private String phone;
+
+    // Additional Intern Info
+    private Integer dobYear;
+    private String address;
+    private String studentCode;
+    private String university;
+    private String major;
+    private Integer startYear;
+    private Integer endYear;
 }

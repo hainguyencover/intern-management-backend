@@ -65,7 +65,7 @@ public class MentorService {
 
         @Transactional(readOnly = true)
         public List<MentorResponse> getAllMentors() {
-                return mentorRepository.findAllWithUser().stream()
+                return mentorRepository.findAllWithUserExcludingInterns().stream()
                                 .map(this::mapToResponse)
                                 .collect(Collectors.toList());
         }
@@ -73,7 +73,7 @@ public class MentorService {
         @Transactional(readOnly = true)
         public org.springframework.data.domain.Page<MentorResponse> getMentors(
                         org.springframework.data.domain.Pageable pageable) {
-                return mentorRepository.findAll(pageable)
+                return mentorRepository.findMentorsExcludingInterns(pageable)
                                 .map(this::mapToResponse);
         }
 
@@ -150,7 +150,7 @@ public class MentorService {
                                                 cb.like(cb.lower(root.get("studentCode")), likePattern)));
                         }
 
-                        // 2. Mentor assignment (Direct OR via Group)
+                        // 2. Mentor assignment (Strictly via Group)
                         jakarta.persistence.criteria.Subquery<Long> subquery = query.subquery(Long.class);
                         jakarta.persistence.criteria.Root<com.example.backend.entity.GroupMember> gmRoot = subquery
                                         .from(com.example.backend.entity.GroupMember.class);
@@ -161,12 +161,11 @@ public class MentorService {
                                         cb.equal(gmRoot.get("group").get("mentorId"), mentor.getId()),
                                         cb.isNull(gmRoot.get("leftAt")));
 
-                        // Main Condition: (Directly assigned) OR (In a group managed by mentor)
-                        jakarta.persistence.criteria.Predicate directAssign = cb.equal(root.get("mentor").get("id"),
-                                        mentor.getId());
+                        // Main Condition: ONLY In a group managed by mentor
+                        // Removed directAssign (cb.equal(root.get("mentor").get("id"), mentor.getId()))
                         jakarta.persistence.criteria.Predicate groupAssign = root.get("id").in(subquery);
 
-                        predicates.add(cb.or(directAssign, groupAssign));
+                        predicates.add(groupAssign);
 
                         // Status filter (Optional - currently ignored as no status field, or implement
                         // logic if field exists)
@@ -250,6 +249,34 @@ public class MentorService {
                 if (member != null && member.getGroup() != null) {
                         responseBuilder.programGroupId(member.getGroup().getId())
                                         .programGroupName(member.getGroup().getName());
+
+                        if (member.getGroup().getProgram() != null) {
+                                // Sync dates from Program
+                                responseBuilder.startDate(member.getGroup().getProgram().getStartDate());
+                                responseBuilder.endDate(member.getGroup().getProgram().getEndDate());
+
+                                // Sync status from Program/Group logic
+                                // If Member is active (leftAt == null) and Program is ACTIVE -> ACTIVE
+                                // If Program CLOSED -> FINISHED
+                                if ("CLOSED".equals(member.getGroup().getProgram().getStatus().name())) {
+                                        responseBuilder.status("FINISHED");
+                                } else {
+                                        responseBuilder.status("ACTIVE");
+                                }
+                        } else {
+                                responseBuilder.status("ACTIVE"); // Default if in group
+                        }
+                } else {
+                        // Not in any group -> UNASSIGNED or FINISHED based on dates?
+                        // For now, let's look at profile dates
+                        java.time.LocalDate now = java.time.LocalDate.now();
+                        if (profile.getEndDate() != null && profile.getEndDate().isBefore(now)) {
+                                responseBuilder.status("FINISHED");
+                        } else if (profile.getStartDate() != null && profile.getStartDate().isAfter(now)) {
+                                responseBuilder.status("WAITING");
+                        } else {
+                                responseBuilder.status("ACTIVE");
+                        }
                 }
 
                 return responseBuilder.build();

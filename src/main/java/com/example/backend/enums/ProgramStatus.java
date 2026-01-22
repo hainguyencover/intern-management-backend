@@ -1,3 +1,5 @@
 package com.example.backend.enums;
 
-public enum ProgramStatus { DRAFT, ACTIVE, CLOSED }
+public enum ProgramStatus {
+    DRAFT, ACTIVE, CLOSED
+}

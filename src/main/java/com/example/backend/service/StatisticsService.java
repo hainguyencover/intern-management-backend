@@ -134,14 +134,30 @@ public class StatisticsService {
         int allTasks = (int) taskRepository
                 .findByAssignee_Id(internId, org.springframework.data.domain.Pageable.unpaged()).getTotalElements();
 
+        java.time.LocalDate startDate = intern.getStartDate();
+        java.time.LocalDate endDate = intern.getEndDate();
+
+        // US: Prioritize Program dates if intern is in a group
+        if (membership.isPresent()) {
+            com.example.backend.entity.Program program = membership.get().getGroup().getProgram();
+            if (program.getStartDate() != null) {
+                startDate = program.getStartDate();
+            }
+            if (program.getEndDate() != null) {
+                endDate = program.getEndDate();
+            }
+        }
+
         int daysInternship = 0;
         int totalDays = 90; // Default
-        if (intern.getStartDate() != null) {
-            daysInternship = (int) java.time.temporal.ChronoUnit.DAYS.between(intern.getStartDate(),
+
+        if (startDate != null) {
+            long daysBetweenStartAndNow = java.time.temporal.ChronoUnit.DAYS.between(startDate,
                     java.time.LocalDate.now());
-            if (intern.getEndDate() != null) {
-                totalDays = (int) java.time.temporal.ChronoUnit.DAYS.between(intern.getStartDate(),
-                        intern.getEndDate());
+            daysInternship = (int) Math.max(0, daysBetweenStartAndNow); // Ensure non-negative
+
+            if (endDate != null) {
+                totalDays = (int) java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate);
             }
         }
 
