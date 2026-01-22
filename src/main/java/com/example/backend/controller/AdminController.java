@@ -88,6 +88,15 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/users/{id}/roles")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> updateUserRoles(
+            @PathVariable Long id,
+            @RequestBody com.example.backend.dto.request.AssignRolesRequest request) {
+        adminService.assignRoles(id, request.getRoleCodes());
+        return ResponseEntity.ok().build();
+    }
+
     // ========== AUDIT LOGS ==========
 
     @GetMapping("/audit-logs")

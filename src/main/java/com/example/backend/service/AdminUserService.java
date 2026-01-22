@@ -153,6 +153,17 @@ public class AdminUserService {
 
         user.setRoles(roles);
         userRepository.save(user);
+
+        // Auto-create profiles if needed
+        boolean isMentor = roles.stream().anyMatch(r -> "MENTOR".equalsIgnoreCase(r.getCode()));
+        if (isMentor && !mentorRepository.existsByUser_Id(user.getId())) {
+            Mentor mentor = new Mentor();
+            mentor.setUser(user);
+            mentor.setTitle("Mentor");
+            mentorRepository.save(mentor);
+            log.info("Auto-created Mentor profile for user {}", user.getEmail());
+        }
+
         log.info("Assigned roles {} to user {}", roleCodes, user.getEmail());
     }
 
@@ -191,6 +202,17 @@ public class AdminUserService {
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User không tồn tại"));
+
+        // Delete associated profiles first
+        try {
+            internProfileRepository.findByUser_Id(id).ifPresent(internProfileRepository::delete);
+            mentorRepository.findByUser_Id(id).ifPresent(mentorRepository::delete);
+        } catch (Exception e) {
+            log.error("Error cleaning up user profiles for user {}: {}", id, e.getMessage());
+            // Continue to delete user - if DB constraints fail, it will throw exception
+            // then
+        }
+
         userRepository.delete(user);
         log.info("Deleted user: {}", id);
     }

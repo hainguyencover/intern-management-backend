@@ -65,7 +65,7 @@ public class ProgramService {
         program.setDescription(request.getDescription());
         program.setStartDate(request.getStartDate());
         program.setEndDate(request.getEndDate());
-        program.setStatus(ProgramStatus.DRAFT);
+        program.setStatus(ProgramStatus.ACTIVE);
 
         program = programRepository.save(program);
         log.info("Created program: {}", program.getName());
@@ -180,5 +180,23 @@ public class ProgramService {
         response.setCreatedAt(program.getCreatedAt());
         response.setUpdatedAt(program.getUpdatedAt());
         return response;
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 0 * * ?") // Runs daily at midnight
+    @Transactional
+    public void autoCloseExpiredPrograms() {
+        List<Program> expiredPrograms = programRepository.findByStatusAndEndDateBefore(ProgramStatus.ACTIVE,
+                java.time.LocalDate.now());
+
+        int count = 0;
+        for (Program p : expiredPrograms) {
+            p.setStatus(ProgramStatus.CLOSED);
+            programRepository.save(p);
+            count++;
+        }
+
+        if (count > 0) {
+            log.info("Auto-closed {} expired programs", count);
+        }
     }
 }

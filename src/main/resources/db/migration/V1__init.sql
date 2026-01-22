@@ -174,7 +174,7 @@ CREATE TABLE programs
     status      VARCHAR(20)   NOT NULL,
     created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT ck_programs_status CHECK (status IN ('DRAFT', 'ACTIVE', 'CLOSED'))
+    CONSTRAINT ck_programs_status CHECK (status IN ('ACTIVE', 'CLOSED'))
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4;
 

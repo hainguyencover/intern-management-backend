@@ -22,6 +22,7 @@ public class WeeklyReportService {
         private final InternProfileRepository internRepository;
         private final UserRepository userRepository;
         private final MentorRepository mentorRepository;
+        private final GroupMemberRepository groupMemberRepository;
 
         @Transactional(readOnly = true)
         public com.example.backend.dto.response.FinalReportDto getFinalReport(Long internId) {
@@ -77,8 +78,7 @@ public class WeeklyReportService {
                                 .email(intern.getUser().getEmail())
                                 .startDate(intern.getStartDate())
                                 .endDate(intern.getEndDate())
-                                .mentorName(intern.getMentor() != null ? intern.getMentor().getUser().getFullName()
-                                                : "N/A")
+                                .mentorName(getMentorName(intern))
                                 .groupName("N/A")
                                 .evaluations(evaluationDtos)
                                 .weeklyReports(reportDtos)
@@ -228,9 +228,7 @@ public class WeeklyReportService {
                                         .fullName(intern.getUser().getFullName())
                                         .studentCode(intern.getStudentCode())
                                         .university(intern.getUniversity())
-                                        .mentorName(intern.getMentor() != null
-                                                        ? intern.getMentor().getUser().getFullName()
-                                                        : "N/A")
+                                        .mentorName(getMentorName(intern))
                                         .finalScore(Math.round(avgScore * 100.0) / 100.0)
                                         .finalAssessment(assessment)
                                         .reportCount((int) reportCount)
@@ -283,5 +281,17 @@ public class WeeklyReportService {
                                 mentorUser != null ? mentorUser.getFullName() : null,
                                 report.getCreatedAt(),
                                 report.getReviewedAt());
+        }
+
+        private String getMentorName(InternProfile intern) {
+                if (intern.getMentor() != null) {
+                        return intern.getMentor().getUser().getFullName();
+                }
+                // Fallback: Check active group
+                return groupMemberRepository.findFirstByIntern_IdAndLeftAtIsNull(intern.getId())
+                                .map(gm -> gm.getGroup().getMentorId()) // This is ID, need name
+                                .flatMap(mentorRepository::findById)
+                                .map(m -> m.getUser().getFullName())
+                                .orElse("N/A");
         }
 }

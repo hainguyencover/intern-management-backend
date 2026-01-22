@@ -39,5 +39,5 @@ public class Program extends BaseEntity {
 
         @Enumerated(EnumType.STRING)
         @Column(nullable = false, length = 20)
-        private ProgramStatus status = ProgramStatus.DRAFT;
+        private ProgramStatus status = ProgramStatus.ACTIVE;
 }

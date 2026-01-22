@@ -7,9 +7,10 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 public record ProgramUpsertRequest(
-        @NotBlank String name,
-        String description,
-        @NotNull LocalDate startDate,
-        @NotNull LocalDate endDate,
-        ProgramStatus status // optional: nếu null thì service set DRAFT
-) {}
+                @NotBlank String name,
+                String description,
+                @NotNull LocalDate startDate,
+                @NotNull LocalDate endDate,
+                ProgramStatus status // optional: nếu null thì service set ACTIVE
+) {
+}

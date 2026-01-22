@@ -68,6 +68,25 @@ public class ProgramGroupService {
         member.setJoinedAt(LocalDateTime.now());
 
         memberRepository.save(member);
+
+        // Auto-update intern's start/end date from Program if not set or if needed
+        Program program = group.getProgram();
+        if (program != null) {
+            boolean updated = false;
+            // Always overwrite or only if null? Let's overwrite to ensure sync with Program
+            if (program.getStartDate() != null) {
+                intern.setStartDate(program.getStartDate());
+                updated = true;
+            }
+            if (program.getEndDate() != null) {
+                intern.setEndDate(program.getEndDate());
+                updated = true;
+            }
+            if (updated) {
+                internProfileRepository.save(intern);
+            }
+        }
+
         log.info("Assigned intern {} to group {}", internId, groupId);
     }
 
