@@ -1,0 +1,130 @@
+# ===============================
+# Spring Application
+# ===============================
+spring:
+  application:
+    name: intern-management-backend
+  elasticsearch:
+    uris: ${ES_URIS:http://localhost:9200}
+  profiles:
+    active: dev # Default to dev
+  data:
+    elasticsearch:
+      repositories:
+        enabled: ${APP_ES_ENABLED:false}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000ms # 1 hour
+      cache-null-values: false
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:sk-placeholder}
+      chat:
+        options:
+          model: gpt-3.5-turbo
+
+  # ===============================
+  # JPA / Hibernate Defaults
+  # ===============================
+  jpa:
+    open-in-view: false
+    properties:
+      "[hibernate.jdbc.time_zone]": Asia/Ho_Chi_Minh
+      "[hibernate.jdbc.lob.non_contextual_creation]": true
+      "[hibernate.format_sql]": false
+
+  # ===============================
+  # Flyway Migration Defaults
+  # ===============================
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
+  # ===============================
+  # Multipart Configuration
+  # ===============================
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  # ===============================
+  # Mail Configuration
+  # ===============================
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# ===============================
+# Server Configuration
+# ===============================
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  tomcat:
+    max-swallow-size: 52428800
+
+# ===============================
+# Actuator Monitoring
+# ===============================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,prometheus
+
+# ===============================
+# Custom Application Properties
+# ===============================
+app:
+  elasticsearch:
+    enabled: ${APP_ES_ENABLED:false} # Disabled by default for local development
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-production-use-at-least-256-bit-key-here!!}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  file:
+    upload-dir: ${UPLOAD_DIR:./uploads}
+    max-size: 10485760
+  backup:
+    dir: ${BACKUP_DIR:./backups}
+    retention-days: 30
+
+# ===============================
+# Resilience4j Configuration
+# ===============================
+resilience4j:
+  ratelimiter:
+    instances:
+      apiRateLimiter:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+        subscribeForEvents: true
+
+# ===============================
+# Springdoc OpenAPI Defaults
+# ===============================
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
