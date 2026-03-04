@@ -1,7 +1,8 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.0'
+    id 'org.springframework.boot' version '3.4.0'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
 }
 
 group = 'com.example'
@@ -42,12 +43,72 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('test') {
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    '**/dto/**',
+                    '**/entity/**',
+                    '**/config/**',
+                    '**/exception/**',
+                    '**/response/**',
+                    '**/*Application*',
+                    '**/mapper/**',
+                    '**/annotation/**',
+                    '**/domain/**'
+            ])
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.70
+            }
+            excludes = [
+                    '*.dto.*',
+                    '*.entity.*',
+                    '*.config.*',
+                    '*.exception.*',
+                    '*.response.*',
+                    '*Application*',
+                    '*.mapper.*',
+                    '*.annotation.*',
+                    '*.domain.*'
+            ]
+        }
+    }
+}
+
+test {
+    finalizedBy jacocoTestReport
     useJUnitPlatform()
 }
+
+
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
