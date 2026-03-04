@@ -45,7 +45,7 @@ public class ApplicationService {
         Long internId = intern.getId();
 
         // Check if already has pending/approved application
-        boolean hasPending = applicationRepository.existsByInternIdAndStatus(
+        boolean hasPending = applicationRepository.existsByIntern_IdAndStatus(
                 internId, ApplicationStatus.SUBMITTED);
 
         if (hasPending) {
@@ -78,8 +78,8 @@ public class ApplicationService {
                 .orElseThrow(() -> new RuntimeException("Intern profile not found: " + internId));
 
         // Check if already has pending/approved application
-        if (applicationRepository.existsByInternIdAndStatus(internId, ApplicationStatus.SUBMITTED) ||
-                applicationRepository.existsByInternIdAndStatus(internId, ApplicationStatus.APPROVED)) {
+        if (applicationRepository.existsByIntern_IdAndStatus(internId, ApplicationStatus.SUBMITTED) ||
+                applicationRepository.existsByIntern_IdAndStatus(internId, ApplicationStatus.APPROVED)) {
             throw new RuntimeException("You already have a pending or approved application");
         }
 

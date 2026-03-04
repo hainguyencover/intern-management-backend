@@ -75,7 +75,7 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
                         "AND a.appliedAt >= :fromDate")
         long countByStatusSince(@Param("status") ApplicationStatus status, @Param("fromDate") LocalDateTime fromDate);
 
-        boolean existsByInternIdAndStatus(Long internId, ApplicationStatus status);
+        boolean existsByIntern_IdAndStatus(Long internId, ApplicationStatus status);
 
         boolean existsByIntern_IdAndStatusIn(Long internId, Collection<ApplicationStatus> statuses);
 

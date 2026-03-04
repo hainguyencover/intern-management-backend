@@ -26,4 +26,5 @@ public class UserResponse {
     // US10 fields
     private Long internId;
     private String applicationStatus;
+    private Boolean isTwoFactorEnabled;
 }
