@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.ContractResponse;
 import com.example.backend.security.CustomUserDetails;
 import com.example.backend.service.ContractService;
@@ -14,7 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/contracts")
+@RequestMapping("/api/v1/contracts")
 @RequiredArgsConstructor
 public class ContractController {
 
@@ -22,34 +23,35 @@ public class ContractController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<ContractResponse> upload(
+    public ResponseEntity<ApiResponse<ContractResponse>> upload(
             @RequestParam Long applicationId,
             @RequestParam("file") MultipartFile file) {
         ContractResponse response = contractService.uploadContract(applicationId, file);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Hợp đồng được tải lên thành công", response));
     }
 
     @PutMapping("/{id}/sign")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<ContractResponse> sign(
+    public ResponseEntity<ApiResponse<ContractResponse>> sign(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         ContractResponse response = contractService.signContract(id, userDetails.getId());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Ký hợp đồng thành công", response));
     }
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<List<ContractResponse>> getMyContracts(
+    public ResponseEntity<ApiResponse<List<ContractResponse>>> getMyContracts(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         List<ContractResponse> response = contractService.getMyContracts(userDetails.getId());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'INTERN')")
-    public ResponseEntity<ContractResponse> get(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ContractResponse>> get(@PathVariable Long id) {
         ContractResponse response = contractService.getContract(id);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

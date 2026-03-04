@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.entity.BackupJob;
 import com.example.backend.service.BackupService;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/system")
+@RequestMapping("/api/v1/admin/system")
 @RequiredArgsConstructor
 @Slf4j
 public class BackupController {
@@ -23,41 +24,41 @@ public class BackupController {
 
     /**
      * Run manual backup
-     * POST /api/admin/system/backup
+     * POST /api/v1/admin/system/backup
      */
     @PostMapping("/backup")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BackupJob> runManualBackup(
+    public ResponseEntity<ApiResponse<BackupJob>> runManualBackup(
             @AuthenticationPrincipal com.example.backend.security.CustomUserDetails user) {
         log.info("Manual backup triggered by: {}", user.getUsername());
 
         BackupJob job = backupService.runManualBackup(user.getId());
-        return ResponseEntity.ok(job);
+        return ResponseEntity.ok(ApiResponse.success("Backup triggered successfully", job));
     }
 
     /**
      * Get backup history
-     * GET /api/admin/system/backups?page=0&size=10
+     * GET /api/v1/admin/system/backups?page=0&size=10
      */
     @GetMapping("/backups")
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('BACKUP_READ')")
-    public ResponseEntity<Page<BackupJob>> getBackupHistory(
+    public ResponseEntity<ApiResponse<Page<BackupJob>>> getBackupHistory(
             @PageableDefault(size = 10, sort = "startedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         log.info("Get backup history");
         Page<BackupJob> history = backupService.getBackupHistory(pageable);
-        return ResponseEntity.ok(history);
+        return ResponseEntity.ok(ApiResponse.success(history));
     }
 
     /**
      * Cleanup old backups
-     * DELETE /api/admin/system/backups/cleanup?days=30
+     * DELETE /api/v1/admin/system/backups/cleanup?days=30
      */
     @DeleteMapping("/backups/cleanup")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> cleanupOldBackups(
+    public ResponseEntity<ApiResponse<Void>> cleanupOldBackups(
             @RequestParam(defaultValue = "30") int days) {
         log.info("Cleanup backups older than {} days", days);
         backupService.cleanupOldBackups(days);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Old backups cleaned up successfully", null));
     }
 }

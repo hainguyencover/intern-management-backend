@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.InternDocumentResponse;
 import com.example.backend.entity.InternProfile;
 import com.example.backend.entity.User;
@@ -24,9 +25,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class InternDocumentController {
 
@@ -68,8 +70,6 @@ public class InternDocumentController {
             return false;
         String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         String ct = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
-
-        // chấp nhận cả theo filename và content-type
         return name.endsWith(".pdf") || ct.contains("pdf");
     }
 
@@ -77,11 +77,6 @@ public class InternDocumentController {
         return filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".pdf");
     }
 
-    /**
-     * Check quyền download document:
-     * - HR/ADMIN: được download mọi doc
-     * - INTERN: chỉ download doc thuộc intern profile của chính mình
-     */
     private void authorizeDownload(Long documentId, User user) {
         Long userId = user.getId();
         boolean isHrOrAdmin = hasRole(userId, "HR") || hasRole(userId, "ADMIN");
@@ -90,17 +85,15 @@ public class InternDocumentController {
 
         boolean isIntern = hasRole(userId, "INTERN");
         if (!isIntern) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "You do not have permission to download documents");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Bạn không có quyền tải tài liệu này");
         }
 
-        // Intern chỉ được download doc của chính mình
         var ip = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(
-                        () -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found for userId=" + userId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin thực tập sinh"));
 
         boolean owns = internDocumentRepository.existsByIdAndIntern_Id(documentId, ip.getId());
         if (!owns) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "You can download only your own documents");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Bạn chỉ có thể tải tài liệu của chính mình");
         }
     }
 
@@ -108,92 +101,68 @@ public class InternDocumentController {
     // INTERN: list + upload
     // ----------------------------
     @GetMapping("/intern/documents")
-    public ResponseEntity<?> getMyDocuments() {
+    public ResponseEntity<ApiResponse<List<InternDocumentResponse>>> getMyDocuments() {
         User user = currentUserOrThrow();
         Long userId = user.getId();
 
-        boolean isIntern = hasRole(userId, "INTERN");
-        if (!isIntern) {
-            boolean isHrOrAdmin = hasRole(userId, "HR") || hasRole(userId, "ADMIN");
-            if (isHrOrAdmin) {
-                return ResponseEntity.status(HttpStatus.SEE_OTHER)
-                        .header("Location", "/api/hr/interns")
-                        .body(java.util.Map.of(
-                                "message", "Redirecting HR/Admin to /api/hr/interns to select an intern.",
-                                "redirect", "/api/hr/interns"));
-            }
-            throw new ApiException(HttpStatus.FORBIDDEN, "Only INTERN can access /api/intern/documents");
+        if (!hasRole(userId, "INTERN")) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Chỉ thực tập sinh mới có quyền truy cập");
         }
 
         var ip = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(
-                        () -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found for userId=" + userId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin thực tập sinh"));
 
         List<InternDocumentResponse> docs = documentService.getMyDocuments(ip.getId());
-        return ResponseEntity.ok(docs);
+        return ResponseEntity.ok(ApiResponse.success(docs));
     }
 
     @PostMapping(path = { "/intern/documents", "/intern/documents/upload", "/documents/upload" })
-    public ResponseEntity<InternDocumentResponse> uploadMyDocument(
+    public ResponseEntity<ApiResponse<InternDocumentResponse>> uploadMyDocument(
             @RequestParam(value = "type", required = false) String type,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "internId", required = false) Long internIdParam) {
         User user = currentUserOrThrow();
         Long userId = user.getId();
-
         Long targetInternId;
-
-        // Logic phân quyền:
-        // 1. Nếu là INTERN: upload cho chính mình.
-        // 2. Nếu là HR/ADMIN: phải có internIdParam để upload cho intern đó.
 
         if (hasRole(userId, "INTERN")) {
             var ip = internProfileRepository.findByUser_Id(userId)
-                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
-                            "Intern profile not found for userId=" + userId));
+                    .orElseThrow(
+                            () -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin thực tập sinh"));
             targetInternId = ip.getId();
         } else if (hasRole(userId, "HR") || hasRole(userId, "ADMIN")) {
             if (internIdParam == null) {
-                // Fallback: Nếu không gửi internId, thử tìm xem user hiện tại có phải intern
-                // không (trường hợp HR kiêm Intern?)
-                // Hoặc báo lỗi rõ ràng
-                throw new ApiException(HttpStatus.BAD_REQUEST, "HR/Admin must provide 'internId' to upload document");
+                throw new ApiException(HttpStatus.BAD_REQUEST, "HR/Admin phải cung cấp internId để tải lên tài liệu");
             }
             targetInternId = internIdParam;
             if (!internProfileRepository.existsById(targetInternId)) {
-                throw new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found: " + targetInternId);
+                throw new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ thực tập sinh: " + targetInternId);
             }
         } else {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Permission denied");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Quyền truy cập bị từ chối");
         }
 
         if (file == null || file.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "File is required");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Vui lòng chọn file");
         }
 
-        // ✅ Chặn chỉ cho upload PDF
         if (!isPdf(file)) {
-            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Only PDF files are allowed");
+            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Chỉ hỗ trợ file định dạng PDF");
         }
 
-        // Handle missing type
         if (type == null || type.isBlank()) {
-            // throw new ApiException(HttpStatus.BAD_REQUEST, "Document type is required");
-            // DEBUG: Log or default? Let's default to 'OTHER' or 'CV' if implied?
-            // Or maybe frontend sends it differently?
-            // Let's assume for now valid types are required.
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Required request parameter 'type' is missing");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Loại tài liệu là bắt buộc");
         }
 
         DocumentType docType;
         try {
             docType = DocumentType.valueOf(type.strip());
         } catch (IllegalArgumentException e) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Invalid document type: '" + type + "'");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Loại tài liệu không hợp lệ: '" + type + "'");
         }
 
         InternDocumentResponse resp = documentService.uploadForIntern(targetInternId, docType, file, userId);
-        return ResponseEntity.ok(resp);
+        return ResponseEntity.ok(ApiResponse.success("Tải lên tài liệu thành công", resp));
     }
 
     // ----------------------------
@@ -201,9 +170,10 @@ public class InternDocumentController {
     // ----------------------------
     @GetMapping("/hr/interns/{id}/documents")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<List<InternDocumentResponse>> getInternDocumentsForHr(@PathVariable("id") Long internId) {
+    public ResponseEntity<ApiResponse<List<InternDocumentResponse>>> getInternDocumentsForHr(
+            @PathVariable("id") Long internId) {
         List<InternDocumentResponse> docs = documentService.getDocumentsOfIntern(internId);
-        return ResponseEntity.ok(docs);
+        return ResponseEntity.ok(ApiResponse.success(docs));
     }
 
     // ----------------------------
@@ -213,25 +183,20 @@ public class InternDocumentController {
     public ResponseEntity<Resource> downloadDocument(@PathVariable("id") Long documentId,
             @RequestParam(required = false, defaultValue = "false") boolean inline) {
         User user = currentUserOrThrow();
-
-        // ✅ check quyền
         authorizeDownload(documentId, user);
 
         var doc = internDocumentRepository.findById(documentId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không tồn tại: " + documentId));
 
         String fileUrl = doc.getFileUrl();
         if (fileUrl == null || fileUrl.isBlank()) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "Document has no fileUrl");
+            throw new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không có đường dẫn file");
         }
 
         String filename = filenameFromFileUrl(fileUrl);
         boolean pdf = isPdfFilename(filename);
-
         Resource resource = storage.loadFileAsResource(fileUrl);
-
         MediaType contentType = pdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM;
-
         String disposition = inline ? "inline" : "attachment";
 
         return ResponseEntity.ok()
@@ -240,15 +205,12 @@ public class InternDocumentController {
                 .body(resource);
     }
 
-    // ✅ alias để FE gọi /api/documents/download/{id}
-    // ✅ alias để FE gọi /api/documents/download/{id}
     @GetMapping("/documents/download/{id}")
     public ResponseEntity<Resource> downloadDocumentAlias(@PathVariable("id") Long documentId,
             @RequestParam(required = false, defaultValue = "false") boolean inline) {
         return downloadDocument(documentId, inline);
     }
 
-    // ✅ HR alias đúng URL FE đang gọi: /api/hr/documents/download/{id}
     @GetMapping({ "/hr/documents/download/{id}", "/hr/documents/{id}/download" })
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<Resource> hrDownload(@PathVariable("id") Long documentId,
@@ -260,97 +222,62 @@ public class InternDocumentController {
     // Status + approve/reject
     // ----------------------------
     @GetMapping("/documents/{id}/status")
-    public ResponseEntity<?> getDocumentStatus(@PathVariable("id") Long documentId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDocumentStatus(@PathVariable("id") Long documentId) {
         var doc = internDocumentRepository.findById(documentId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không tồn tại: " + documentId));
 
-        return ResponseEntity.ok(java.util.Map.of(
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "id", doc.getId(),
                 "status", doc.getStatus(),
                 "reviewedById", doc.getReviewedBy() != null ? doc.getReviewedBy().getId() : null,
                 "reviewedAt", doc.getReviewedAt(),
-                "reviewNote", doc.getReviewNote()));
+                "reviewNote", doc.getReviewNote() != null ? doc.getReviewNote() : "")));
     }
 
     @PostMapping("/hr/documents/{id}/approve")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<InternDocumentResponse> approveDocument(@PathVariable("id") Long documentId) {
+    public ResponseEntity<ApiResponse<InternDocumentResponse>> approveDocument(@PathVariable("id") Long documentId) {
         User user = currentUserOrThrow();
         InternDocumentResponse resp = documentService.approve(documentId, user.getId());
-        return ResponseEntity.ok(resp);
+        return ResponseEntity.ok(ApiResponse.success("Phê duyệt tài liệu thành công", resp));
     }
 
     @PostMapping("/hr/documents/{id}/reject")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<InternDocumentResponse> rejectDocument(
+    public ResponseEntity<ApiResponse<InternDocumentResponse>> rejectDocument(
             @PathVariable("id") Long documentId,
             @RequestParam(value = "note", required = false) String note) {
         User user = currentUserOrThrow();
         InternDocumentResponse resp = documentService.reject(documentId, user.getId(), note);
-        return ResponseEntity.ok(resp);
-    }
-
-    // legacy PUT endpoints
-    @RequestMapping(value = "/hr/documents/{id}/approve", method = { RequestMethod.POST, RequestMethod.PUT })
-    @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<InternDocumentResponse> approveDocumentPut(
-            @PathVariable("id") Long documentId,
-            @RequestParam(value = "hrUserId", required = false) Long hrUserId) {
-        Long actingHrId = hrUserId;
-        if (actingHrId == null) {
-            User user = currentUserOrThrow();
-            actingHrId = user.getId();
-        }
-        InternDocumentResponse resp = documentService.approve(documentId, actingHrId);
-        return ResponseEntity.ok(resp);
-    }
-
-    @RequestMapping(value = "/hr/documents/{id}/reject", method = { RequestMethod.POST, RequestMethod.PUT })
-    @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<InternDocumentResponse> rejectDocumentPut(
-            @PathVariable("id") Long documentId,
-            @RequestParam(value = "hrUserId", required = false) Long hrUserId,
-            @RequestParam(value = "note", required = false) String note) {
-        Long actingHrId = hrUserId;
-        if (actingHrId == null) {
-            User user = currentUserOrThrow();
-            actingHrId = user.getId();
-        }
-        InternDocumentResponse resp = documentService.reject(documentId, actingHrId, note);
-        return ResponseEntity.ok(resp);
+        return ResponseEntity.ok(ApiResponse.success("Từ chối tài liệu thành công", resp));
     }
 
     @PostMapping(value = "/hr/interns/{internId}/documents/contracts", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('HR') or hasRole('ADMIN')")
-    public ResponseEntity<InternDocumentResponse> uploadInternshipContract(@PathVariable("internId") Long internId,
+    public ResponseEntity<ApiResponse<InternDocumentResponse>> uploadInternshipContract(
+            @PathVariable("internId") Long internId,
             @RequestParam("file") MultipartFile file) {
         internProfileRepository.findById(internId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found: " + internId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy hồ sơ thực tập sinh: " + internId));
         User user = currentUserOrThrow();
         InternDocumentResponse resp = documentService.uploadForIntern(
                 internId,
-                DocumentType.valueOf(DocumentType.INTERNSHIP_CONTRACT.name()),
+                DocumentType.INTERNSHIP_CONTRACT,
                 file,
                 user.getId());
 
-        return ResponseEntity.ok(resp);
+        return ResponseEntity.ok(ApiResponse.success("Tải lên hợp đồng thực tập thành công", resp));
     }
 
     @PostMapping("/intern/documents/{id}/confirm")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<InternDocumentResponse> confirmMyContract(@PathVariable("id") Long documentId) {
-
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found: " + email));
-
+    public ResponseEntity<ApiResponse<InternDocumentResponse>> confirmMyContract(@PathVariable("id") Long documentId) {
+        User user = currentUserOrThrow();
         InternProfile ip = internProfileRepository.findByUser_Id(user.getId())
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Intern profile not found"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ thực tập sinh"));
 
         InternDocumentResponse resp = documentService.confirmContract(ip.getId(), documentId);
-        return ResponseEntity.ok(resp);
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận hợp đồng thành công", resp));
     }
-
 }

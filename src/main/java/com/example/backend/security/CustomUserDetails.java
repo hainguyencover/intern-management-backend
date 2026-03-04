@@ -13,11 +13,13 @@ public class CustomUserDetails implements UserDetails {
     private final String email;
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
+    private final com.example.backend.enums.UserStatus status;
 
     public CustomUserDetails(User user) {
         this.id = user.getId();
         this.email = user.getEmail();
         this.password = user.getPasswordHash();
+        this.status = user.getStatus();
         this.authorities = user.getRoles().stream()
                 .flatMap(role -> {
                     var auths = new java.util.ArrayList<SimpleGrantedAuthority>();
@@ -58,7 +60,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return status != com.example.backend.enums.UserStatus.LOCKED;
     }
 
     @Override
@@ -68,6 +70,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return status == com.example.backend.enums.UserStatus.ACTIVE;
     }
 }

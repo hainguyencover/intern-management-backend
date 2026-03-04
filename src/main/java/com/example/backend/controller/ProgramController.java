@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import com.example.backend.dto.request.AssignInternRequest;
 import com.example.backend.dto.request.GroupRequest;
 import com.example.backend.dto.request.CreateProgramRequest;
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.GroupResponse;
 import com.example.backend.dto.response.ProgramResponse;
 import com.example.backend.enums.ProgramStatus;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/programs")
+@RequestMapping("/api/v1/programs")
 @RequiredArgsConstructor
 public class ProgramController {
 
@@ -30,7 +31,7 @@ public class ProgramController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
-    public ResponseEntity<Page<ProgramResponse>> search(
+    public ResponseEntity<ApiResponse<Page<ProgramResponse>>> search(
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) ProgramStatus status,
             @RequestParam(required = false) String keyword,
@@ -42,65 +43,73 @@ public class ProgramController {
                 sort[1].equals("asc") ? Sort.Direction.ASC : Sort.Direction.DESC,
                 sort[0]));
 
-        return ResponseEntity.ok(programService.search(departmentId, status, keyword, pageable));
+        Page<ProgramResponse> response = programService.search(departmentId, status, keyword, pageable);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
-    public ResponseEntity<ProgramResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(programService.getById(id));
+    public ResponseEntity<ApiResponse<ProgramResponse>> getById(@PathVariable Long id) {
+        ProgramResponse response = programService.getById(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<ProgramResponse> create(@Valid @RequestBody CreateProgramRequest req) {
-        return ResponseEntity.ok(programService.createProgram(req));
+    public ResponseEntity<ApiResponse<ProgramResponse>> create(@Valid @RequestBody CreateProgramRequest req) {
+        ProgramResponse response = programService.createProgram(req);
+        return ResponseEntity.ok(ApiResponse.success("Program created successfully", response));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<ProgramResponse> update(@PathVariable Long id, @Valid @RequestBody CreateProgramRequest req) {
-        return ResponseEntity.ok(programService.updateProgram(id, req));
+    public ResponseEntity<ApiResponse<ProgramResponse>> update(@PathVariable Long id,
+            @Valid @RequestBody CreateProgramRequest req) {
+        ProgramResponse response = programService.updateProgram(id, req);
+        return ResponseEntity.ok(ApiResponse.success("Program updated successfully", response));
     }
 
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<Void> updateStatus(
+    public ResponseEntity<ApiResponse<Void>> updateStatus(
             @PathVariable Long id,
             @RequestParam ProgramStatus status) {
         programService.updateProgramStatus(id, status);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Program status updated successfully", null));
     }
 
     // Group endpoints
     @PostMapping("/groups")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<GroupResponse> createGroup(@Valid @RequestBody GroupRequest req) {
-        return ResponseEntity.ok(programGroupService.create(req));
+    public ResponseEntity<ApiResponse<GroupResponse>> createGroup(@Valid @RequestBody GroupRequest req) {
+        GroupResponse response = programGroupService.create(req);
+        return ResponseEntity.ok(ApiResponse.success("Group created successfully", response));
     }
 
     @GetMapping("/{programId}/groups")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
-    public ResponseEntity<List<GroupResponse>> getGroups(@PathVariable Long programId) {
-        return ResponseEntity.ok(programGroupService.getGroupsByProgramId(programId));
+    public ResponseEntity<ApiResponse<List<GroupResponse>>> getGroups(@PathVariable Long programId) {
+        List<GroupResponse> response = programGroupService.getGroupsByProgramId(programId);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/groups/{groupId}/members")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<Void> assignIntern(
+    public ResponseEntity<ApiResponse<Void>> assignIntern(
             @PathVariable Long groupId,
             @Valid @RequestBody AssignInternRequest req) {
         programGroupService.assignIntern(groupId, req.getInternId());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Intern assigned to group successfully", null));
     }
 
     /**
      * Delete program
-     * DELETE /api/programs/{id}
+     * DELETE /api/v1/programs/{id}
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         programService.deleteProgram(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.success("Program deleted successfully", null));
     }
 }

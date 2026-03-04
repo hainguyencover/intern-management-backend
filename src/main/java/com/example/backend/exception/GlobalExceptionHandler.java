@@ -1,5 +1,6 @@
 package com.example.backend.exception;
 
+import com.example.backend.dto.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -19,91 +20,64 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
         @ExceptionHandler(NotFoundException.class)
-        public ResponseEntity<ApiError> handleNotFoundException(
+        public ResponseEntity<ApiResponse<Void>> handleNotFoundException(
                         NotFoundException ex, HttpServletRequest request) {
                 log.error("NotFoundException: {}", ex.getMessage());
-                ApiError error = ApiError.of(
-                                HttpStatus.NOT_FOUND.value(),
-                                "NOT_FOUND",
-                                ex.getMessage(),
-                                request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+                return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), null, request);
+        }
+
+        @ExceptionHandler(ResourceNotFoundException.class)
+        public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(
+                        ResourceNotFoundException ex, HttpServletRequest request) {
+                log.error("ResourceNotFoundException: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), null, request);
         }
 
         @ExceptionHandler(BadRequestException.class)
-        public ResponseEntity<ApiError> handleBadRequestException(
+        public ResponseEntity<ApiResponse<Void>> handleBadRequestException(
                         BadRequestException ex, HttpServletRequest request) {
                 log.error("BadRequestException: {}", ex.getMessage());
-                ApiError error = ApiError.of(
-                                HttpStatus.BAD_REQUEST.value(),
-                                "BAD_REQUEST",
-                                ex.getMessage(),
-                                request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null, request);
         }
 
         @ExceptionHandler(IllegalArgumentException.class)
-        public ResponseEntity<ApiError> handleIllegalArgumentException(
+        public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(
                         IllegalArgumentException ex, HttpServletRequest request) {
                 log.error("IllegalArgumentException: {}", ex.getMessage());
-                ApiError error = ApiError.of(
-                                HttpStatus.BAD_REQUEST.value(),
-                                "BAD_REQUEST",
-                                ex.getMessage(),
-                                request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null, request);
         }
 
         @ExceptionHandler(ConflictException.class)
-        public ResponseEntity<ApiError> handleConflictException(
+        public ResponseEntity<ApiResponse<Void>> handleConflictException(
                         ConflictException ex, HttpServletRequest request) {
                 log.error("ConflictException: {}", ex.getMessage());
-                ApiError error = ApiError.of(
-                                HttpStatus.CONFLICT.value(),
-                                "CONFLICT",
-                                ex.getMessage(),
-                                request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+                return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), null, request);
         }
 
         @ExceptionHandler(ForbiddenException.class)
-        public ResponseEntity<ApiError> handleForbiddenException(
+        public ResponseEntity<ApiResponse<Void>> handleForbiddenException(
                         ForbiddenException ex, HttpServletRequest request) {
                 log.error("ForbiddenException: {}", ex.getMessage());
-                ApiError error = ApiError.of(
-                                HttpStatus.FORBIDDEN.value(),
-                                "FORBIDDEN",
-                                ex.getMessage(),
-                                request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+                return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), null, request);
         }
 
         @ExceptionHandler(AccessDeniedException.class)
-        public ResponseEntity<ApiError> handleAccessDeniedException(
+        public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(
                         AccessDeniedException ex, HttpServletRequest request) {
                 log.error("AccessDeniedException: {}", ex.getMessage());
-                ApiError error = ApiError.of(
-                                HttpStatus.FORBIDDEN.value(),
-                                "FORBIDDEN",
-                                "Bạn không có quyền truy cập tài nguyên này",
-                                request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+                return buildErrorResponse(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập tài nguyên này", null,
+                                request);
         }
 
         @ExceptionHandler(BadCredentialsException.class)
-        public ResponseEntity<ApiError> handleBadCredentialsException(
+        public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(
                         BadCredentialsException ex, HttpServletRequest request) {
                 log.error("BadCredentialsException: {}", ex.getMessage());
-                ApiError error = ApiError.of(
-                                HttpStatus.UNAUTHORIZED.value(),
-                                "UNAUTHORIZED",
-                                "Email hoặc mật khẩu không đúng",
-                                request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+                return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng", null, request);
         }
 
         @ExceptionHandler(MethodArgumentNotValidException.class)
-        public ResponseEntity<Map<String, Object>> handleValidationExceptions(
+        public ResponseEntity<ApiResponse<Void>> handleValidationExceptions(
                         MethodArgumentNotValidException ex, HttpServletRequest request) {
                 Map<String, String> errors = new HashMap<>();
                 ex.getBindingResult().getAllErrors().forEach((error) -> {
@@ -111,51 +85,39 @@ public class GlobalExceptionHandler {
                         String errorMessage = error.getDefaultMessage();
                         errors.put(fieldName, errorMessage);
                 });
-
-                Map<String, Object> response = new HashMap<>();
-                response.put("timestamp", java.time.LocalDateTime.now());
-                response.put("status", HttpStatus.BAD_REQUEST.value());
-                response.put("error", "VALIDATION_ERROR");
-                response.put("message", "Dữ liệu không hợp lệ");
-                response.put("errors", errors);
-                response.put("path", request.getRequestURI());
-
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+                log.error("Validation error at {}: {}", request.getRequestURI(), errors);
+                return buildErrorResponse(HttpStatus.BAD_REQUEST, "Dữ liệu không hợp lệ", errors, request);
         }
 
         @ExceptionHandler(ApiException.class)
-        public ResponseEntity<ApiError> handleApiException(
+        public ResponseEntity<ApiResponse<Void>> handleApiException(
                         ApiException ex, HttpServletRequest request) {
                 log.error("ApiException: status={}, message={}", ex.status, ex.getMessage());
-                ApiError error = ApiError.of(
-                                ex.status.value(),
-                                ex.status.name(),
-                                ex.getMessage(),
-                                request.getRequestURI());
-                return ResponseEntity.status(ex.status).body(error);
+                return buildErrorResponse(ex.status, ex.getMessage(), null, request);
+        }
+
+        @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+        public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(
+                        org.springframework.dao.DataIntegrityViolationException ex, HttpServletRequest request) {
+                log.error("DataIntegrityViolationException: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.CONFLICT,
+                                "Lỗi toàn vẹn dữ liệu: Có thể dữ liệu đã tồn tại hoặc đang được tham chiếu", null,
+                                request);
         }
 
         @ExceptionHandler(Exception.class)
-        public ResponseEntity<ApiError> handleGlobalException(
+        public ResponseEntity<ApiResponse<Void>> handleGlobalException(
                         Exception ex, HttpServletRequest request) {
-                log.error("Unhandled exception", ex);
-                ApiError error = ApiError.of(
-                                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                                "INTERNAL_SERVER_ERROR",
-                                "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
-                                request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+                log.error("Unhandled exception at " + request.getRequestURI(), ex);
+                return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                                "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau. (" + ex.getClass().getSimpleName() + ")",
+                                null, request);
         }
 
-        @ExceptionHandler(ResourceNotFoundException.class)
-        public ResponseEntity<ApiError> handleResourceNotFoundException(
-                        ResourceNotFoundException ex, HttpServletRequest request) {
-                log.error("ResourceNotFoundException: {}", ex.getMessage());
-                ApiError error = ApiError.of(
-                                HttpStatus.NOT_FOUND.value(),
-                                "NOT_FOUND",
-                                ex.getMessage(),
+        private ResponseEntity<ApiResponse<Void>> buildErrorResponse(
+                        HttpStatus status, String message, Object errors, HttpServletRequest request) {
+                ApiResponse<Void> response = ApiResponse.error(status.value(), message, errors,
                                 request.getRequestURI());
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+                return ResponseEntity.status(status).body(response);
         }
 }

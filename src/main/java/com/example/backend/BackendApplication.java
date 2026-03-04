@@ -5,6 +5,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 @org.springframework.scheduling.annotation.EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
+@org.springframework.cache.annotation.EnableCaching
 @org.springframework.data.jpa.repository.config.EnableJpaAuditing
 public class BackendApplication {
 

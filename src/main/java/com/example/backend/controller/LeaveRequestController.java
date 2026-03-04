@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.request.LeaveRequestCreateRequest;
 import com.example.backend.dto.request.LeaveRequestRejectRequest;
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.LeaveRequestResponse;
 import com.example.backend.entity.LeaveRequest;
 import com.example.backend.security.CustomUserDetails;
@@ -17,7 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/leave-requests")
+@RequestMapping("/api/v1/leave-requests")
 @RequiredArgsConstructor
 public class LeaveRequestController {
 
@@ -26,60 +27,62 @@ public class LeaveRequestController {
 
     @PostMapping
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<LeaveRequestResponse> createLeaveRequest(
+    public ResponseEntity<ApiResponse<LeaveRequestResponse>> createLeaveRequest(
             @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody LeaveRequestCreateRequest request) {
         Long internId = userService.getInternProfileIdByUserId(user.getId());
         LeaveRequest leaveRequest = leaveRequestService.createLeaveRequest(
                 internId, request.getStartDate(), request.getEndDate(), request.getReason(), request.getLeaveType());
-        return ResponseEntity.ok(LeaveRequestResponse.from(leaveRequest));
+        return ResponseEntity.ok(
+                ApiResponse.success("Leave request submitted successfully", LeaveRequestResponse.from(leaveRequest)));
     }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<Page<LeaveRequestResponse>> getAllRequests(
+    public ResponseEntity<ApiResponse<Page<LeaveRequestResponse>>> getAllRequests(
             @RequestParam(required = false) com.example.backend.enums.LeaveStatus status,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        // Use search to filter by status (internId null means all interns)
         Page<LeaveRequest> page = leaveRequestService.searchLeaveRequests(null, status, pageable);
-        return ResponseEntity.ok(page.map(LeaveRequestResponse::from));
+        return ResponseEntity.ok(ApiResponse.success(page.map(LeaveRequestResponse::from)));
     }
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<Page<LeaveRequestResponse>> getMyLeaveRequests(
+    public ResponseEntity<ApiResponse<Page<LeaveRequestResponse>>> getMyLeaveRequests(
             @AuthenticationPrincipal CustomUserDetails user,
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
         Long internId = userService.getInternProfileIdByUserId(user.getId());
         Page<LeaveRequest> page = leaveRequestService.getMyLeaveRequests(internId, pageable);
-        return ResponseEntity.ok(page.map(LeaveRequestResponse::from));
+        return ResponseEntity.ok(ApiResponse.success(page.map(LeaveRequestResponse::from)));
     }
 
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<Page<LeaveRequestResponse>> getPendingLeaveRequests(
+    public ResponseEntity<ApiResponse<Page<LeaveRequestResponse>>> getPendingLeaveRequests(
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
         Page<LeaveRequest> page = leaveRequestService.getPendingLeaveRequests(pageable);
-        return ResponseEntity.ok(page.map(LeaveRequestResponse::from));
+        return ResponseEntity.ok(ApiResponse.success(page.map(LeaveRequestResponse::from)));
     }
 
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<LeaveRequestResponse> approveLeaveRequest(
+    public ResponseEntity<ApiResponse<LeaveRequestResponse>> approveLeaveRequest(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails user) {
         LeaveRequest leaveRequest = leaveRequestService.approveLeaveRequest(id, user.getId());
-        return ResponseEntity.ok(LeaveRequestResponse.from(leaveRequest));
+        return ResponseEntity.ok(
+                ApiResponse.success("Leave request approved successfully", LeaveRequestResponse.from(leaveRequest)));
     }
 
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<LeaveRequestResponse> rejectLeaveRequest(
+    public ResponseEntity<ApiResponse<LeaveRequestResponse>> rejectLeaveRequest(
             @PathVariable Long id,
             @Valid @RequestBody LeaveRequestRejectRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         LeaveRequest leaveRequest = leaveRequestService.rejectLeaveRequest(
                 id, user.getId(), request.getReason());
-        return ResponseEntity.ok(LeaveRequestResponse.from(leaveRequest));
+        return ResponseEntity.ok(
+                ApiResponse.success("Leave request rejected successfully", LeaveRequestResponse.from(leaveRequest)));
     }
 }

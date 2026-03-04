@@ -17,7 +17,7 @@ public class DashboardDtos {
         private int tasksTotal;
         private int daysInternship;
         private int totalDays;
-        private String nextMeeting; // "Review Sprint 2 - 14:00 Today"
+
         private List<ActivityDto> recentActivities;
     }
 

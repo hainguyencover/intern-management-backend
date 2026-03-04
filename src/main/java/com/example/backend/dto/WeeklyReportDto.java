@@ -5,6 +5,9 @@ import com.example.backend.enums.WeeklyReportStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import lombok.Builder;
+
+@Builder
 public record WeeklyReportDto(
                 Long id,
                 Long internId,
@@ -24,5 +27,7 @@ public record WeeklyReportDto(
                 Long mentorId,
                 String mentorName,
                 LocalDateTime createdAt,
-                LocalDateTime reviewedAt) {
+                LocalDateTime reviewedAt,
+                String sentimentLabel,
+                Double sentimentScore) {
 }

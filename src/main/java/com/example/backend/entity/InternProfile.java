@@ -10,10 +10,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-        name = "intern_profiles",
-        uniqueConstraints = @UniqueConstraint(name = "uk_intern_profiles_user_id", columnNames = "user_id")
-)
+@Table(name = "intern_profiles", uniqueConstraints = @UniqueConstraint(name = "uk_intern_profiles_user_id", columnNames = "user_id"))
 public class InternProfile extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
@@ -52,5 +49,12 @@ public class InternProfile extends BaseEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    @Column(name = "cv_skills", length = 1000)
+    private String cvSkills;
 
+    @Column(name = "cv_score")
+    private Integer cvScore;
+
+    @Column(name = "cv_summary", columnDefinition = "TEXT")
+    private String cvSummary;
 }

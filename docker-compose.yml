@@ -1,0 +1,31 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: ag_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: management_intern
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build: .
+    container_name: ag_backend
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - DB_URL=jdbc:mysql://db:3306/management_intern?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh
+      - DB_USERNAME=user
+      - DB_PASSWORD=password
+
+volumes:
+  mysql_data:

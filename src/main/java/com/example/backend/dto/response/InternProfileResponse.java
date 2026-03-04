@@ -33,4 +33,7 @@ public class InternProfileResponse {
     private LocalDateTime updatedAt;
     private Long programGroupId;
     private String programGroupName;
+    private String cvSkills;
+    private Integer cvScore;
+    private String cvSummary;
 }

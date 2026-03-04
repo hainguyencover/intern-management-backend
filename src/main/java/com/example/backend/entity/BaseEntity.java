@@ -17,30 +17,29 @@ public abstract class BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // DB-level default để SQL thủ công không cần truyền created_at
     @CreationTimestamp
-    @Column(
-            name = "created_at",
-            nullable = false,
-            updatable = false,
-            columnDefinition = "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
-    )
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // DB-level default + auto-update để SQL thủ công không cần truyền updated_at
     @UpdateTimestamp
-    @Column(
-            name = "updated_at",
-            nullable = false,
-            columnDefinition = "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-    )
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    // Renamed to avoid collision with business relationships like "createdBy"
+    // (User) in subclasses
+    @Column(name = "audit_created_by")
+    private String auditCreatedBy;
+
+    @Column(name = "audit_updated_by")
+    private String auditUpdatedBy;
 
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
-        if (createdAt == null) createdAt = now;
-        if (updatedAt == null) updatedAt = now;
+        if (createdAt == null)
+            createdAt = now;
+        if (updatedAt == null)
+            updatedAt = now;
     }
 
     @PreUpdate

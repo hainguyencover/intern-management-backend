@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.NotificationResponse;
 import com.example.backend.entity.Notification;
 import com.example.backend.security.CustomUserDetails;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/notifications")
+@RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
 
@@ -25,44 +26,43 @@ public class NotificationController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Page<NotificationResponse>> getMyNotifications(
+    public ResponseEntity<ApiResponse<Page<NotificationResponse>>> getMyNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         Page<Notification> page = notificationService.getNotificationsByUserId(userDetails.getId(), pageable);
         Page<NotificationResponse> response = page.map(this::mapToResponse);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/unread")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<NotificationResponse>> getUnreadNotifications(
+    public ResponseEntity<ApiResponse<List<NotificationResponse>>> getUnreadNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         List<Notification> list = notificationService.getUnreadNotifications(userDetails.getId());
         List<NotificationResponse> response = list.stream().map(this::mapToResponse).toList();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/unread-count")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Integer> getUnreadCount(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        // Simple count from list
+    public ResponseEntity<ApiResponse<Integer>> getUnreadCount(@AuthenticationPrincipal CustomUserDetails userDetails) {
         int count = notificationService.getUnreadNotifications(userDetails.getId()).size();
-        return ResponseEntity.ok(count);
+        return ResponseEntity.ok(ApiResponse.success(count));
     }
 
     @PutMapping("/{id}/read")
-    @PreAuthorize("isAuthenticated()") // In production, should check if notification belongs to user
-    public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
         notificationService.markAsRead(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Notification marked as read", null));
     }
 
     @PutMapping("/read-all")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> markAllAsRead(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<ApiResponse<Void>> markAllAsRead(@AuthenticationPrincipal CustomUserDetails userDetails) {
         notificationService.markAllAsRead(userDetails.getId());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("All notifications marked as read", null));
     }
 
     private NotificationResponse mapToResponse(Notification notification) {

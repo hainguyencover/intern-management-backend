@@ -4,6 +4,7 @@ import com.example.backend.dto.request.AssignInternRequest;
 import com.example.backend.dto.request.AssignInternsRequest;
 import com.example.backend.dto.request.GroupRequest;
 import com.example.backend.dto.request.UpdateGroupRequest;
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.GroupMemberResponse;
 import com.example.backend.dto.response.GroupResponse;
 import com.example.backend.service.ProgramGroupService;
@@ -20,114 +21,80 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/program-groups")
+@RequestMapping("/api/v1/program-groups")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
 public class ProgramGroupController {
 
     private final ProgramGroupService groupService;
 
-    /**
-     * Get groups with filtering and pagination
-     * GET /api/program-groups?programId=1&status=ACTIVE&q=marketing&page=0&size=10
-     */
     @GetMapping
-    public ResponseEntity<Page<GroupResponse>> getAll(
+    public ResponseEntity<ApiResponse<Page<GroupResponse>>> getAll(
             @RequestParam(required = false) Long programId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false, defaultValue = "") String q,
             @PageableDefault(size = 10) Pageable pageable) {
         Page<GroupResponse> groups = groupService.search(programId, status, q, pageable);
-        return ResponseEntity.ok(groups);
+        return ResponseEntity.ok(ApiResponse.success(groups));
     }
 
-    /**
-     * Get group by ID
-     * GET /api/program-groups/{id}
-     */
     @GetMapping("/{id}")
-    public ResponseEntity<GroupResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<GroupResponse>> getById(@PathVariable Long id) {
         GroupResponse group = groupService.getById(id);
-        return ResponseEntity.ok(group);
+        return ResponseEntity.ok(ApiResponse.success(group));
     }
 
-    /**
-     * Create new group
-     * POST /api/program-groups
-     */
     @PostMapping
-    public ResponseEntity<GroupResponse> create(@Valid @RequestBody GroupRequest request) {
+    public ResponseEntity<ApiResponse<GroupResponse>> create(@Valid @RequestBody GroupRequest request) {
         GroupResponse group = groupService.create(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(group);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Group created successfully", group));
     }
 
-    /**
-     * Update group
-     * PUT /api/program-groups/{id}
-     */
     @PutMapping("/{id}")
-    public ResponseEntity<GroupResponse> update(
+    public ResponseEntity<ApiResponse<GroupResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateGroupRequest request) {
         GroupResponse group = groupService.update(id, request);
-        return ResponseEntity.ok(group);
+        return ResponseEntity.ok(ApiResponse.success("Group updated successfully", group));
     }
 
-    /**
-     * Delete group
-     * DELETE /api/program-groups/{id}
-     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         groupService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.success("Group deleted successfully", null));
     }
 
     // ========== MEMBER MANAGEMENT ==========
 
-    /**
-     * Get members of a group
-     * GET /api/program-groups/{id}/members
-     */
     @GetMapping("/{id}/members")
-    public ResponseEntity<List<GroupMemberResponse>> getMembers(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<GroupMemberResponse>>> getMembers(@PathVariable Long id) {
         List<GroupMemberResponse> members = groupService.getMembers(id);
-        return ResponseEntity.ok(members);
+        return ResponseEntity.ok(ApiResponse.success(members));
     }
 
-    /**
-     * Assign single intern to group
-     * POST /api/program-groups/{id}/members
-     */
     @PostMapping("/{id}/members")
-    public ResponseEntity<Void> assignIntern(
+    public ResponseEntity<ApiResponse<Void>> assignIntern(
             @PathVariable Long id,
             @Valid @RequestBody AssignInternRequest request) {
         groupService.assignIntern(id, request.getInternId());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Intern assigned to group successfully", null));
     }
 
-    /**
-     * Assign multiple interns to group
-     * POST /api/program-groups/{id}/members/bulk
-     */
     @PostMapping("/{id}/members/bulk")
-    public ResponseEntity<Void> assignInterns(
+    public ResponseEntity<ApiResponse<Void>> assignInterns(
             @PathVariable Long id,
             @Valid @RequestBody AssignInternsRequest request) {
         groupService.assignInterns(id, request.getInternIds());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Interns assigned to group successfully", null));
     }
 
-    /**
-     * Remove intern from group
-     * DELETE /api/program-groups/{groupId}/members/{internId}
-     */
     @DeleteMapping("/{groupId}/members/{internId}")
-    public ResponseEntity<Void> removeIntern(
+    public ResponseEntity<ApiResponse<Void>> removeIntern(
             @PathVariable Long groupId,
             @PathVariable Long internId) {
         groupService.removeIntern(groupId, internId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.success("Intern removed from group successfully", null));
     }
 }

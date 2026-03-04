@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/documents")
+@RequestMapping("/api/v1/documents")
 @RequiredArgsConstructor
 public class DocumentController {
 
@@ -25,26 +25,26 @@ public class DocumentController {
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<List<DocumentResponse>> getMyDocuments(
+    public ResponseEntity<ApiResponse<List<DocumentResponse>>> getMyDocuments(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         List<DocumentResponse> documents = documentService.getMyDocuments(userDetails.getId());
-        return ResponseEntity.ok(documents);
+        return ResponseEntity.ok(ApiResponse.success(documents));
     }
 
     @GetMapping("/intern/{internId}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
-    public ResponseEntity<List<DocumentResponse>> getInternDocuments(@PathVariable Long internId) {
+    public ResponseEntity<ApiResponse<List<DocumentResponse>>> getInternDocuments(@PathVariable Long internId) {
         List<DocumentResponse> documents = documentService.getInternDocuments(internId);
-        return ResponseEntity.ok(documents);
+        return ResponseEntity.ok(ApiResponse.success(documents));
     }
 
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<PageResponse<DocumentResponse>> getPendingDocuments(
+    public ResponseEntity<ApiResponse<PageResponse<DocumentResponse>>> getPendingDocuments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Page<DocumentResponse> documents = documentService.getPendingDocuments(page, size);
-        return ResponseEntity.ok(PageResponse.of(documents));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(documents)));
     }
 
     @PostMapping("/{id}/verify")

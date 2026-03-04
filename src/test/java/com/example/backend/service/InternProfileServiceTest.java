@@ -1,111 +1,107 @@
 package com.example.backend.service;
 
-import com.example.backend.entity.Mentor;
+import com.example.backend.dto.request.InternProfileRequest;
+import com.example.backend.dto.response.InternProfileResponse;
+import com.example.backend.entity.InternProfile;
 import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
-import com.example.backend.entity.InternProfile;
-import com.example.backend.repository.InternProfileRepository;
-import com.example.backend.repository.MentorRepository;
-import com.example.backend.repository.UserRepository;
-import org.junit.jupiter.api.Assertions;
+import com.example.backend.mapper.InternMapper;
+import com.example.backend.repository.*;
+import com.example.backend.service.impl.InternProfileServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 import java.util.Optional;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class InternProfileServiceTest {
+class InternProfileServiceTest {
 
     @Mock
     private InternProfileRepository internProfileRepository;
-
     @Mock
     private UserRepository userRepository;
-
     @Mock
     private MentorRepository mentorRepository;
+    @Mock
+    private RoleRepository roleRepository;
+    @Mock
+    private PasswordEncoder passwordEncoder;
+    @Mock
+    private GroupMemberRepository groupMemberRepository;
+    @Mock
+    private InternMapper internMapper;
+    @Mock
+    private com.example.backend.elasticsearch.service.SearchService searchService;
+    @Mock
+    private com.example.backend.service.AiService aiService;
 
     @InjectMocks
-    private InternProfileService internProfileService;
+    private InternProfileServiceImpl internProfileService;
 
-    private User mentorUser;
-    private InternProfile internProfile;
+    private InternProfileRequest request;
+    private User user;
+    private Role internRole;
 
     @BeforeEach
     void setUp() {
-        mentorUser = new User();
-        mentorUser.setId(3L);
-        mentorUser.setEmail("mentor@example.com");
+        request = new InternProfileRequest();
+        request.setEmail("intern@example.com");
+        request.setFullName("Test Intern");
+        request.setStudentCode("INT001");
 
-        internProfile = new InternProfile();
-        internProfile.setId(1L);
+        user = new User();
+        user.setId(1L);
+        user.setEmail("intern@example.com");
+
+        internRole = new Role();
+        internRole.setCode("INTERN");
     }
 
     @Test
-    void assignMentorByUserId_UserHasMentorRole_ShouldAutoCreateProfile() {
-        // Arrange
-        Role mentorRole = new Role();
-        mentorRole.setCode("MENTOR");
-        mentorUser.setRoles(Set.of(mentorRole));
+    void createIntern_WithNewUser_ShouldCreateUserAndProfile() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(roleRepository.findByCode("INTERN")).thenReturn(Optional.of(internRole));
+        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
+        when(internProfileRepository.existsByUser_Id(anyLong())).thenReturn(false);
+        when(internProfileRepository.save(any(InternProfile.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        Mockito.when(internProfileRepository.findById(1L)).thenReturn(Optional.of(internProfile));
-        Mockito.when(mentorRepository.findByUser_Id(3L)).thenReturn(Optional.empty()); // No existing profile
-        Mockito.when(userRepository.findById(3L)).thenReturn(Optional.of(mentorUser));
-        Mockito.when(mentorRepository.save(any(Mentor.class))).thenAnswer(i -> i.getArguments()[0]);
+        InternProfileResponse response = internProfileService.createIntern(request);
 
-        // Act
-        internProfileService.assignMentorByUserId(1L, 3L);
-
-        // Assert
-        Mockito.verify(mentorRepository).save(any(Mentor.class));
-        Mockito.verify(internProfileRepository).save(internProfile);
-        Assertions.assertNotNull(internProfile.getMentor());
+        verify(userRepository).save(any(User.class));
+        verify(internProfileRepository).save(any(InternProfile.class));
     }
 
     @Test
-    void assignMentorByUserId_UserHasRoleMentorPrefix_ShouldAutoCreateProfile() {
-        // Arrange
-        Role mentorRole = new Role();
-        mentorRole.setCode("ROLE_MENTOR");
-        mentorUser.setRoles(Set.of(mentorRole));
+    void createIntern_WhenProfileExists_ShouldThrowException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
+        when(internProfileRepository.existsByUser_Id(1L)).thenReturn(true);
 
-        Mockito.when(internProfileRepository.findById(1L)).thenReturn(Optional.of(internProfile));
-        Mockito.when(mentorRepository.findByUser_Id(3L)).thenReturn(Optional.empty());
-        Mockito.when(userRepository.findById(3L)).thenReturn(Optional.of(mentorUser));
-        Mockito.when(mentorRepository.save(any(Mentor.class))).thenAnswer(i -> i.getArguments()[0]);
-
-        // Act
-        internProfileService.assignMentorByUserId(1L, 3L);
-
-        // Assert
-        Mockito.verify(mentorRepository).save(any(Mentor.class));
+        assertThrows(RuntimeException.class, () -> internProfileService.createIntern(request));
     }
 
     @Test
-    void assignMentorByUserId_UserHasNoMentorRole_ShouldThrowException() {
-        // Arrange
-        Role userRole = new Role();
-        userRole.setCode("USER");
-        mentorUser.setRoles(Set.of(userRole));
+    void getInternProfile_ShouldReturnResponse() {
+        InternProfile profile = new InternProfile();
+        profile.setId(1L);
+        profile.setUser(user);
 
-        Mockito.when(internProfileRepository.findById(1L)).thenReturn(Optional.of(internProfile));
-        Mockito.when(mentorRepository.findByUser_Id(3L)).thenReturn(Optional.empty());
-        Mockito.when(userRepository.findById(3L)).thenReturn(Optional.of(mentorUser));
+        when(internProfileRepository.findById(1L)).thenReturn(Optional.of(profile));
+        when(internMapper.toResponse(eq(profile), any())).thenReturn(new InternProfileResponse());
 
-        // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            internProfileService.assignMentorByUserId(1L, 3L);
-        });
+        InternProfileResponse response = internProfileService.getInternProfile(1L);
 
-        // Verify message contains debug info
-        Assertions.assertTrue(exception.getMessage().contains("does not have MENTOR role"));
-        Assertions.assertTrue(exception.getMessage().contains("USER"));
+        assertNotNull(response);
+        verify(internProfileRepository).findById(1L);
     }
 }

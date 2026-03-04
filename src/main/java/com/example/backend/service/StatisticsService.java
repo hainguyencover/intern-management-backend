@@ -181,7 +181,6 @@ public class StatisticsService {
                 .tasksTotal(allTasks)
                 .daysInternship(Math.max(0, daysInternship))
                 .totalDays(totalDays)
-                .nextMeeting("Không có lịch họp") // Todo: Query calendar
                 .recentActivities(java.util.Collections.emptyList()) // Todo: Query audit log
                 .build();
     }

@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/applications")
+@RequestMapping("/api/v1/applications")
 @RequiredArgsConstructor
 public class ApplicationController {
 
@@ -28,22 +28,22 @@ public class ApplicationController {
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<List<ApplicationResponse>> getMyApplications(
+    public ResponseEntity<ApiResponse<List<ApplicationResponse>>> getMyApplications(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         List<ApplicationResponse> applications = applicationService
                 .getMyApplications(userDetails.getId());
-        return ResponseEntity.ok(applications);
+        return ResponseEntity.ok(ApiResponse.success(applications));
     }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<Page<ApplicationResponse>> search(
+    public ResponseEntity<ApiResponse<Page<ApplicationResponse>>> search(
             @RequestParam(required = false) ApplicationStatus status,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10) Pageable pageable) {
 
         Page<ApplicationResponse> response = applicationService.searchApplications(status, keyword, pageable);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping
@@ -57,9 +57,9 @@ public class ApplicationController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'INTERN')")
-    public ResponseEntity<ApplicationResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ApplicationResponse>> getById(@PathVariable Long id) {
         ApplicationResponse application = applicationService.getById(id);
-        return ResponseEntity.ok(application);
+        return ResponseEntity.ok(ApiResponse.success(application));
     }
 
     @PostMapping("/{id}/review")

@@ -2,8 +2,9 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.request.CreateUserRequest;
 import com.example.backend.dto.request.UpdateUserStatusRequest;
+import com.example.backend.dto.response.ApiResponse;
+import com.example.backend.dto.response.AuditLogResponse;
 import com.example.backend.dto.response.UserResponse;
-import com.example.backend.entity.AuditLog;
 import com.example.backend.entity.BackupJob;
 import com.example.backend.service.AdminUserService;
 import com.example.backend.service.AuditLogService;
@@ -24,12 +25,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * Admin Controller - User Management, RBAC, System Ops
  */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 @Slf4j
 @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
@@ -41,104 +43,107 @@ public class AdminController {
     private final HrmService hrmService;
     private final AttendanceService attendanceService;
 
-    // ... (keep headers) ...
-
     // ========== USER MANAGEMENT ==========
 
     @GetMapping("/users")
-    public ResponseEntity<Page<UserResponse>> getAllUsers(
+    public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<UserResponse> users = adminService.getAllUsers(role, status, keyword, pageable);
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(ApiResponse.success(users));
     }
 
     @GetMapping("/users/{id}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
         UserResponse user = adminService.getUserById(id);
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(ApiResponse.success(user));
     }
 
     @PostMapping("/users")
-    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
+    public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request) {
         UserResponse user = adminService.createUser(request);
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(ApiResponse.success("User created successfully", user));
     }
 
     @PutMapping("/users/{id}/status")
-    public ResponseEntity<UserResponse> updateUserStatus(
+    public ResponseEntity<ApiResponse<UserResponse>> updateUserStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserStatusRequest request) {
         UserResponse user = adminService.updateUserStatus(id, request);
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(ApiResponse.success("User status updated successfully", user));
     }
 
     @PostMapping("/users/{id}/reset-password")
-    public ResponseEntity<Void> resetPassword(@PathVariable Long id) {
-        adminService.resetUserPassword(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@PathVariable Long id) {
+        String newPassword = adminService.resetUserPassword(id);
+        return ResponseEntity.ok(ApiResponse.success("Password reset successful", Map.of("password", newPassword)));
     }
 
     @DeleteMapping("/users/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
         adminService.deleteUser(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.success("User deleted successfully", null));
     }
 
     @PutMapping("/users/{id}/roles")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> updateUserRoles(
+    public ResponseEntity<ApiResponse<Void>> updateUserRoles(
             @PathVariable Long id,
             @RequestBody com.example.backend.dto.request.AssignRolesRequest request) {
         adminService.assignRoles(id, request.getRoleCodes());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("User roles updated successfully", null));
     }
 
     // ========== AUDIT LOGS ==========
 
     @GetMapping("/audit-logs")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<AuditLog>> searchAuditLogs(
+    public ResponseEntity<ApiResponse<Page<AuditLogResponse>>> searchAuditLogs(
             @RequestParam(required = false) Long actorId,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String entityType,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<AuditLog> logs = auditLogService.getAuditLogs(actorId, action, entityType, fromDate, toDate, pageable);
-        return ResponseEntity.ok(logs);
+
+        LocalDateTime from = (fromDate != null) ? fromDate.atStartOfDay() : null;
+        LocalDateTime to = (toDate != null) ? toDate.atTime(23, 59, 59) : null;
+
+        Page<AuditLogResponse> logs = auditLogService.getAuditLogs(actorId, action, entityType, from, to, pageable);
+        return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
     // ========== BACKUPS ==========
 
     @GetMapping("/backups")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<BackupJob>> getBackups(
+    public ResponseEntity<ApiResponse<Page<BackupJob>>> getBackups(
             @PageableDefault(size = 10, sort = "startedAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(backupService.getBackupHistory(pageable));
+        return ResponseEntity.ok(ApiResponse.success(backupService.getBackupHistory(pageable)));
     }
 
     @PostMapping("/backups")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BackupJob> triggerBackup(
+    public ResponseEntity<ApiResponse<BackupJob>> triggerBackup(
             @AuthenticationPrincipal CustomUserDetails user) {
         BackupJob job = backupService.runManualBackup(user.getId());
-        return ResponseEntity.ok(job);
+        return ResponseEntity.ok(ApiResponse.success("Backup triggered successfully", job));
     }
 
     @PostMapping("/hrm/sync")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> syncHrm() {
-        return ResponseEntity.ok(hrmService.syncData());
+    public ResponseEntity<ApiResponse<String>> syncHrm() {
+        return ResponseEntity.ok(ApiResponse.success("HRM synchronization started", hrmService.syncData()));
     }
 
     @PostMapping("/attendance/sync/qr")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> syncQrLogs(
+    public ResponseEntity<ApiResponse<String>> syncQrLogs(
             @RequestBody java.util.List<com.example.backend.dto.request.QrLogDto> logs) {
-        return ResponseEntity.ok(attendanceService.syncQrData(logs));
+        return ResponseEntity
+                .ok(ApiResponse.success("QR logs synchronization successful", attendanceService.syncQrData(logs)));
     }
 }

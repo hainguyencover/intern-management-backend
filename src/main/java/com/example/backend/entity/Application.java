@@ -11,15 +11,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-        name = "applications",
-        indexes = @Index(name = "idx_applications_status", columnList = "status")
-)
+@Table(name = "applications", indexes = @Index(name = "idx_applications_status", columnList = "status"))
 public class Application extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "intern_id", nullable = false)
     private InternProfile intern;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "program_id", nullable = false)
+    private Program program;
 
     @Column(length = 255)
     private String position;

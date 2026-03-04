@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.request.AssignMentorRequest;
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.AssignMentorResponse;
 import com.example.backend.service.MentorAssignmentService;
 import org.springframework.http.ResponseEntity;
@@ -8,7 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/interns")
+@RequestMapping("/api/v1/interns")
 public class MentorAssignmentController {
 
     private final MentorAssignmentService mentorAssignmentService;
@@ -17,22 +18,19 @@ public class MentorAssignmentController {
         this.mentorAssignmentService = mentorAssignmentService;
     }
 
-    // HR gán mentor cho intern
     @PutMapping("/{internId}/assign-mentor")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<AssignMentorResponse> assignMentor(
+    public ResponseEntity<ApiResponse<AssignMentorResponse>> assignMentor(
             @PathVariable Long internId,
-            @RequestBody AssignMentorRequest req
-    ) {
+            @RequestBody AssignMentorRequest req) {
         AssignMentorResponse res = mentorAssignmentService.assignMentorToIntern(internId, req.getMentorId());
-        return ResponseEntity.ok(res);
+        return ResponseEntity.ok(ApiResponse.success("Phân công người hướng dẫn thành công", res));
     }
 
-    // HR gỡ mentor khỏi intern
     @DeleteMapping("/{internId}/assign-mentor")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<AssignMentorResponse> removeMentor(@PathVariable Long internId) {
+    public ResponseEntity<ApiResponse<AssignMentorResponse>> removeMentor(@PathVariable Long internId) {
         AssignMentorResponse res = mentorAssignmentService.removeMentorFromIntern(internId);
-        return ResponseEntity.ok(res);
+        return ResponseEntity.ok(ApiResponse.success("Gỡ bỏ người hướng dẫn thành công", res));
     }
 }

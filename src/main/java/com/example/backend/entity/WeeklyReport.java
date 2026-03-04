@@ -69,4 +69,10 @@ public class WeeklyReport extends BaseEntity {
 
         @Column(name = "reviewed_at")
         private LocalDateTime reviewedAt;
+
+        @Column(name = "sentiment_label", length = 20)
+        private String sentimentLabel;
+
+        @Column(name = "sentiment_score")
+        private Double sentimentScore;
 }

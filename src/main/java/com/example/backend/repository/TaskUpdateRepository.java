@@ -63,5 +63,8 @@ public interface TaskUpdateRepository extends JpaRepository<TaskUpdate, Long> {
 
         List<TaskUpdate> findByTask_Id(Long taskId);
 
+        org.springframework.data.domain.Page<TaskUpdate> findByTaskId(Long taskId,
+                        org.springframework.data.domain.Pageable pageable);
+
         List<TaskUpdate> findByIntern_Id(Long internId);
 }

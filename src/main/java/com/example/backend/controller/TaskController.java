@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.request.TaskRequest;
 import com.example.backend.dto.request.TaskUpdateRequest;
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.TaskResponse;
 import com.example.backend.dto.response.TaskUpdateResponse;
 import com.example.backend.entity.TaskUpdate;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/tasks")
+@RequestMapping("/api/v1/tasks")
 @RequiredArgsConstructor
 public class TaskController {
 
@@ -35,13 +36,13 @@ public class TaskController {
      */
     @PostMapping
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
-    public ResponseEntity<TaskResponse> create(
+    public ResponseEntity<ApiResponse<TaskResponse>> create(
             @Valid @RequestBody TaskRequest request,
             Authentication authentication) {
 
         Long userId = getUserIdFromAuth(authentication);
         TaskResponse response = taskService.create(request, userId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Task created successfully", response));
     }
 
     /**
@@ -49,14 +50,14 @@ public class TaskController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
-    public ResponseEntity<TaskResponse> update(
+    public ResponseEntity<ApiResponse<TaskResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody TaskRequest request,
             Authentication authentication) {
 
         Long userId = getUserIdFromAuth(authentication);
         TaskResponse response = taskService.update(id, request, userId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Task updated successfully", response));
     }
 
     /**
@@ -64,7 +65,7 @@ public class TaskController {
      */
     @GetMapping("/assigned-to-me")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<Page<TaskResponse>> getAssignedToMe(
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getAssignedToMe(
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -74,7 +75,7 @@ public class TaskController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<TaskResponse> tasks = taskService.getMyAssignedTasks(internId, pageable);
-        return ResponseEntity.ok(tasks);
+        return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 
     /**
@@ -82,9 +83,9 @@ public class TaskController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN', 'INTERN')")
-    public ResponseEntity<TaskResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<TaskResponse>> getById(@PathVariable Long id) {
         TaskResponse response = taskService.getById(id);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
@@ -92,7 +93,7 @@ public class TaskController {
      */
     @GetMapping("/group/{groupId}")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN', 'INTERN')")
-    public ResponseEntity<Page<TaskResponse>> getByGroup(
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getByGroup(
             @PathVariable Long groupId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -104,19 +105,15 @@ public class TaskController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort[0]));
         Page<TaskResponse> tasks = taskService.getTasksByGroup(groupId, pageable);
-        return ResponseEntity.ok(tasks);
+        return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 
     /**
      * Get tasks assigned to a specific intern (Mentor/HR)
      */
-    /**
-     * Get tasks assigned to a specific intern (Mentor/HR)
-     * AND/OR filter by status/keyword for Mentor's Task Management
-     */
     @GetMapping("/assigned")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
-    public ResponseEntity<Page<TaskResponse>> getAssignedTasks(
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getAssignedTasks(
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long groupId,
@@ -130,7 +127,7 @@ public class TaskController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<TaskResponse> tasks = taskService.getAssignedTasks(creatorId, assigneeId, groupId, status, keyword,
                 pageable);
-        return ResponseEntity.ok(tasks);
+        return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 
     /**
@@ -138,13 +135,13 @@ public class TaskController {
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
-    public ResponseEntity<Page<TaskResponse>> getAll(
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<TaskResponse> tasks = taskService.getAllTasks(pageable);
-        return ResponseEntity.ok(tasks);
+        return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 
     /**
@@ -152,12 +149,12 @@ public class TaskController {
      */
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
-    public ResponseEntity<Void> updateStatus(
+    public ResponseEntity<ApiResponse<Void>> updateStatus(
             @PathVariable Long id,
             @RequestParam TaskStatus status) {
 
         taskService.updateStatus(id, status);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Task status updated successfully", null));
     }
 
     /**
@@ -165,7 +162,7 @@ public class TaskController {
      */
     @PostMapping("/{id}/updates")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<Void> addUpdate(
+    public ResponseEntity<ApiResponse<Void>> addUpdate(
             @PathVariable Long id,
             @Valid @RequestBody TaskUpdateRequest request,
             Authentication authentication) {
@@ -176,7 +173,7 @@ public class TaskController {
         Long internId = userService.getInternProfileIdByUserId(userId);
 
         taskService.addUpdate(id, request, internId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Task update added successfully", null));
     }
 
     /**
@@ -184,12 +181,12 @@ public class TaskController {
      */
     @GetMapping("/{id}/updates")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN', 'INTERN')")
-    public ResponseEntity<List<TaskUpdateResponse>> getUpdates(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<TaskUpdateResponse>>> getUpdates(@PathVariable Long id) {
         List<TaskUpdate> updates = taskService.getTaskUpdates(id);
         List<TaskUpdateResponse> response = updates.stream()
                 .map(TaskUpdateResponse::from)
                 .toList();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
@@ -197,9 +194,9 @@ public class TaskController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         taskService.deleteTask(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Task deleted successfully", null));
     }
 
     /**

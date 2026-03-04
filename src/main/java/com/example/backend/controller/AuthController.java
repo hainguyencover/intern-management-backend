@@ -4,6 +4,8 @@ import com.example.backend.dto.request.ChangePasswordRequest;
 import com.example.backend.dto.request.LoginRequest;
 import com.example.backend.dto.request.RegisterRequest;
 import com.example.backend.dto.request.ResetPasswordRequest;
+import com.example.backend.dto.request.TokenRefreshRequest;
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.JwtResponse;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.service.AuthService;
@@ -16,10 +18,10 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Auth Controller - Authentication & Authorization
- * Endpoints: /api/auth/**
+ * Endpoints: /api/v1/auth/**
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 @Slf4j
 public class AuthController {
@@ -28,72 +30,80 @@ public class AuthController {
 
     /**
      * Login endpoint
-     * POST /api/auth/login
+     * POST /api/v1/auth/login
      */
     @PostMapping("/login")
-    public ResponseEntity<JwtResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<JwtResponse>> login(@Valid @RequestBody LoginRequest request) {
         log.info("Login attempt for email: {}", request.getEmail());
         JwtResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
+    /**
+     * Refresh token endpoint
+     * POST /api/v1/auth/refresh
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<JwtResponse>> refresh(@Valid @RequestBody TokenRefreshRequest request) {
+        log.info("Token refresh request");
+        JwtResponse response = authService.refreshToken(request.getRefreshToken());
+        return ResponseEntity.ok(ApiResponse.success("Token refreshed successfully", response));
     }
 
     /**
      * Register endpoint (for intern self-registration)
-     * POST /api/auth/register
+     * POST /api/v1/auth/register
      */
     @PostMapping("/register")
-    public ResponseEntity<JwtResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<JwtResponse>> register(@Valid @RequestBody RegisterRequest request) {
         log.info("Register attempt for email: {}", request.getEmail());
         JwtResponse response = authService.register(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Registration successful", response));
     }
 
     /**
      * Get current logged-in user info
-     * GET /api/auth/me
+     * GET /api/v1/auth/me
      */
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UserResponse> getCurrentUser() {
+    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
         UserResponse response = authService.getCurrentUser();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
      * Change password (for logged-in user)
-     * POST /api/auth/change-password
+     * POST /api/v1/auth/change-password
      */
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         log.info("Change password request");
         authService.changePassword(request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
     }
 
     /**
      * Reset password (forgot password flow)
-     * POST /api/auth/reset-password
-     *
-     * WARNING: This is simplified version without email verification
-     * Production should implement email token verification
+     * POST /api/v1/auth/reset-password
      */
     @PostMapping("/reset-password")
-    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         log.info("Reset password request for email: {}", request.getEmail());
         authService.resetPassword(request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Password reset instructions sent", null));
     }
 
     /**
      * Logout (client should delete token)
-     * POST /api/auth/logout
+     * POST /api/v1/auth/logout
      */
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> logout() {
+    public ResponseEntity<ApiResponse<Void>> logout() {
         log.info("Logout request");
         authService.logout();
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success("Logged out successfully", null));
     }
 }

@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
-import com.example.backend.entity.AuditLog;
+import com.example.backend.dto.response.ApiResponse;
+import com.example.backend.dto.response.AuditLogResponse;
 import com.example.backend.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,11 +18,11 @@ import java.time.LocalDateTime;
 
 /**
  * Audit Log Controller - View System Activity Logs
- * Endpoints: /api/audit-logs
+ * Endpoints: /api/v1/audit-logs
  * Required: ROLE_ADMIN or AUDIT_READ permission
  */
 @RestController
-@RequestMapping("/api/audit-logs")
+@RequestMapping("/api/v1/audit-logs")
 @RequiredArgsConstructor
 @Slf4j
 @PreAuthorize("hasRole('ADMIN') or hasAuthority('AUDIT_READ')")
@@ -31,30 +32,29 @@ public class AuditLogController {
 
     /**
      * Get audit logs with filters
-     * GET /api/audit-logs?actorId=&action=&entityType=&from=&to=&page=0&size=20
+     * GET /api/v1/audit-logs?actorId=&action=&entityType=&from=&to=&page=0&size=20
      */
     @GetMapping
-    public ResponseEntity<Page<AuditLog>> getAuditLogs(
+    public ResponseEntity<ApiResponse<Page<AuditLogResponse>>> getAuditLogs(
             @RequestParam(required = false) Long actorId,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String entityType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         log.info("Get audit logs - actorId: {}, action: {}, entityType: {}", actorId, action, entityType);
-        Page<AuditLog> logs = auditLogService.getAuditLogs(actorId, action, entityType, from, to, pageable);
-        return ResponseEntity.ok(logs);
+        Page<AuditLogResponse> logs = auditLogService.getAuditLogs(actorId, action, entityType, from, to, pageable);
+        return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
     /**
      * Get audit log by ID
-     * GET /api/audit-logs/{id}
+     * GET /api/v1/audit-logs/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<AuditLog> getAuditLogById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<AuditLogResponse>> getAuditLogById(@PathVariable Long id) {
         log.info("Get audit log by ID: {}", id);
-        AuditLog log = auditLogService.getAuditLogById(id);
-        return ResponseEntity.ok(log);
+        AuditLogResponse log = auditLogService.getAuditLogById(id);
+        return ResponseEntity.ok(ApiResponse.success(log));
     }
 }

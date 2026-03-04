@@ -1,10 +1,12 @@
 package com.example.backend.dto.request;
 
 import jakarta.validation.constraints.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import java.time.LocalDate;
 
-@Data
+@Getter
+@Setter
 public class InternProfileRequest {
     @Size(max = 255)
     private String fullName;
@@ -41,4 +43,7 @@ public class InternProfileRequest {
     private Long mentorId;
     private Long userId; // For admin creation
     private String password; // Optional custom password
+
+    @Size(max = 255)
+    private String cvUrl;
 }

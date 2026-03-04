@@ -5,6 +5,7 @@ import com.example.backend.enums.*;
 import com.example.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public Notification createNotification(Long userId, NotificationType type, String title, String content) {
@@ -33,6 +35,12 @@ public class NotificationService {
 
         notification = notificationRepository.save(notification);
         log.info("Created notification for user: {}", userId);
+
+        // Send real-time via WebSocket
+        messagingTemplate.convertAndSendToUser(
+                user.getEmail(),
+                "/queue/notifications",
+                notification);
 
         return notification;
     }

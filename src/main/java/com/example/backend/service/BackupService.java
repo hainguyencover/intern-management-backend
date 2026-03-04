@@ -41,6 +41,9 @@ public class BackupService {
     @Value("${spring.datasource.password}")
     private String dbPassword;
 
+    @Value("${app.backup.tool-path:}")
+    private String backupToolPath;
+
     @Transactional
     public BackupJob runManualBackup(Long userId) {
         User user = userRepository.findById(userId)
@@ -78,14 +81,26 @@ public class BackupService {
             // Extract database name from JDBC URL
             String dbName = extractDatabaseName(dbUrl);
 
-            // Execute mysqldump
-            ProcessBuilder pb = new ProcessBuilder(
-                    "mysqldump",
-                    "--user=" + dbUsername,
-                    "--password=" + dbPassword,
-                    "--result-file=" + filePath,
-                    dbName
-            );
+            // Determine OS and command wrapper
+            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+            ProcessBuilder pb;
+
+            // Resolve tool path
+            String dumpTool = (backupToolPath != null && !backupToolPath.isBlank()) ? backupToolPath : "mysqldump";
+
+            // Construct mysqldump command
+            String command = String.format("\"%s\" --user=%s --password=%s --result-file=\"%s\" %s",
+                    dumpTool, dbUsername, dbPassword, filePath, dbName);
+
+            if (isWindows) {
+                // On Windows, use cmd /c to handle potential path issues or shell reliance
+                pb = new ProcessBuilder("cmd.exe", "/c", command);
+            } else {
+                // On Linux/Mac, use sh -c
+                pb = new ProcessBuilder("sh", "-c", command);
+            }
+
+            log.info("Executing backup command: {}", isWindows ? "cmd /c ...mysqldump..." : "sh -c ...mysqldump...");
 
             Process process = pb.start();
             int exitCode = process.waitFor();

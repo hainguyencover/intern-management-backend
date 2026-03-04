@@ -11,7 +11,7 @@ import java.util.List;
 public class MentorDashboardStats {
     private long totalInterns;
     private long activeTasks;
-    private long pendingReports;
+    private long reviewedReports;
     private List<TaskResponse> recentTasks;
     private List<WeeklyReportDto> recentReports;
 }

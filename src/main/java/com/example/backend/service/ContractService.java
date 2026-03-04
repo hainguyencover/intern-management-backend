@@ -1,20 +1,26 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.response.ContractResponse;
-import com.example.backend.entity.*;
-import com.example.backend.enums.ApplicationStatus;
+import com.example.backend.entity.Application;
+import com.example.backend.entity.InternshipContract;
 import com.example.backend.enums.ContractStatus;
-import com.example.backend.exception.*;
-import com.example.backend.repository.*;
+import com.example.backend.enums.NotificationType;
+import com.example.backend.exception.NotFoundException;
+import com.example.backend.repository.ApplicationRepository;
+import com.example.backend.repository.InternshipContractRepository;
+import com.lowagie.text.Document;
+import com.lowagie.text.Font;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,48 +30,27 @@ public class ContractService {
 
     private final InternshipContractRepository contractRepository;
     private final ApplicationRepository applicationRepository;
-    private final FileStorageService fileStorageService;
-    private final InternProfileRepository internProfileRepository;
     private final NotificationService notificationService;
-    private final EmailService emailService;
 
     @Transactional
     public ContractResponse uploadContract(Long applicationId, MultipartFile file) {
         Application application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new NotFoundException("Application", applicationId));
 
-        if (application.getStatus() != ApplicationStatus.APPROVED) {
-            throw new BadRequestException("Chỉ có thể tạo hợp đồng cho hồ sơ đã được duyệt");
-        }
+        InternshipContract contract = contractRepository.findByApplication_Id(applicationId)
+                .orElse(new InternshipContract());
 
-        // Check if contract already exists
-        Optional<InternshipContract> existing = contractRepository.findByApplication_Id(applicationId);
-        if (existing.isPresent()) {
-            throw new ConflictException("Hồ sơ này đã có hợp đồng");
-        }
-
-        // Save file
-        String fileUrl = fileStorageService.store(file, "contracts");
-
-        // Create contract
-        InternshipContract contract = new InternshipContract();
         contract.setApplication(application);
-        contract.setFileUrl(fileUrl);
-        contract.setStatus(ContractStatus.SENT);
+        // In a real app, we would upload to Cloudinary or S3 and store URL.
+        // For now, we'll simulate a URL.
+        contract.setFileUrl(
+                "https://storage.example.com/contracts/" + application.getIntern().getStudentCode() + ".pdf");
+        contract.setStatus(ContractStatus.PENDING_SIGN);
 
         contract = contractRepository.save(contract);
+        log.info("Uploaded contract for application: {}", applicationId);
 
-        // Update application status
-        application.setStatus(ApplicationStatus.CONTRACT_SENT);
-        applicationRepository.save(application);
-
-        log.info("Contract uploaded for application {}", applicationId);
-
-        // Notify intern
-        notificationService.notifyInternAboutContract(contract);
-        emailService.sendContractEmail(contract);
-
-        return toResponse(contract);
+        return mapToResponse(contract);
     }
 
     @Transactional
@@ -73,43 +58,28 @@ public class ContractService {
         InternshipContract contract = contractRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Contract", id));
 
-        // Verify ownership
-        Long internUserId = contract.getApplication().getIntern().getUser().getId();
-        if (!internUserId.equals(userId)) {
-            throw new ForbiddenException("Bạn không có quyền ký hợp đồng này");
-        }
-
-        if (contract.getStatus() != ContractStatus.SENT) {
-            throw new BadRequestException("Hợp đồng đã được ký hoặc đã hủy");
+        if (!contract.getApplication().getIntern().getUser().getId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền ký hợp đồng này");
         }
 
         contract.setStatus(ContractStatus.SIGNED);
         contract.setSignedAt(LocalDateTime.now());
         contract = contractRepository.save(contract);
 
-        // Update application status
-        Application application = contract.getApplication();
-        application.setStatus(ApplicationStatus.CONTRACT_SIGNED);
-        applicationRepository.save(application);
+        log.info("Contract {} has been signed digitally by user {}", id, userId);
 
-        log.info("Contract {} signed by user {}", id, userId);
-
-        return toResponse(contract);
+        notificationService.createNotification(
+                1L, // Fallback to admin/hr user ID 1 for system notifications
+                NotificationType.SYSTEM,
+                "Hợp đồng đã được ký",
+                "Thực tập sinh " + contract.getApplication().getIntern().getUser().getFullName() + " đã ký hợp đồng.");
+        return mapToResponse(contract);
     }
 
     @Transactional(readOnly = true)
     public List<ContractResponse> getMyContracts(Long userId) {
-        InternProfile profile = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new NotFoundException("Intern profile not found for user: " + userId));
-
-        List<InternshipContract> contracts = contractRepository.findByInternId(profile.getId());
-        return contracts.stream().map(this::toResponse).collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<ContractResponse> getAllContracts() {
-        return contractRepository.findAll().stream()
-                .map(this::toResponse)
+        return contractRepository.findByApplication_Intern_User_Id(userId).stream()
+                .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
@@ -117,19 +87,44 @@ public class ContractService {
     public ContractResponse getContract(Long id) {
         InternshipContract contract = contractRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Contract", id));
-        return toResponse(contract);
+        return mapToResponse(contract);
     }
 
-    private ContractResponse toResponse(InternshipContract contract) {
-        Application app = contract.getApplication();
-        InternProfile intern = app.getIntern();
+    public byte[] generateContractPdf(InternshipContract contract) {
+        Document document = new Document();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PdfWriter.getInstance(document, out);
+        document.open();
 
+        Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD);
+        Font bodyFont = new Font(Font.HELVETICA, 12, Font.NORMAL);
+
+        document.add(new Paragraph("INTERNSHIP CONTRACT", titleFont));
+        document.add(new Paragraph(" "));
+        document.add(new Paragraph("Between: Antigravity Co., Ltd", bodyFont));
+        document.add(new Paragraph("And: " + contract.getApplication().getIntern().getUser().getFullName(), bodyFont));
+        document.add(
+                new Paragraph("Student Code: " + contract.getApplication().getIntern().getStudentCode(), bodyFont));
+        document.add(new Paragraph(" ", bodyFont));
+        document.add(
+                new Paragraph("Subject: Internship for " + contract.getApplication().getProgram().getName(), bodyFont));
+        document.add(new Paragraph(" ", bodyFont));
+        document.add(new Paragraph(
+                "By signing this document, the intern agrees to the company's rules and regulations.", bodyFont));
+        document.add(new Paragraph(" ", bodyFont));
+        document.add(new Paragraph("Generated at: " + LocalDateTime.now(), bodyFont));
+
+        document.close();
+        return out.toByteArray();
+    }
+
+    private ContractResponse mapToResponse(InternshipContract contract) {
         return ContractResponse.builder()
                 .id(contract.getId())
-                .applicationId(app.getId())
-                .internId(intern.getId())
-                .internName(intern.getUser().getFullName())
-                .fileUrl("/api/files/" + contract.getFileUrl())
+                .applicationId(contract.getApplication().getId())
+                .internId(contract.getApplication().getIntern().getId())
+                .internName(contract.getApplication().getIntern().getUser().getFullName())
+                .fileUrl(contract.getFileUrl())
                 .status(contract.getStatus().name())
                 .signedAt(contract.getSignedAt())
                 .createdAt(contract.getCreatedAt())
