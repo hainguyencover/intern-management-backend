@@ -1,3 +1,6 @@
+# ==============================================
+# BUILD OUTPUT & GRADLE
+# ==============================================
 HELP.md
 .gradle
 build/
@@ -5,6 +8,9 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+# ==============================================
+# IDE & EDITOR FILES
+# ==============================================
 ### STS ###
 .apt_generated
 .classpath
@@ -36,13 +42,45 @@ out/
 ### VS Code ###
 .vscode/
 
+# ==============================================
+# SECURITY — NEVER COMMIT THESE
+# ==============================================
 .env
 *.env
 *.local
 *.pem
 *.key
 *.p12
+*.jks
+*.pfx
 secret/
-.idea/
-node_modules/
+
+# ==============================================
+# ENVIRONMENT-SPECIFIC CONFIGS (CONTAIN SECRETS)
+# ==============================================
+src/main/resources/application-dev.yml
+src/main/resources/application-prod.yml
+src/main/resources/application-dev.properties
+src/main/resources/application-prod.properties
+# Note: application.yml (base) is safe to commit — no secrets
+# Note: application-test.yml may be committed only if it uses H2 (no real secrets)
+
+# ==============================================
+# RUNTIME ARTIFACTS
+# ==============================================
+uploads/
+backups/
+logs/
+*.log
+*.log.*
+
+# ==============================================
+# JAVA / MAVEN / GRADLE
+# ==============================================
 target/
+node_modules/
+
+# ==============================================
+# MISC
+# ==============================================
+*.antigravityignore
