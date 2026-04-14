@@ -11,7 +11,7 @@ import com.holaho.intern.shared.dto.response.TwoFactorResponse;
 import com.holaho.intern.shared.dto.response.UserResponse;
 
 
-import com.holaho.intern.entity.InternProfile;
+import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.entity.RefreshToken;
 import com.holaho.intern.user.entity.Role;
 import com.holaho.intern.user.entity.User;
@@ -20,7 +20,7 @@ import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.ConflictException;
 import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.shared.exception.ApiException;
-import com.holaho.intern.repository.InternProfileRepository;
+import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.user.repository.RoleRepository;
 import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.repository.RefreshTokenRepository;

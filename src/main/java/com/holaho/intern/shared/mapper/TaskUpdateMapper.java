@@ -1,7 +1,7 @@
 package com.holaho.intern.shared.mapper;
 
 import com.holaho.intern.shared.dto.TaskUpdateDto;
-import com.holaho.intern.entity.TaskUpdate;
+import com.holaho.intern.task.entity.TaskUpdate;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;

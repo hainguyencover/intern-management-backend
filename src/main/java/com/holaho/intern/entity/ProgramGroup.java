@@ -1,7 +1,7 @@
 package com.holaho.intern.entity;
 
 import com.holaho.intern.entity.Department;
-import com.holaho.intern.entity.Mentor;
+import com.holaho.intern.mentor.entity.Mentor;
 
 
 import com.holaho.intern.shared.entity.BaseEntity;

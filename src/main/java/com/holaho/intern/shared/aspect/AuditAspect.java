@@ -5,17 +5,17 @@ import com.holaho.intern.service.ApplicationService;
 import com.holaho.intern.service.ContractService;
 import com.holaho.intern.entity.Program;
 import com.holaho.intern.service.ProgramService;
-import com.holaho.intern.service.InternDocumentService;
-import com.holaho.intern.service.InternProfileService;
+import com.holaho.intern.intern.service.InternDocumentService;
+import com.holaho.intern.intern.service.InternProfileService;
 import com.holaho.intern.service.LeaveRequestService;
-import com.holaho.intern.entity.Mentor;
-import com.holaho.intern.service.MentorService;
+import com.holaho.intern.mentor.entity.Mentor;
+import com.holaho.intern.mentor.service.MentorService;
 import com.holaho.intern.entity.Evaluation;
 import com.holaho.intern.service.EvaluationService;
 import com.holaho.intern.service.WeeklyReportService;
 import com.holaho.intern.service.SupportTicketService;
-import com.holaho.intern.entity.Task;
-import com.holaho.intern.service.TaskService;
+import com.holaho.intern.task.entity.Task;
+import com.holaho.intern.task.service.TaskService;
 import com.holaho.intern.user.entity.User;
 import com.holaho.intern.user.service.UserService;
 import com.holaho.intern.shared.dto.response.TaskResponse;
@@ -100,11 +100,11 @@ public class AuditAspect {
     }
 
     // 2. Task Management (Mentor/Intern)
-    @Pointcut("execution(* com.holaho.intern.service.TaskService.createTask(..)) || " +
-            "execution(* com.holaho.intern.service.TaskService.updateTaskProgress(..)) || " +
-            "execution(* com.holaho.intern.service.TaskService.update(..)) || " +
-            "execution(* com.holaho.intern.service.TaskService.updateStatus(..)) || " +
-            "execution(* com.holaho.intern.service.TaskService.deleteTask(..))")
+    @Pointcut("execution(* com.holaho.intern.task.service.TaskService.createTask(..)) || " +
+            "execution(* com.holaho.intern.task.service.TaskService.updateTaskProgress(..)) || " +
+            "execution(* com.holaho.intern.task.service.TaskService.update(..)) || " +
+            "execution(* com.holaho.intern.task.service.TaskService.updateStatus(..)) || " +
+            "execution(* com.holaho.intern.task.service.TaskService.deleteTask(..))")
     public void taskServiceMethods() {
     }
 
@@ -117,9 +117,9 @@ public class AuditAspect {
 
     // 4. Profile Management (Intern/Mentor)
     // 4. Profile Management (Intern/Mentor)
-    @Pointcut("execution(* com.holaho.intern.service.InternProfileService.updateIntern(..)) || " +
-            "execution(* com.holaho.intern.service.InternProfileService.updateMyProfile(..)) || " +
-            "execution(* com.holaho.intern.service.MentorService.updateMentor(..))")
+    @Pointcut("execution(* com.holaho.intern.intern.service.InternProfileService.updateIntern(..)) || " +
+            "execution(* com.holaho.intern.intern.service.InternProfileService.updateMyProfile(..)) || " +
+            "execution(* com.holaho.intern.mentor.service.MentorService.updateMentor(..))")
     public void profileServiceMethods() {
     }
 
@@ -130,10 +130,10 @@ public class AuditAspect {
     }
 
     // 2f. Document Management (Intern/HR)
-    @Pointcut("execution(* com.holaho.intern.service.InternDocumentService.uploadForIntern(..)) || " +
-            "execution(* com.holaho.intern.service.InternDocumentService.approve(..)) || " +
-            "execution(* com.holaho.intern.service.InternDocumentService.reject(..)) || " +
-            "execution(* com.holaho.intern.service.InternDocumentService.confirmContract(..))")
+    @Pointcut("execution(* com.holaho.intern.intern.service.InternDocumentService.uploadForIntern(..)) || " +
+            "execution(* com.holaho.intern.intern.service.InternDocumentService.approve(..)) || " +
+            "execution(* com.holaho.intern.intern.service.InternDocumentService.reject(..)) || " +
+            "execution(* com.holaho.intern.intern.service.InternDocumentService.confirmContract(..))")
     public void documentServiceMethods() {
     }
 

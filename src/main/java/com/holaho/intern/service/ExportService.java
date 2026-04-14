@@ -1,7 +1,7 @@
 package com.holaho.intern.service;
 
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.entity.Task;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.task.entity.Task;
 import com.lowagie.text.Document;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfPTable;

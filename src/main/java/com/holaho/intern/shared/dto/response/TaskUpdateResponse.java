@@ -1,6 +1,6 @@
 package com.holaho.intern.shared.dto.response;
 
-import com.holaho.intern.entity.TaskUpdate;
+import com.holaho.intern.task.entity.TaskUpdate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -1,6 +1,6 @@
 package com.holaho.intern.service;
 
-import com.holaho.intern.entity.Mentor;
+import com.holaho.intern.mentor.entity.Mentor;
 import com.holaho.intern.user.entity.Role;
 import com.holaho.intern.user.repository.RoleRepository;
 

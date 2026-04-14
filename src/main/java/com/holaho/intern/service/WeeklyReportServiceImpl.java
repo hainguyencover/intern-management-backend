@@ -2,10 +2,10 @@ package com.holaho.intern.service;
 
 import com.holaho.intern.service.AiService;
 import com.holaho.intern.repository.GroupMemberRepository;
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.repository.InternProfileRepository;
-import com.holaho.intern.entity.Mentor;
-import com.holaho.intern.repository.MentorRepository;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.intern.repository.InternProfileRepository;
+import com.holaho.intern.mentor.entity.Mentor;
+import com.holaho.intern.mentor.repository.MentorRepository;
 import com.holaho.intern.entity.Evaluation;
 import com.holaho.intern.entity.WeeklyReport;
 import com.holaho.intern.repository.EvaluationRepository;

@@ -1,7 +1,7 @@
 package com.holaho.intern.service;
 
 import com.holaho.intern.shared.dto.InternCountStatDto;
-import com.holaho.intern.repository.InternProfileRepository;
+import com.holaho.intern.intern.repository.InternProfileRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

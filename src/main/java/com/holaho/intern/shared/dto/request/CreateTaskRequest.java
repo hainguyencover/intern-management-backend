@@ -1,6 +1,6 @@
 package com.holaho.intern.shared.dto.request;
 
-import com.holaho.intern.entity.Task;
+import com.holaho.intern.task.entity.Task;
 
 
 import jakarta.validation.constraints.NotBlank;

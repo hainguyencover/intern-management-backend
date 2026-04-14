@@ -1,9 +1,9 @@
 package com.holaho.intern.service;
 
-import com.holaho.intern.entity.Task;
+import com.holaho.intern.task.entity.Task;
 
 
-import com.holaho.intern.entity.InternshipContract;
+import com.holaho.intern.intern.entity.InternshipContract;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;

@@ -2,7 +2,7 @@ package com.holaho.intern.shared.mapper;
 
 import com.holaho.intern.shared.dto.response.InternProfileResponse;
 import com.holaho.intern.entity.GroupMember;
-import com.holaho.intern.entity.InternProfile;
+import com.holaho.intern.intern.entity.InternProfile;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;

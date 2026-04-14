@@ -2,8 +2,8 @@ package com.holaho.intern.service;
 
 import com.holaho.intern.entity.Allowance;
 import com.holaho.intern.repository.AllowanceRepository;
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.repository.InternProfileRepository;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.user.entity.User;
 import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.exception.BadRequestException;

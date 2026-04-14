@@ -2,8 +2,8 @@ package com.holaho.intern.shared.elasticsearch.service;
 
 import com.holaho.intern.shared.elasticsearch.model.InternIndex;
 import com.holaho.intern.shared.elasticsearch.model.TaskIndex;
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.entity.Task;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.task.entity.Task;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;

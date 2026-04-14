@@ -9,12 +9,12 @@ import com.holaho.intern.entity.Program;
 import com.holaho.intern.repository.GroupMemberRepository;
 import com.holaho.intern.repository.ProgramGroupRepository;
 import com.holaho.intern.repository.ProgramRepository;
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.repository.InternDocumentRepository;
-import com.holaho.intern.repository.InternProfileRepository;
-import com.holaho.intern.entity.Mentor;
-import com.holaho.intern.repository.MentorRepository;
-import com.holaho.intern.repository.TaskRepository;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.intern.repository.InternDocumentRepository;
+import com.holaho.intern.intern.repository.InternProfileRepository;
+import com.holaho.intern.mentor.entity.Mentor;
+import com.holaho.intern.mentor.repository.MentorRepository;
+import com.holaho.intern.task.repository.TaskRepository;
 import com.holaho.intern.shared.dto.response.DashboardDtos;
 import com.holaho.intern.shared.enums.ProgramStatus;
 import com.holaho.intern.shared.enums.TaskStatus;
@@ -42,7 +42,7 @@ public class StatisticsService {
     private final InternDocumentRepository internDocumentRepository;
     private final AuditLogRepository auditLogRepository;
     private final com.holaho.intern.repository.BackupJobRepository backupJobRepository;
-    private final com.holaho.intern.repository.TaskRepository taskRepository;
+    private final com.holaho.intern.task.repository.TaskRepository taskRepository;
     private final com.holaho.intern.repository.GroupMemberRepository groupMemberRepository;
 
     @Transactional(readOnly = true)
@@ -139,7 +139,7 @@ public class StatisticsService {
 
     @Transactional(readOnly = true)
     public com.holaho.intern.shared.dto.response.DashboardDtos.InternDashboardResponse getInternDashboard(Long userId) {
-        com.holaho.intern.entity.InternProfile intern = internProfileRepository.findByUser_Id(userId)
+        com.holaho.intern.intern.entity.InternProfile intern = internProfileRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new RuntimeException("Intern profile not found for user: " + userId));
         Long internId = intern.getId();
 

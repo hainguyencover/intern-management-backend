@@ -1,16 +1,16 @@
 package com.holaho.intern.service;
 
-import com.holaho.intern.service.NotificationService;
+import com.holaho.intern.notification.service.NotificationService;
 
 
 import com.holaho.intern.shared.dto.response.ContractResponse;
 import com.holaho.intern.entity.Application;
-import com.holaho.intern.entity.InternshipContract;
+import com.holaho.intern.intern.entity.InternshipContract;
 import com.holaho.intern.shared.enums.ContractStatus;
 import com.holaho.intern.shared.enums.NotificationType;
 import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.repository.ApplicationRepository;
-import com.holaho.intern.repository.InternshipContractRepository;
+import com.holaho.intern.intern.repository.InternshipContractRepository;
 import com.lowagie.text.Document;
 import com.lowagie.text.Font;
 import com.lowagie.text.Paragraph;

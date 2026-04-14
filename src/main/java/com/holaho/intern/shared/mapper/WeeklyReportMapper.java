@@ -1,6 +1,6 @@
 package com.holaho.intern.shared.mapper;
 
-import com.holaho.intern.service.MentorService;
+import com.holaho.intern.mentor.service.MentorService;
 
 
 import com.holaho.intern.shared.dto.WeeklyReportDto;

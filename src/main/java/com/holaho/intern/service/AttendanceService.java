@@ -5,9 +5,9 @@ import com.holaho.intern.shared.dto.request.QrLogDto;
 
 import com.holaho.intern.shared.dto.response.AttendanceResponse;
 import com.holaho.intern.entity.Attendance;
-import com.holaho.intern.entity.InternProfile;
+import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.repository.AttendanceRepository;
-import com.holaho.intern.repository.InternProfileRepository;
+import com.holaho.intern.intern.repository.InternProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;

@@ -1,9 +1,9 @@
 package com.holaho.intern.controller;
 
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.entity.Task;
-import com.holaho.intern.repository.InternProfileRepository;
-import com.holaho.intern.repository.TaskRepository;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.task.entity.Task;
+import com.holaho.intern.intern.repository.InternProfileRepository;
+import com.holaho.intern.task.repository.TaskRepository;
 import com.holaho.intern.service.ExportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;

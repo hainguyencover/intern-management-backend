@@ -4,7 +4,7 @@ import com.holaho.intern.shared.dto.WeeklyReportDto;
 import com.holaho.intern.shared.dto.response.EvaluationResponse;
 import com.holaho.intern.shared.dto.response.FinalReportDto;
 import com.holaho.intern.shared.dto.response.FinalReportSummaryDto;
-import com.holaho.intern.entity.InternProfile;
+import com.holaho.intern.intern.entity.InternProfile;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;

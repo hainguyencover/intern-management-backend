@@ -1,6 +1,6 @@
 package com.holaho.intern.shared.dto.response;
 
-import com.holaho.intern.entity.Task;
+import com.holaho.intern.task.entity.Task;
 import com.holaho.intern.shared.enums.TaskStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

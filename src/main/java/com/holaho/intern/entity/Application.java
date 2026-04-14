@@ -1,7 +1,7 @@
 package com.holaho.intern.entity;
 
 import com.holaho.intern.entity.Program;
-import com.holaho.intern.entity.InternProfile;
+import com.holaho.intern.intern.entity.InternProfile;
 
 
 import com.holaho.intern.shared.entity.BaseEntity;

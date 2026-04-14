@@ -1,7 +1,7 @@
 package com.holaho.intern.shared.mapper;
 
 import com.holaho.intern.shared.dto.response.MentorResponse;
-import com.holaho.intern.entity.Mentor;
+import com.holaho.intern.mentor.entity.Mentor;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;

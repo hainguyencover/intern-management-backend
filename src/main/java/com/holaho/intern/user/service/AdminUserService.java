@@ -2,10 +2,10 @@ package com.holaho.intern.user.service;
 
 import com.holaho.intern.entity.Department;
 import com.holaho.intern.repository.DepartmentRepository;
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.repository.InternProfileRepository;
-import com.holaho.intern.entity.Mentor;
-import com.holaho.intern.repository.MentorRepository;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.intern.repository.InternProfileRepository;
+import com.holaho.intern.mentor.entity.Mentor;
+import com.holaho.intern.mentor.repository.MentorRepository;
 import com.holaho.intern.user.entity.Role;
 import com.holaho.intern.user.entity.User;
 import com.holaho.intern.user.repository.RoleRepository;

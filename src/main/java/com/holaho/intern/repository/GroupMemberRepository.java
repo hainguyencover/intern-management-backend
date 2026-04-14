@@ -1,6 +1,6 @@
 package com.holaho.intern.repository;
 
-import com.holaho.intern.entity.InternProfile;
+import com.holaho.intern.intern.entity.InternProfile;
 
 
 import com.holaho.intern.entity.GroupMember;
