@@ -4,7 +4,7 @@ import com.holaho.intern.shared.dto.WeeklyReportDto;
 import com.holaho.intern.shared.dto.request.WeeklyReportRequest;
 import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.security.CustomUserDetails;
-import com.holaho.intern.service.UserService;
+import com.holaho.intern.user.service.UserService;
 import com.holaho.intern.service.WeeklyReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

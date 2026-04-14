@@ -1,13 +1,13 @@
 package com.holaho.intern.service;
 
 import com.holaho.intern.entity.Mentor;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.repository.RoleRepository;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.repository.RoleRepository;
 
 
 import com.holaho.intern.shared.dto.hrm.HrmUserDto;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,7 +23,7 @@ import java.util.List;
 public class HrmService {
 
     private final UserRepository userRepository;
-    private final com.holaho.intern.repository.RoleRepository roleRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
     // Simulate external API call
@@ -62,7 +62,7 @@ public class HrmService {
 
                     // Basic role logic
                     String roleCode = "HR".equalsIgnoreCase(hrmUser.getDepartment()) ? "HR" : "MENTOR";
-                    com.holaho.intern.entity.Role role = roleRepository.findByCode(roleCode)
+                    com.holaho.intern.user.entity.Role role = roleRepository.findByCode(roleCode)
                             .orElseThrow(() -> new RuntimeException("Role not found: " + roleCode));
 
                     user.setRoles(java.util.Collections.singleton(role));

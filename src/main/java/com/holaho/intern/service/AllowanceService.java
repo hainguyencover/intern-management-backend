@@ -4,8 +4,8 @@ import com.holaho.intern.entity.Allowance;
 import com.holaho.intern.repository.AllowanceRepository;
 import com.holaho.intern.entity.InternProfile;
 import com.holaho.intern.repository.InternProfileRepository;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.NotFoundException;
 

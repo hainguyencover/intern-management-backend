@@ -1,6 +1,6 @@
 package com.holaho.intern.shared.entity;
 
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 
 
 import com.holaho.intern.shared.config.TenantContext;

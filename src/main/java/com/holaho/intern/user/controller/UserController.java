@@ -1,6 +1,6 @@
-package com.holaho.intern.controller;
+package com.holaho.intern.user.controller;
 
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 
 
 import com.holaho.intern.shared.dto.request.UpdateUserRequest;
@@ -8,7 +8,7 @@ import com.holaho.intern.shared.dto.request.CreateUserRequest;
 import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.dto.response.UserResponse;
 import com.holaho.intern.shared.enums.UserStatus;
-import com.holaho.intern.service.UserService;
+import com.holaho.intern.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

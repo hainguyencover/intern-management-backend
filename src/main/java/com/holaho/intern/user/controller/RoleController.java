@@ -1,4 +1,4 @@
-package com.holaho.intern.controller;
+package com.holaho.intern.user.controller;
 
 import com.holaho.intern.shared.dto.request.UpdateRolePermissionsRequest;
 
@@ -7,10 +7,10 @@ import com.holaho.intern.shared.dto.admin.RoleDTOs;
 import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.dto.response.PermissionResponse;
 import com.holaho.intern.shared.dto.response.RoleWithPermissionsResponse;
-import com.holaho.intern.entity.Permission;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.service.PermissionService;
-import com.holaho.intern.service.RoleService;
+import com.holaho.intern.user.entity.Permission;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.service.PermissionService;
+import com.holaho.intern.user.service.RoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;

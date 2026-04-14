@@ -8,12 +8,12 @@ import com.holaho.intern.entity.InternProfile;
 import com.holaho.intern.repository.InternProfileRepository;
 import com.holaho.intern.entity.Mentor;
 import com.holaho.intern.repository.MentorRepository;
-import com.holaho.intern.entity.Permission;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.PermissionRepository;
-import com.holaho.intern.repository.RoleRepository;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.Permission;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.PermissionRepository;
+import com.holaho.intern.user.repository.RoleRepository;
+import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.enums.ProgramStatus;
 
 

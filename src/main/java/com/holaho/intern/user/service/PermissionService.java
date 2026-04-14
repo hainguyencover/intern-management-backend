@@ -1,12 +1,12 @@
-package com.holaho.intern.service;
+package com.holaho.intern.user.service;
 
 import com.holaho.intern.shared.dto.request.UpdateRolePermissionsRequest;
 import com.holaho.intern.shared.dto.response.PermissionResponse;
 import com.holaho.intern.shared.dto.response.RoleWithPermissionsResponse;
-import com.holaho.intern.entity.Permission;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.repository.PermissionRepository;
-import com.holaho.intern.repository.RoleRepository;
+import com.holaho.intern.user.entity.Permission;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.repository.PermissionRepository;
+import com.holaho.intern.user.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

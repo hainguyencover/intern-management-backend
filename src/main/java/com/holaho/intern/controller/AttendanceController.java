@@ -5,7 +5,7 @@ import com.holaho.intern.shared.dto.response.AttendanceResponse;
 import com.holaho.intern.entity.Attendance;
 import com.holaho.intern.shared.security.CustomUserDetails;
 import com.holaho.intern.service.AttendanceService;
-import com.holaho.intern.service.UserService;
+import com.holaho.intern.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.web.PageableDefault;

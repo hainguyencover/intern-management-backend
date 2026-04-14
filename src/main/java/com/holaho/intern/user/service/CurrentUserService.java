@@ -1,7 +1,7 @@
-package com.holaho.intern.service;
+package com.holaho.intern.user.service;
 
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;

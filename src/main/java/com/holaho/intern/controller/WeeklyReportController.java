@@ -9,7 +9,7 @@ import com.holaho.intern.shared.dto.response.FinalReportSummaryDto;
 import com.holaho.intern.shared.dto.InternCountStatDto;
 import com.holaho.intern.shared.security.CustomUserDetails;
 import com.holaho.intern.service.WeeklyReportService;
-import com.holaho.intern.service.UserService;
+import com.holaho.intern.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

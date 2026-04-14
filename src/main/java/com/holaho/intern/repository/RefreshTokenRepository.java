@@ -1,7 +1,7 @@
 package com.holaho.intern.repository;
 
 import com.holaho.intern.entity.RefreshToken;
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;

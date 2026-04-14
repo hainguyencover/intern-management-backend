@@ -1,9 +1,9 @@
 package com.holaho.intern.shared.security;
 
-import com.holaho.intern.entity.Permission;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.Permission;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.GrantedAuthority;

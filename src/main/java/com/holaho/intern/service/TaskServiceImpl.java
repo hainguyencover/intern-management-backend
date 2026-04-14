@@ -8,8 +8,8 @@ import com.holaho.intern.entity.Task;
 import com.holaho.intern.entity.TaskUpdate;
 import com.holaho.intern.repository.TaskRepository;
 import com.holaho.intern.repository.TaskUpdateRepository;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.exception.ForbiddenException;
 
 

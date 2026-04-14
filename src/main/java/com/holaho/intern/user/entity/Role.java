@@ -1,4 +1,4 @@
-package com.holaho.intern.entity;
+package com.holaho.intern.user.entity;
 
 import com.holaho.intern.shared.entity.BaseEntity;
 

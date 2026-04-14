@@ -1,6 +1,6 @@
-package com.holaho.intern.repository;
+package com.holaho.intern.user.repository;
 
-import com.holaho.intern.entity.Permission;
+import com.holaho.intern.user.entity.Permission;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

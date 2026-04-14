@@ -1,7 +1,7 @@
 package com.holaho.intern.repository;
 
 import com.holaho.intern.entity.GroupMember;
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 
 
 import com.holaho.intern.entity.WeeklyReport;

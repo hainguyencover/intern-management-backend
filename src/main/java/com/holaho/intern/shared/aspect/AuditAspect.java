@@ -16,8 +16,8 @@ import com.holaho.intern.service.WeeklyReportService;
 import com.holaho.intern.service.SupportTicketService;
 import com.holaho.intern.entity.Task;
 import com.holaho.intern.service.TaskService;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.service.UserService;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.service.UserService;
 import com.holaho.intern.shared.dto.response.TaskResponse;
 import com.holaho.intern.shared.dto.response.UserResponse;
 

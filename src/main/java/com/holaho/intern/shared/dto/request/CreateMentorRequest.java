@@ -1,6 +1,6 @@
 package com.holaho.intern.shared.dto.request;
 
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 
 
 import jakarta.validation.constraints.NotNull;

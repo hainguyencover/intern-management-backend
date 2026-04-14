@@ -3,7 +3,7 @@ package com.holaho.intern.service;
 import com.holaho.intern.entity.Application;
 import com.holaho.intern.repository.ApplicationRepository;
 import com.holaho.intern.service.NotificationService;
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 import com.holaho.intern.shared.enums.ApplicationStatus;
 import com.holaho.intern.shared.enums.NotificationType;
 
@@ -16,7 +16,7 @@ import com.holaho.intern.shared.enums.DocumentType;
 import com.holaho.intern.shared.exception.ApiException;
 import com.holaho.intern.repository.InternDocumentRepository;
 import com.holaho.intern.repository.InternProfileRepository;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.service.InternDocumentService;
 import com.holaho.intern.service.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -70,7 +70,7 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         } else {
             // HR/Admin upload -> Auto Approve
             doc.setStatus("APPROVED");
-            com.holaho.intern.entity.User uploader = userRepository.findById(uploaderId)
+            com.holaho.intern.user.entity.User uploader = userRepository.findById(uploaderId)
                     .orElseThrow(() -> new RuntimeException("Uploader not found"));
             doc.setReviewedBy(uploader);
             doc.setReviewedAt(LocalDateTime.now());
@@ -107,7 +107,7 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         InternDocument doc = repo.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
 
-        com.holaho.intern.entity.User hr = userRepository.findById(hrUserId)
+        com.holaho.intern.user.entity.User hr = userRepository.findById(hrUserId)
                 .orElseThrow(() -> new RuntimeException("HR User not found: " + hrUserId));
 
         doc.setStatus("APPROVED");
@@ -131,7 +131,7 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         InternDocument doc = repo.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
 
-        com.holaho.intern.entity.User hr = userRepository.findById(hrUserId)
+        com.holaho.intern.user.entity.User hr = userRepository.findById(hrUserId)
                 .orElseThrow(() -> new RuntimeException("HR User not found: " + hrUserId));
 
         doc.setStatus("REJECTED");

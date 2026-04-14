@@ -13,7 +13,7 @@ import com.holaho.intern.shared.dto.response.TaskUpdateResponse;
 import com.holaho.intern.entity.TaskUpdate;
 import com.holaho.intern.shared.enums.TaskStatus;
 import com.holaho.intern.service.TaskService;
-import com.holaho.intern.service.UserService;
+import com.holaho.intern.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

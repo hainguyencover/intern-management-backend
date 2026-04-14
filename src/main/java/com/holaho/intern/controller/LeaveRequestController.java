@@ -10,7 +10,7 @@ import com.holaho.intern.shared.dto.response.LeaveRequestResponse;
 import com.holaho.intern.entity.LeaveRequest;
 import com.holaho.intern.shared.security.CustomUserDetails;
 import com.holaho.intern.service.LeaveRequestService;
-import com.holaho.intern.service.UserService;
+import com.holaho.intern.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;

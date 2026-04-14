@@ -7,7 +7,7 @@ import com.holaho.intern.entity.Allowance;
 import com.holaho.intern.shared.enums.AllowanceStatus;
 import com.holaho.intern.shared.security.CustomUserDetails;
 import com.holaho.intern.service.AllowanceService;
-import com.holaho.intern.service.UserService;
+import com.holaho.intern.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;

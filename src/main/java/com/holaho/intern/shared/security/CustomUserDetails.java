@@ -3,7 +3,7 @@ package com.holaho.intern.shared.security;
 import com.holaho.intern.shared.enums.UserStatus;
 
 
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

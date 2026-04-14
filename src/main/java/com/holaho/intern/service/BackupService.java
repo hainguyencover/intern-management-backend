@@ -1,9 +1,9 @@
 package com.holaho.intern.service;
 
 import com.holaho.intern.entity.BackupJob;
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 import com.holaho.intern.repository.BackupJobRepository;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

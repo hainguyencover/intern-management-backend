@@ -10,8 +10,8 @@ import com.holaho.intern.entity.Evaluation;
 import com.holaho.intern.entity.WeeklyReport;
 import com.holaho.intern.repository.EvaluationRepository;
 import com.holaho.intern.repository.WeeklyReportRepository;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.enums.GroupStatus;
 
 

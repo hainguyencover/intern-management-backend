@@ -9,8 +9,8 @@ import com.holaho.intern.repository.InternProfileRepository;
 import com.holaho.intern.entity.Mentor;
 import com.holaho.intern.entity.Task;
 import com.holaho.intern.repository.TaskRepository;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 
 
 import com.holaho.intern.shared.dto.GroupInternDto;

@@ -3,8 +3,8 @@ package com.holaho.intern.service;
 import com.holaho.intern.entity.InternshipContract;
 import com.holaho.intern.entity.Notification;
 import com.holaho.intern.repository.NotificationRepository;
-import com.holaho.intern.entity.User;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.enums.NotificationType;
 
 

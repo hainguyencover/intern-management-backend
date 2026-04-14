@@ -1,6 +1,6 @@
 package com.holaho.intern.controller;
 
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.User;
 import com.holaho.intern.shared.dto.request.AssignRolesRequest;
 import com.holaho.intern.shared.dto.request.QrLogDto;
 
@@ -11,7 +11,7 @@ import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.dto.response.AuditLogResponse;
 import com.holaho.intern.shared.dto.response.UserResponse;
 import com.holaho.intern.entity.BackupJob;
-import com.holaho.intern.service.AdminUserService;
+import com.holaho.intern.user.service.AdminUserService;
 import com.holaho.intern.service.AuditLogService;
 import com.holaho.intern.service.BackupService;
 import com.holaho.intern.service.HrmService;
