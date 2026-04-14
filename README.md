@@ -7,7 +7,7 @@
 ## 🏗️ Architecture Overview
 
 ```
-com.example.backend/
+com.holaho.intern/
 │
 ├── annotation/          # Custom annotations (e.g., @CurrentUser)
 ├── aspect/              # AOP aspects for audit logging & cross-cutting concerns

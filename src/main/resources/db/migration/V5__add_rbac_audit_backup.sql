@@ -4,7 +4,7 @@
 
 -- 1. Bảng permissions (đã có entity Permission.java)
 -- Bổ sung thêm cột module để nhóm quyền
-ALTER TABLE permissions ADD COLUMN IF NOT EXISTS module VARCHAR(50);
+ALTER TABLE permissions ADD COLUMN module VARCHAR(50);
 
 -- 2. Bảng role_permissions (many-to-many)
 CREATE TABLE IF NOT EXISTS role_permissions (

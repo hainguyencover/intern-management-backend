@@ -1,4 +1,4 @@
-name: Backend CI
+name: Backend CI/CD
 
 on:
   push:
@@ -20,23 +20,72 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up JDK 17
       uses: actions/setup-java@v3
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
-        
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
-      
-    - name: Build and Test with Gradle
+
+    - name: Build and Test
       run: ./gradlew build jacocoTestReport --no-daemon
-      
+
     - name: Upload JaCoCo Coverage Report
       uses: actions/upload-artifact@v4
       with:
         name: jacoco-report
         path: backend/build/reports/jacoco/test/html/
         retention-days: 7
+
+  owasp-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: OWASP Dependency Check
+      run: ./gradlew dependencyCheckAnalyze --no-daemon
+      continue-on-error: true
+
+    - name: Upload OWASP Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: owasp-dependency-check-report
+        path: backend/build/reports/dependency-check-report.html
+        retention-days: 14
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Docker Image
+      run: docker build -t intern-management-backend:${{ github.sha }} .
+
+    - name: Tag latest
+      run: docker tag intern-management-backend:${{ github.sha }} intern-management-backend:latest

@@ -1,29 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
-    
-    <springProfile name="!prod">
-        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- ==================================== -->
+    <!-- DEV profile: human-readable console  -->
+    <!-- ==================================== -->
+    <springProfile name="dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>
+                    %d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%thread] %cyan(%logger{36}) - %msg%n
+                </pattern>
+            </encoder>
+        </appender>
+
         <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="CONSOLE" />
+        </root>
+
+        <!-- Show SQL in dev -->
+        <logger name="org.hibernate.SQL" level="DEBUG" />
+        <logger name="com.holaho.intern" level="DEBUG" />
+    </springProfile>
+
+    <!-- ==================================== -->
+    <!-- STAGING profile: JSON to console     -->
+    <!-- ==================================== -->
+    <springProfile name="staging">
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeMdcKeyName>tenantId</includeMdcKeyName>
+                <includeMdcKeyName>userId</includeMdcKeyName>
+                <includeMdcKeyName>traceId</includeMdcKeyName>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE" />
         </root>
     </springProfile>
 
+    <!-- ==================================== -->
+    <!-- PROD profile: JSON to console + file -->
+    <!-- ==================================== -->
     <springProfile name="prod">
-        <appender name="LOGSTASH" class="ch.qos.logback.core.ConsoleAppender">
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-                <fieldNames>
-                    <timestamp>timestamp</timestamp>
-                    <thread>thread</thread>
-                    <level>level</level>
-                    <logger>logger</logger>
-                    <message>message</message>
-                    <stackTrace>exception</stackTrace>
-                </fieldNames>
+                <includeMdcKeyName>tenantId</includeMdcKeyName>
+                <includeMdcKeyName>userId</includeMdcKeyName>
+                <includeMdcKeyName>traceId</includeMdcKeyName>
             </encoder>
         </appender>
+
+        <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/app.json.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/app.%d{yyyy-MM-dd}.%i.json.log.gz</fileNamePattern>
+                <maxFileSize>100MB</maxFileSize>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>3GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeMdcKeyName>tenantId</includeMdcKeyName>
+                <includeMdcKeyName>userId</includeMdcKeyName>
+                <includeMdcKeyName>traceId</includeMdcKeyName>
+            </encoder>
+        </appender>
+
         <root level="INFO">
-            <appender-ref ref="LOGSTASH"/>
+            <appender-ref ref="JSON_CONSOLE" />
+            <appender-ref ref="JSON_FILE" />
         </root>
     </springProfile>
+
 </configuration>

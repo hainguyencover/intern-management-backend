@@ -23,8 +23,8 @@ WORKDIR /app
 # Copy the built jar
 COPY --from=build /app/build/libs/*.jar app.jar
 
-# Set ownership to the non-root user
-RUN chown appuser:appgroup /app/app.jar
+# Create directories for logs/uploads and set ownership to the non-root user
+RUN mkdir -p /app/logs /app/uploads && chown -R appuser:appgroup /app
 
 # Switch to the non-root user
 USER appuser

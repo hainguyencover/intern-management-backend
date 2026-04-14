@@ -2,8 +2,16 @@
 # Spring Application
 # ===============================
 spring:
+  threads:
+    virtual:
+      enabled: true
   application:
-    name: intern-management-backend
+    name: holaho-intern-backend
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/management_intern}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:changeme}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   elasticsearch:
     uris: ${ES_URIS:http://localhost:9200}
   profiles:
@@ -88,6 +96,13 @@ management:
     web:
       exposure:
         include: health,metrics,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
 
 # ===============================
 # Custom Application Properties
