@@ -1,6 +1,7 @@
 package com.holaho.intern.service;
 
 import com.holaho.intern.entity.Program;
+import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.ConflictException;
 import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.shared.exception.ResourceNotFoundException;
@@ -86,12 +87,12 @@ public class ApplicationService {
     @Transactional
     public ApplicationResponse createApplication(CreateApplicationRequest request, Long internId) {
         InternProfile intern = internProfileRepository.findById(internId)
-                .orElseThrow(() -> new RuntimeException("Intern profile not found: " + internId));
+                .orElseThrow(() -> new NotFoundException("Intern profile", internId));
 
         // Check if already has pending/approved application
         if (applicationRepository.existsByIntern_IdAndStatus(internId, ApplicationStatus.SUBMITTED) ||
                 applicationRepository.existsByIntern_IdAndStatus(internId, ApplicationStatus.APPROVED)) {
-            throw new RuntimeException("You already have a pending or approved application");
+            throw new ConflictException("Bạn đã có đơn ứng tuyển đang chờ hoặc đã được duyệt");
         }
 
         Application application = new Application();
@@ -142,20 +143,20 @@ public class ApplicationService {
     public ApplicationResponse reviewApplication(Long applicationId, ReviewApplicationRequest request,
             Long reviewerId) {
         Application application = applicationRepository.findByIdWithIntern(applicationId)
-                .orElseThrow(() -> new RuntimeException("Application not found: " + applicationId));
+                .orElseThrow(() -> new NotFoundException("Application", applicationId));
 
         if (application.getStatus() != ApplicationStatus.SUBMITTED) {
-            throw new RuntimeException(
-                    "Only SUBMITTED applications can be reviewed. Current status: " + application.getStatus());
+            throw new BadRequestException(
+                    "Chỉ có thể duyệt đơn ứng tuyển ở trạng thái SUBMITTED. Trạng thái hiện tại: " + application.getStatus());
         }
 
         // Check if already reviewed
         if (reviewRepository.existsByApplicationId(applicationId)) {
-            throw new RuntimeException("Application already reviewed");
+            throw new ConflictException("Đơn ứng tuyển đã được duyệt trước đó");
         }
 
         User reviewer = userRepository.findById(reviewerId)
-                .orElseThrow(() -> new RuntimeException("Reviewer not found: " + reviewerId));
+                .orElseThrow(() -> new NotFoundException("Reviewer", reviewerId));
 
         // Create review
         ApplicationReview review = new ApplicationReview();
@@ -194,7 +195,7 @@ public class ApplicationService {
     @Transactional(readOnly = true)
     public ApplicationResponse getApplicationById(Long id) {
         Application application = applicationRepository.findByIdWithIntern(id)
-                .orElseThrow(() -> new RuntimeException("Application not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Application", id));
         return mapToResponse(application);
     }
 

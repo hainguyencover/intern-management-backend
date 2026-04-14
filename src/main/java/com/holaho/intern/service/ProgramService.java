@@ -11,6 +11,7 @@ import com.holaho.intern.repository.ProgramRepository;
 import com.holaho.intern.shared.dto.request.CreateProgramRequest;
 import com.holaho.intern.shared.dto.response.ProgramResponse;
 import com.holaho.intern.shared.enums.ProgramStatus;
+import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +51,7 @@ public class ProgramService {
         Program program = programRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Program not found with id: " + id));
         ProgramResponse response = new ProgramResponse(program);
-        // Ãƒâ€žÃ‚ÂÃƒÂ¡Ã‚ÂºÃ‚Â¿m groups vÃƒÆ’Ã‚Â  interns
+        // Đếm groups và interns
         response.setTotalGroups((long) groupRepository.findByProgramId(id).size());
         response.setTotalInterns(memberRepository.countByGroup_ProgramId(id));
         return response;
@@ -59,10 +60,10 @@ public class ProgramService {
     @Transactional
     public ProgramResponse createProgram(CreateProgramRequest request) {
         Department department = departmentRepository.findById(request.getDepartmentId())
-                .orElseThrow(() -> new RuntimeException("Department not found: " + request.getDepartmentId()));
+                .orElseThrow(() -> new NotFoundException("Department", request.getDepartmentId()));
 
         if (request.getStartDate().isAfter(request.getEndDate())) {
-            throw new RuntimeException("Start date must be before end date");
+            throw new BadRequestException("Ngày bắt đầu phải trước ngày kết thúc");
         }
 
         Program program = new Program();
@@ -82,11 +83,11 @@ public class ProgramService {
     @Transactional
     public ProgramResponse updateProgram(Long id, CreateProgramRequest request) {
         Program program = programRepository.findByIdWithDepartment(id)
-                .orElseThrow(() -> new RuntimeException("Program not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Program", id));
 
         if (request.getDepartmentId() != null) {
             Department department = departmentRepository.findById(request.getDepartmentId())
-                    .orElseThrow(() -> new RuntimeException("Department not found: " + request.getDepartmentId()));
+                    .orElseThrow(() -> new NotFoundException("Department", request.getDepartmentId()));
             program.setDepartment(department);
         }
 
@@ -104,7 +105,7 @@ public class ProgramService {
         }
 
         if (program.getStartDate().isAfter(program.getEndDate())) {
-            throw new RuntimeException("Start date must be before end date");
+            throw new BadRequestException("Ngày bắt đầu phải trước ngày kết thúc");
         }
 
         program = programRepository.save(program);
@@ -122,7 +123,7 @@ public class ProgramService {
     @Transactional
     public ProgramResponse updateProgramStatus(Long id, ProgramStatus status) {
         Program program = programRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Program not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Program", id));
 
         program.setStatus(status);
         program = programRepository.save(program);
@@ -134,7 +135,7 @@ public class ProgramService {
     @Transactional(readOnly = true)
     public ProgramResponse getProgramById(Long id) {
         Program program = programRepository.findByIdWithDepartment(id)
-                .orElseThrow(() -> new RuntimeException("Program not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Program", id));
         return mapToResponse(program);
     }
 
@@ -167,7 +168,7 @@ public class ProgramService {
     @Transactional
     public void deleteProgram(Long id) {
         Program program = programRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Program not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Program", id));
 
         programRepository.delete(program);
         log.info("Deleted program: {}", id);
@@ -206,4 +207,3 @@ public class ProgramService {
         }
     }
 }
-

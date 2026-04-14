@@ -8,6 +8,7 @@ import com.holaho.intern.entity.Application;
 import com.holaho.intern.intern.entity.InternshipContract;
 import com.holaho.intern.shared.enums.ContractStatus;
 import com.holaho.intern.shared.enums.NotificationType;
+import com.holaho.intern.shared.exception.ForbiddenException;
 import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.repository.ApplicationRepository;
 import com.holaho.intern.intern.repository.InternshipContractRepository;
@@ -62,7 +63,7 @@ public class ContractService {
                 .orElseThrow(() -> new NotFoundException("Contract", id));
 
         if (!contract.getApplication().getIntern().getUser().getId().equals(userId)) {
-            throw new RuntimeException("BÃƒÂ¡Ã‚ÂºÃ‚Â¡n khÃƒÆ’Ã‚Â´ng cÃƒÆ’Ã‚Â³ quyÃƒÂ¡Ã‚Â»Ã‚Ân kÃƒÆ’Ã‚Â½ hÃƒÂ¡Ã‚Â»Ã‚Â£p Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ng nÃƒÆ’Ã‚Â y");
+            throw new ForbiddenException("Bạn không có quyền ký hợp đồng này");
         }
 
         contract.setStatus(ContractStatus.SIGNED);
@@ -74,8 +75,8 @@ public class ContractService {
         notificationService.createNotification(
                 1L, // Fallback to admin/hr user ID 1 for system notifications
                 NotificationType.SYSTEM,
-                "HÃƒÂ¡Ã‚Â»Ã‚Â£p Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ng Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£c kÃƒÆ’Ã‚Â½",
-                "ThÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p sinh " + contract.getApplication().getIntern().getUser().getFullName() + " Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ kÃƒÆ’Ã‚Â½ hÃƒÂ¡Ã‚Â»Ã‚Â£p Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ng.");
+                "Hợp đồng đã được ký",
+                "Thực tập sinh " + contract.getApplication().getIntern().getUser().getFullName() + " đã ký hợp đồng.");
         return mapToResponse(contract);
     }
 
@@ -134,4 +135,3 @@ public class ContractService {
                 .build();
     }
 }
-

@@ -1,11 +1,14 @@
 package com.holaho.intern.shared.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.security.CustomUserDetailsService;
 import com.holaho.intern.shared.security.JwtAuthenticationFilter;
 import com.holaho.intern.shared.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -123,16 +126,21 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(401);
-                            response.setContentType("application/json");
-                            response.getWriter().write(
-                                    "{\"error\":\"Unauthorized\",\"message\":\"" +
-                                            authException.getMessage() + "\"}");
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            ObjectMapper mapper = new ObjectMapper();
+                            ApiResponse<Void> body = ApiResponse.error(401,
+                                    "Phiên đăng nhập hết hạn hoặc bạn chưa đăng nhập",
+                                    request.getRequestURI());
+                            response.getWriter().write(mapper.writeValueAsString(body));
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(403);
-                            response.setContentType("application/json");
-                            response.getWriter().write(
-                                    "{\"error\":\"Forbidden\",\"message\":\"BÃƒÂ¡Ã‚ÂºÃ‚Â¡n khÃƒÆ’Ã‚Â´ng cÃƒÆ’Ã‚Â³ quyÃƒÂ¡Ã‚Â»Ã‚Ân truy cÃƒÂ¡Ã‚ÂºÃ‚Â­p\"}");
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            ObjectMapper mapper = new ObjectMapper();
+                            ApiResponse<Void> body = ApiResponse.error(403,
+                                    "Bạn không có quyền truy cập tài nguyên này",
+                                    request.getRequestURI());
+                            response.getWriter().write(mapper.writeValueAsString(body));
                         }));
 
         http.addFilterBefore(tenantFilter, UsernamePasswordAuthenticationFilter.class);
@@ -142,4 +150,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-

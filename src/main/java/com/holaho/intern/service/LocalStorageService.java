@@ -2,6 +2,8 @@ package com.holaho.intern.service;
 
 import com.holaho.intern.shared.dto.StoredFile;
 import com.holaho.intern.shared.enums.DocumentType;
+import com.holaho.intern.shared.exception.FileStorageException;
+import com.holaho.intern.shared.exception.NotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -41,13 +43,13 @@ public class LocalStorageService implements StorageService {
             Path target = dir.resolve(filename);
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
 
-            // fileUrl: lÃƒâ€ Ã‚Â°u path tÃƒâ€ Ã‚Â°Ãƒâ€ Ã‚Â¡ng Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœi
+            // Lưu path tương đối
             String fileUrl = "interns/" + internId + "/" + filename;
             long size = Files.size(target);
 
             return new StoredFile(fileUrl, filename, size);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to store file", e);
+            throw new FileStorageException("Không thể lưu file", e);
         }
     }
 
@@ -56,11 +58,13 @@ public class LocalStorageService implements StorageService {
         try {
             Path path = rootDir.resolve(fileUrl).normalize();
             if (!Files.exists(path))
-                throw new RuntimeException("File not found: " + fileUrl);
+                throw new NotFoundException("Không tìm thấy file: " + fileUrl);
             long size = Files.size(path);
             return new StoredFile(fileUrl, path.getFileName().toString(), size);
+        } catch (NotFoundException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load file", e);
+            throw new FileStorageException("Không thể tải file", e);
         }
     }
 
@@ -69,15 +73,16 @@ public class LocalStorageService implements StorageService {
         try {
             Path path = rootDir.resolve(fileUrl).normalize();
             if (!Files.exists(path))
-                throw new RuntimeException("File not found: " + fileUrl);
+                throw new NotFoundException("Không tìm thấy file: " + fileUrl);
             org.springframework.core.io.UrlResource resource = new org.springframework.core.io.UrlResource(
                     path.toUri());
             if (!resource.exists() || !resource.isReadable())
-                throw new RuntimeException("Could not read file: " + fileUrl);
+                throw new FileStorageException("Không thể đọc file: " + fileUrl);
             return resource;
+        } catch (NotFoundException | FileStorageException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load file as resource", e);
+            throw new FileStorageException("Không thể tải file dưới dạng resource", e);
         }
     }
 }
-

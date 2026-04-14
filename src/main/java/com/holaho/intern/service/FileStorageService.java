@@ -1,5 +1,6 @@
 package com.holaho.intern.service;
 
+import com.holaho.intern.shared.exception.FileStorageException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class FileStorageService {
 
         } catch (IOException e) {
             log.error("Failed to store file", e);
-            throw new RuntimeException("KhÃ´ng thá»ƒ lÆ°u file: " + e.getMessage());
+            throw new FileStorageException("Không thể lưu file: " + e.getMessage(), e);
         }
     }
 
@@ -74,4 +75,3 @@ public class FileStorageService {
         return Paths.get(uploadDir, relativePath);
     }
 }
-

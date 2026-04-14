@@ -121,6 +121,14 @@ public class GlobalExceptionHandler {
                                 request);
         }
 
+        @ExceptionHandler(FileStorageException.class)
+        public ResponseEntity<ApiResponse<Void>> handleFileStorageException(
+                        FileStorageException ex, HttpServletRequest request) {
+                log.error("FileStorageException: {}", ex.getMessage(), ex);
+                return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                                "Lỗi xử lý file: " + ex.getMessage(), null, request);
+        }
+
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ApiResponse<Void>> handleGlobalException(
                         Exception ex, HttpServletRequest request) {

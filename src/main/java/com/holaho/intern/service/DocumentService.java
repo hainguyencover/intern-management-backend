@@ -8,6 +8,7 @@ import com.holaho.intern.intern.repository.InternDocumentRepository;
 import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.user.entity.User;
 import com.holaho.intern.user.repository.UserRepository;
+import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.NotFoundException;
 
 
@@ -89,15 +90,15 @@ public class DocumentService {
     @Transactional
     public DocumentResponse verifyDocument(Long documentId, VerifyDocumentRequest request, Long reviewerId) {
         InternDocument document = documentRepository.findByIdWithIntern(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+                .orElseThrow(() -> new NotFoundException("Document", documentId));
 
         if (!"PENDING".equals(document.getStatus())) {
-            throw new RuntimeException(
-                    "Only PENDING documents can be verified. Current status: " + document.getStatus());
+            throw new BadRequestException(
+                    "Chỉ có thể duyệt tài liệu ở trạng thái PENDING. Trạng thái hiện tại: " + document.getStatus());
         }
 
         User reviewer = userRepository.findById(reviewerId)
-                .orElseThrow(() -> new RuntimeException("Reviewer not found: " + reviewerId));
+                .orElseThrow(() -> new NotFoundException("Reviewer", reviewerId));
 
         document.setStatus(request.getDecision());
         document.setReviewNote(request.getNote());
@@ -153,7 +154,7 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public DocumentResponse getDocumentById(Long id) {
         InternDocument document = documentRepository.findByIdWithIntern(id)
-                .orElseThrow(() -> new RuntimeException("Document not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Document", id));
         return mapToResponse(document);
     }
 
@@ -173,7 +174,7 @@ public class DocumentService {
     @Transactional
     public void deleteDocument(Long id) {
         InternDocument document = documentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Document not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Document", id));
 
         // Delete physical file
         deleteFile(document.getFileUrl());
@@ -226,4 +227,3 @@ public class DocumentService {
         return response;
     }
 }
-

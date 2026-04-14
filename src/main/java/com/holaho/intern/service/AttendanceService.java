@@ -1,6 +1,8 @@
 package com.holaho.intern.service;
 
 import com.holaho.intern.shared.dto.request.QrLogDto;
+import com.holaho.intern.shared.exception.ConflictException;
+import com.holaho.intern.shared.exception.NotFoundException;
 
 
 import com.holaho.intern.shared.dto.response.AttendanceResponse;
@@ -33,11 +35,11 @@ public class AttendanceService {
     @Transactional
     public AttendanceResponse checkIn(Long internId) {
         InternProfile intern = internProfileRepository.findById(internId)
-                .orElseThrow(() -> new RuntimeException("Intern not found: " + internId));
+                .orElseThrow(() -> new NotFoundException("Intern profile", internId));
 
         LocalDate today = LocalDate.now();
         if (attendanceRepository.existsByInternIdAndDate(internId, today)) {
-            throw new RuntimeException("Already checked in today");
+            throw new ConflictException("Bạn đã chấm công vào hôm nay rồi");
         }
 
         Attendance attendance = new Attendance();
@@ -64,10 +66,10 @@ public class AttendanceService {
     public AttendanceResponse checkOut(Long internId) {
         LocalDate today = LocalDate.now();
         Attendance attendance = attendanceRepository.findByInternIdAndDate(internId, today)
-                .orElseThrow(() -> new RuntimeException("No check-in record found for today"));
+                .orElseThrow(() -> new NotFoundException("Chưa có bản ghi chấm công vào hôm nay"));
 
         if (attendance.getCheckOut() != null) {
-            throw new RuntimeException("Already checked out today");
+            throw new ConflictException("Bạn đã chấm công ra hôm nay rồi");
         }
 
         LocalDateTime checkOut = LocalDateTime.now();

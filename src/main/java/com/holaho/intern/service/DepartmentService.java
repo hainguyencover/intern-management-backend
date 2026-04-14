@@ -4,6 +4,8 @@ import com.holaho.intern.shared.dto.request.DepartmentRequest;
 import com.holaho.intern.shared.dto.response.DepartmentResponse;
 import com.holaho.intern.entity.Department;
 import com.holaho.intern.repository.DepartmentRepository;
+import com.holaho.intern.shared.exception.ConflictException;
+import com.holaho.intern.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,7 +24,7 @@ public class DepartmentService {
     @Transactional
     public DepartmentResponse createDepartment(DepartmentRequest request) {
         if (departmentRepository.existsByCode(request.getCode())) {
-            throw new RuntimeException("Department code already exists: " + request.getCode());
+            throw new ConflictException("Mã phòng ban đã tồn tại: " + request.getCode());
         }
 
         Department department = new Department();
@@ -46,17 +48,17 @@ public class DepartmentService {
     @Transactional(readOnly = true)
     public DepartmentResponse getDepartmentById(Long id) {
         Department department = departmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Department not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Department", id));
         return mapToResponse(department);
     }
 
     @Transactional
     public DepartmentResponse updateDepartment(Long id, DepartmentRequest request) {
         Department department = departmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Department not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Department", id));
 
         if (!department.getCode().equals(request.getCode()) && departmentRepository.existsByCode(request.getCode())) {
-            throw new RuntimeException("Department code already exists: " + request.getCode());
+            throw new ConflictException("Mã phòng ban đã tồn tại: " + request.getCode());
         }
 
         department.setCode(request.getCode());
@@ -72,7 +74,7 @@ public class DepartmentService {
     @Transactional
     public void deleteDepartment(Long id) {
         if (!departmentRepository.existsById(id)) {
-            throw new RuntimeException("Department not found: " + id);
+            throw new NotFoundException("Department", id);
         }
         departmentRepository.deleteById(id);
         log.info("Deleted department: {}", id);
@@ -88,4 +90,3 @@ public class DepartmentService {
                 .build();
     }
 }
-

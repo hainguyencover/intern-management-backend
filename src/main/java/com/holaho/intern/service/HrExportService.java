@@ -24,6 +24,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import com.holaho.intern.shared.exception.FileStorageException;
+
 @Service
 public class HrExportService {
 
@@ -79,7 +81,7 @@ public class HrExportService {
             wb.write(out);
             return out.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Export Intern Source Excel failed", e);
+            throw new FileStorageException("Xuất báo cáo Excel nguồn thực tập sinh thất bại", e);
         }
     }
 
@@ -112,7 +114,7 @@ public class HrExportService {
             doc.close();
             return out.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Export Intern Source PDF failed", e);
+            throw new FileStorageException("Xuất báo cáo PDF nguồn thực tập sinh thất bại", e);
         }
     }
 
@@ -176,7 +178,7 @@ public class HrExportService {
             wb.write(out);
             return out.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Export Program Completion Excel failed", e);
+            throw new FileStorageException("Xuất báo cáo Excel hoàn thành chương trình thất bại", e);
         }
     }
 
@@ -216,7 +218,7 @@ public class HrExportService {
             doc.close();
             return out.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Export Program Completion PDF failed", e);
+            throw new FileStorageException("Xuất báo cáo PDF hoàn thành chương trình thất bại", e);
         }
     }
 

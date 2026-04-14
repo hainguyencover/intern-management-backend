@@ -13,6 +13,8 @@ import com.holaho.intern.shared.dto.request.GroupRequest;
 import com.holaho.intern.shared.dto.request.UpdateGroupRequest;
 import com.holaho.intern.shared.dto.response.GroupMemberResponse;
 import com.holaho.intern.shared.exception.BadRequestException;
+import com.holaho.intern.shared.exception.ConflictException;
+import com.holaho.intern.shared.exception.NotFoundException;
 
 
 import com.holaho.intern.shared.dto.response.GroupResponse;
@@ -45,7 +47,7 @@ public class ProgramGroupService {
     @Transactional
     public GroupResponse createGroup(ProgramGroup request) {
         Program program = programRepository.findById(request.getProgram().getId())
-                .orElseThrow(() -> new RuntimeException("Program not found: " + request.getProgram().getId()));
+                .orElseThrow(() -> new NotFoundException("Program", request.getProgram().getId()));
 
         ProgramGroup group = new ProgramGroup();
         group.setProgram(program);
@@ -66,13 +68,13 @@ public class ProgramGroupService {
     @Transactional
     public void assignIntern(Long groupId, Long internId) {
         ProgramGroup group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("Group not found: " + groupId));
+                .orElseThrow(() -> new NotFoundException("Group", groupId));
 
         InternProfile intern = internProfileRepository.findById(internId)
-                .orElseThrow(() -> new RuntimeException("Intern not found: " + internId));
+                .orElseThrow(() -> new NotFoundException("Intern profile", internId));
 
         if (memberRepository.existsByGroupIdAndInternId(groupId, internId)) {
-            throw new RuntimeException("Intern already assigned to this group");
+            throw new ConflictException("Thực tập sinh đã được phân vào nhóm này rồi");
         }
 
         GroupMember member = new GroupMember();
@@ -144,7 +146,7 @@ public class ProgramGroupService {
     @Transactional(readOnly = true)
     public GroupResponse getGroupById(Long id) {
         ProgramGroup group = groupRepository.findByIdWithProgram(id)
-                .orElseThrow(() -> new RuntimeException("Group not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Group", id));
         return mapToResponse(group);
     }
 
@@ -166,7 +168,7 @@ public class ProgramGroupService {
     @Transactional
     public GroupResponse update(Long id, com.holaho.intern.shared.dto.request.UpdateGroupRequest request) {
         ProgramGroup group = groupRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Group not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Group", id));
 
         if (request.getName() != null) {
             group.setName(request.getName());
@@ -202,7 +204,7 @@ public class ProgramGroupService {
     @Transactional
     public void delete(Long id) {
         if (!groupRepository.existsById(id)) {
-            throw new RuntimeException("Group not found: " + id);
+            throw new NotFoundException("Group", id);
         }
         groupRepository.deleteById(id);
         log.info("Deleted program group: {}", id);
@@ -222,7 +224,7 @@ public class ProgramGroupService {
     @Transactional
     public void removeIntern(Long groupId, Long internId) {
         GroupMember member = memberRepository.findByGroupIdAndInternId(groupId, internId)
-                .orElseThrow(() -> new RuntimeException("Member not found in group"));
+                .orElseThrow(() -> new NotFoundException("Thực tập sinh không tồn tại trong nhóm này"));
 
         memberRepository.delete(member);
         log.info("Removed intern {} from group {}", internId, groupId);
@@ -244,7 +246,7 @@ public class ProgramGroupService {
     @Transactional
     public GroupResponse create(com.holaho.intern.shared.dto.request.GroupRequest request) {
         Program program = programRepository.findById(request.getProgramId())
-                .orElseThrow(() -> new RuntimeException("Program not found: " + request.getProgramId()));
+                .orElseThrow(() -> new NotFoundException("Program", request.getProgramId()));
 
         ProgramGroup group = new ProgramGroup();
         group.setProgram(program);
@@ -295,8 +297,8 @@ public class ProgramGroupService {
 
             if (hasDayOverlap(workDaysStr, g.getWorkDays())
                     && hasTimeOverlap(start, end, g.getWorkStartTime(), g.getWorkEndTime())) {
-                throw new com.holaho.intern.shared.exception.BadRequestException(
-                        "Mentor Ã„â€˜ÃƒÂ£ cÃƒÂ³ lÃ¡Â»â€¹ch dÃ¡ÂºÂ¡y tÃ¡ÂºÂ¡i nhÃƒÂ³m: " + g.getName() + " (ChÃ†Â°Ã†Â¡ng trÃƒÂ¬nh: " + g.getProgram().getName()
+                throw new BadRequestException(
+                        "Mentor đã có lịch dạy tại nhóm: " + g.getName() + " (Chương trình: " + g.getProgram().getName()
                                 + ")");
             }
         }
@@ -337,4 +339,3 @@ public class ProgramGroupService {
     }
 
 }
-
