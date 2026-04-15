@@ -14,7 +14,6 @@ import com.holaho.intern.user.entity.User;
 import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.enums.GroupStatus;
 
-
 import com.holaho.intern.shared.dto.InternCountStatDto;
 import com.holaho.intern.shared.dto.WeeklyReportDto;
 import com.holaho.intern.shared.dto.request.ReviewWeeklyReportRequest;
@@ -54,7 +53,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
     private final WeeklyReportMapper weeklyReportMapper;
     private final EvaluationMapper evaluationMapper;
     private final FinalReportMapper finalReportMapper;
-    private final com.holaho.intern.service.AiService aiService;
+    private final AiService aiService;
 
     @Override
     @Transactional(readOnly = true)
@@ -108,7 +107,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
         WeeklyReport report = new WeeklyReport();
         report.setIntern(intern);
         report.setWeekNumber(req.getWeekNumber());
-        report.setTitle("BÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡o cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡o tuÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â§n " + req.getWeekNumber());
+        report.setTitle("Báo cáo tuần " + req.getWeekNumber());
         report.setWeekStart(req.getWeekStart());
         report.setWeekEnd(req.getWeekEnd());
         report.setReportDate(req.getReportDate());
@@ -155,7 +154,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
         return reportRepository.findReportsForMentor(
                 mentor.getId(),
-                com.holaho.intern.shared.enums.GroupStatus.ACTIVE,
+                GroupStatus.ACTIVE,
                 internId,
                 status != null && !status.isEmpty() ? status : null,
                 pageable)
@@ -246,17 +245,17 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
     private String calculateAssessment(Double avgScore, boolean noEvaluations) {
         if (noEvaluations)
-            return "ChÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°a ÃƒÆ’Ã¢â‚¬Å¾ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡nh giÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡";
+            return "Chưa đánh giá";
         if (avgScore >= 9.0)
-            return "XuÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¥t sÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¯c";
+            return "Xuất sắc";
         else if (avgScore >= 8.0)
-            return "GiÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Âi";
+            return "Giỏi";
         else if (avgScore >= 6.5)
-            return "KhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡";
+            return "Khá";
         else if (avgScore >= 5.0)
-            return "Trung bÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¬nh";
+            return "Trung bình";
         else
-            return "YÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¿u";
+            return "Yếu";
     }
 
     private String getMentorName(InternProfile intern) {
@@ -270,4 +269,3 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 .orElse("N/A");
     }
 }
-

@@ -52,7 +52,7 @@ public class ApplicationController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody ApplicationSubmitRequest request) {
         ApplicationResponse response = applicationService.submit(request, userDetails.getId());
-        return ResponseEntity.ok(ApiResponse.success("NÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢p hÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ sÃƒâ€ Ã‚Â¡ thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", response));
+        return ResponseEntity.ok(ApiResponse.success("Nộp hồ sơ thành công", response));
     }
 
     @GetMapping("/{id}")
@@ -69,7 +69,6 @@ public class ApplicationController {
             @Valid @RequestBody ReviewApplicationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         ApplicationResponse response = applicationService.reviewApplication(id, request, userDetails.getId());
-        return ResponseEntity.ok(ApiResponse.success("XÃƒÆ’Ã‚Â©t duyÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡t hÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ sÃƒâ€ Ã‚Â¡ thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", response));
+        return ResponseEntity.ok(ApiResponse.success("Xét duyệt hồ sơ thành công", response));
     }
 }
-

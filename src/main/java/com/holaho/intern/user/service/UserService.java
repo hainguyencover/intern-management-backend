@@ -3,10 +3,8 @@ package com.holaho.intern.user.service;
 import com.holaho.intern.repository.DepartmentRepository;
 import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.mentor.repository.MentorRepository;
-import com.holaho.intern.task.controller.TaskController;
 import com.holaho.intern.user.repository.RoleRepository;
 import com.holaho.intern.user.repository.UserRepository;
-
 
 import com.holaho.intern.shared.dto.request.UpdateUserRequest;
 import com.holaho.intern.shared.dto.request.CreateUserRequest;
@@ -16,6 +14,7 @@ import com.holaho.intern.mentor.entity.Mentor;
 import com.holaho.intern.user.entity.Role;
 import com.holaho.intern.user.entity.User;
 import com.holaho.intern.shared.enums.UserStatus;
+import com.holaho.intern.shared.exception.ConflictException;
 import com.holaho.intern.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +47,7 @@ public class UserService {
 
         // Check if email already exists
         if (userRepository.existsByEmail(email)) {
-            throw new RuntimeException("Email already exists: " + email);
+            throw new ConflictException("Email đã tồn tại: " + email);
         }
 
         // Create user
@@ -65,13 +64,13 @@ public class UserService {
         if (request.getRoleCodes() != null && !request.getRoleCodes().isEmpty()) {
             for (String roleCode : request.getRoleCodes()) {
                 Role role = roleRepository.findByCode(roleCode.toUpperCase())
-                        .orElseThrow(() -> new RuntimeException("Role not found: " + roleCode));
+                        .orElseThrow(() -> new NotFoundException("Role không tồn tại: " + roleCode));
                 roles.add(role);
             }
         } else {
             // Default to INTERN role if no roles specified
             Role internRole = roleRepository.findByCode("INTERN")
-                    .orElseThrow(() -> new RuntimeException("INTERN role not found"));
+                    .orElseThrow(() -> new NotFoundException("Role INTERN không tồn tại trong hệ thống"));
             roles.add(internRole);
         }
         user.setRoles(roles);
@@ -106,9 +105,10 @@ public class UserService {
         }
     }
 
+    @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
         return mapToResponse(user);
     }
 
@@ -121,7 +121,7 @@ public class UserService {
     @Transactional
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         if (request.getFullName() != null) {
             user.setFullName(request.getFullName());
@@ -151,16 +151,17 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public UserResponse getCurrentUser(String email) {
         User user = userRepository.findByEmail(email.trim().toLowerCase())
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại với email: " + email));
         return mapToResponse(user);
     }
 
     @Transactional
     public UserResponse updateUserStatus(Long id, UserStatus status) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found: " + id));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         user.setStatus(status);
         user = userRepository.save(user);
@@ -180,7 +181,7 @@ public class UserService {
                 .orElseGet(() -> {
                     // Lazy create if not exists
                     User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+                            .orElseThrow(() -> new NotFoundException("User không tồn tại: " + userId));
 
                     InternProfile newProfile = new InternProfile();
                     newProfile.setUser(user);
@@ -202,7 +203,7 @@ public class UserService {
     @Transactional
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found: " + id));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         userRepository.delete(user);
         log.info("Deleted user: {}", id);
@@ -227,4 +228,3 @@ public class UserService {
     }
 
 }
-

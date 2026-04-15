@@ -8,7 +8,7 @@ import java.time.LocalDate;
 @Data
 public class ProgramUpdateRequest {
 
-    // optional: cho phÃƒÂ©p Ã„â€˜Ã¡Â»â€¢i department (nÃ¡ÂºÂ¿u bÃ¡ÂºÂ¡n muÃ¡Â»â€˜n khÃƒÂ³a thÃƒÂ¬ bÃ¡Â»Â field nÃƒÂ y)
+    // optional: cho phép đổi department (nếu bạn muốn khóa thì bỏ field này)
     private Long departmentId;
 
     @NotBlank(message = "name must not be blank")
@@ -19,4 +19,3 @@ public class ProgramUpdateRequest {
     private LocalDate startDate;
     private LocalDate endDate;
 }
-

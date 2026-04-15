@@ -25,7 +25,7 @@ public class ProgramGroup extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String name;
 
-    // KhÃƒÆ’Ã‚Â´ng dÃƒÆ’Ã‚Â¹ng entity Department/Mentor nÃƒÂ¡Ã‚Â»Ã‚Â¯a -> chÃƒÂ¡Ã‚Â»Ã¢â‚¬Â° lÃƒâ€ Ã‚Â°u id
+    // Không dùng entity Department/Mentor nữa -> chỉ lưu id
     @Column(name = "department_id")
     private Long departmentId;
 
@@ -45,4 +45,3 @@ public class ProgramGroup extends BaseEntity {
     @Column(name = "work_days", length = 100)
     private String workDays; // Comma separated: MONDAY,TUESDAY...
 }
-

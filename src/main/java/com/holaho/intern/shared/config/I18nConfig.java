@@ -17,7 +17,7 @@ public class I18nConfig {
         ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
         messageSource.setBasename("classpath:messages");
         messageSource.setDefaultEncoding("UTF-8");
-        messageSource.setDefaultLocale(new Locale("vi")); // Ã„ÂÃ¡ÂºÂ·t tiÃ¡ÂºÂ¿ng ViÃ¡Â»â€¡t lÃƒÂ m mÃ¡ÂºÂ·c Ã„â€˜Ã¡Â»â€¹nh
+        messageSource.setDefaultLocale(new Locale("vi")); // Đặt tiếng Việt làm mặc định
         return messageSource;
     }
 
@@ -35,4 +35,3 @@ public class I18nConfig {
         return bean;
     }
 }
-

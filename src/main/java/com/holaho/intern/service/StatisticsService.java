@@ -80,7 +80,7 @@ public class StatisticsService {
             backupSize = jobs.get(0).getFileSize();
         }
         long mb = backupSize / (1024 * 1024);
-        return mb + " MB / 5 GB (CÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â¡ sÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€¦Ã‚Â¸ dÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â¯ liÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡u)";
+        return mb + " MB / 5 GB (Cơ sở dữ liệu)";
     }
 
     private List<com.holaho.intern.shared.dto.response.DashboardDtos.ActivityDto> getRecentActivities() {
@@ -100,13 +100,13 @@ public class StatisticsService {
         long pendingDocs = internDocumentRepository.countByStatus("PENDING");
         if (pendingDocs > 0) {
             alerts.add(com.holaho.intern.shared.dto.response.DashboardDtos.AlertDto.builder()
-                    .message("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ " + pendingDocs + " tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â i liÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡u cÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â§n xÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©t duyÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡t")
+                    .message("⚠ Có " + pendingDocs + " tài liệu cần xét duyệt")
                     .type("warning").build());
         }
         long pendingApps = applicationRepository.countByStatus(ApplicationStatus.SUBMITTED);
         if (pendingApps > 0) {
             alerts.add(com.holaho.intern.shared.dto.response.DashboardDtos.AlertDto.builder()
-                    .message("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ " + pendingApps + " hÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ sÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â¡ ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â©ng tuyÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€ Ã¢â‚¬â„¢n mÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âºi")
+                    .message("ℹ Có " + pendingApps + " hồ sơ ứng tuyển mới")
                     .type("info").build());
         }
         return alerts;
@@ -130,11 +130,11 @@ public class StatisticsService {
             return "";
         long minutes = java.time.temporal.ChronoUnit.MINUTES.between(date, java.time.LocalDateTime.now());
         if (minutes < 60)
-            return minutes + " phÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºt trÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âºc";
+            return minutes + " phút trước";
         long hours = minutes / 60;
         if (hours < 24)
-            return hours + " giÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â trÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âºc";
-        return (hours / 24) + " ngÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â y trÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âºc";
+            return hours + " giờ trước";
+        return (hours / 24) + " ngày trước";
     }
 
     @Transactional(readOnly = true)
@@ -181,21 +181,21 @@ public class StatisticsService {
             }
         }
 
-        String mentorName = intern.getMentor() != null ? intern.getMentor().getUser().getFullName() : "ChÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°a cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³";
-        if ("ChÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°a cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³".equals(mentorName) && membership.isPresent()) {
+        String mentorName = intern.getMentor() != null ? intern.getMentor().getUser().getFullName() : "Chưa có";
+        if ("Chưa có".equals(mentorName) && membership.isPresent()) {
             // Try to get mentor from group. Group has mentorId. We need to fetch Mentor
             // entity.
             Long mentorId = membership.get().getGroup().getMentorId();
             if (mentorId != null) {
                 mentorName = mentorRepository.findById(mentorId)
                         .map(m -> m.getUser().getFullName())
-                        .orElse("ChÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°a cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³");
+                        .orElse("Chưa có");
             }
         }
 
         return com.holaho.intern.shared.dto.response.DashboardDtos.InternDashboardResponse.builder()
                 .internName(intern.getUser().getFullName())
-                .position("ThÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â±c tÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â­p sinh " + (intern.getMajor() != null ? intern.getMajor() : ""))
+                .position("Thực tập sinh " + (intern.getMajor() != null ? intern.getMajor() : ""))
                 .mentorName(mentorName)
                 .tasksCompleted(completedTasks)
                 .tasksTotal(allTasks)
@@ -223,4 +223,3 @@ public class StatisticsService {
         return internProfileRepository.countByUniversityAndMajor();
     }
 }
-

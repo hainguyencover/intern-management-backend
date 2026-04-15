@@ -1,5 +1,6 @@
 package com.holaho.intern.user.service;
 
+import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.user.entity.User;
 import com.holaho.intern.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +16,8 @@ public class CurrentUserService {
 
     public User getCurrentUserEntity() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // thÆ°á»ng lÃ  email/username
+        String email = auth.getName(); // thường là email/username
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Current user not found by email=" + email));
+                .orElseThrow(() -> new NotFoundException("Current user not found by email=" + email));
     }
 }
-

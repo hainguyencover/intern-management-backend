@@ -1,16 +1,16 @@
 package com.holaho.intern.shared.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
 public class ApplicationSubmitRequest {
-    @NotBlank(message = "VÃ¡Â»â€¹ trÃƒÂ­ Ã¡Â»Â©ng tuyÃ¡Â»Æ’n khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng")
+    @NotBlank(message = "Vị trí ứng tuyển không được để trống")
     private String position;
 
-    @jakarta.validation.constraints.NotNull(message = "ID chÃ†Â°Ã†Â¡ng trÃƒÂ¬nh khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng")
+    @NotNull(message = "ID chương trình không được để trống")
     private Long programId;
 
     private String note;
 }
-

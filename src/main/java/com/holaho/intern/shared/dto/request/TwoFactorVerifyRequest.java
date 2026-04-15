@@ -5,7 +5,6 @@ import lombok.Data;
 
 @Data
 public class TwoFactorVerifyRequest {
-    @NotBlank(message = "MÃƒÂ£ xÃƒÂ¡c thÃ¡Â»Â±c khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng")
+    @NotBlank(message = "Mã xác thực không được để trống")
     private String code;
 }
-

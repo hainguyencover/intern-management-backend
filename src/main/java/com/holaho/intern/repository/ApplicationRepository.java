@@ -21,7 +21,7 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
         @Query("SELECT a FROM Application a JOIN FETCH a.intern i JOIN FETCH i.user WHERE a.id = :id")
         Optional<Application> findByIdWithIntern(@Param("id") Long id);
 
-        // Ã„â€˜Ã¡Â»Æ’ mapping app.getIntern().getUser() khÃƒÂ´ng bÃ¡Â»â€¹ lazy/N+1 quÃƒÂ¡ nÃ¡ÂºÂ·ng
+        // để mapping app.getIntern().getUser() không bị lazy/N+1 quá nặng
         @EntityGraph(attributePaths = { "intern", "intern.user" })
         Page<Application> findAll(Pageable pageable);
 
@@ -82,4 +82,3 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
         @Query("SELECT a FROM Application a WHERE a.status = :status ORDER BY a.appliedAt DESC")
         List<Application> findPendingApplications(@Param("status") ApplicationStatus status);
 }
-

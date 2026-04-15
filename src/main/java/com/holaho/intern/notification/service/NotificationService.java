@@ -83,8 +83,8 @@ public class NotificationService {
         Notification notification = new Notification();
         notification.setUser(user);
         notification.setType(NotificationType.SYSTEM);
-        notification.setTitle("HÃ¡Â»Â£p Ã„â€˜Ã¡Â»â€œng thÃ¡Â»Â±c tÃ¡ÂºÂ­p mÃ¡Â»â€ºi");
-        notification.setContent("BÃ¡ÂºÂ¡n cÃƒÂ³ hÃ¡Â»Â£p Ã„â€˜Ã¡Â»â€œng thÃ¡Â»Â±c tÃ¡ÂºÂ­p mÃ¡Â»â€ºi. Vui lÃƒÂ²ng kiÃ¡Â»Æ’m tra vÃƒÂ  xÃƒÂ¡c nhÃ¡ÂºÂ­n.");
+        notification.setTitle("Hợp đồng thực tập mới");
+        notification.setContent("Bạn có hợp đồng thực tập mới. Vui lòng kiểm tra và xác nhận.");
         notification.setRead(false);
 
         notificationRepository.save(notification);
@@ -98,12 +98,11 @@ public class NotificationService {
         Notification notification = new Notification();
         notification.setUser(intern);
         notification.setType(NotificationType.SYSTEM);
-        notification.setTitle("HÃ¡Â»Â£p Ã„â€˜Ã¡Â»â€œng thÃ¡Â»Â±c tÃ¡ÂºÂ­p Ã„â€˜ÃƒÂ£ sÃ¡ÂºÂµn sÃƒÂ ng");
-        notification.setContent("HÃ¡Â»Â£p Ã„â€˜Ã¡Â»â€œng thÃ¡Â»Â±c tÃ¡ÂºÂ­p cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡ÂºÂ¡o. Vui lÃƒÂ²ng xem vÃƒÂ  kÃƒÂ½.");
+        notification.setTitle("Hợp đồng thực tập đã sẵn sàng");
+        notification.setContent("Hợp đồng thực tập của bạn đã được tạo. Vui lòng xem và ký.");
         notification.setRead(false);
 
         notificationRepository.save(notification);
         log.info("Notification sent to intern: {}", intern.getEmail());
     }
 }
-

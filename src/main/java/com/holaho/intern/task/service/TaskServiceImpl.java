@@ -286,7 +286,7 @@ public class TaskServiceImpl implements TaskService {
             boolean isGroupMentor = task.getGroup().getMentorId() != null
                     && task.getGroup().getMentorId().equals(userId);
             if (!isGroupMentor) {
-                throw new RuntimeException("Bạn không có quyền xem báo cáo của task này");
+                throw new ForbiddenException("Bạn không có quyền xem báo cáo của task này");
             }
         }
 

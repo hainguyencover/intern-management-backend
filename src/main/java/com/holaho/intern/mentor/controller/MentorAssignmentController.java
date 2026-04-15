@@ -24,14 +24,13 @@ public class MentorAssignmentController {
             @PathVariable Long internId,
             @RequestBody AssignMentorRequest req) {
         AssignMentorResponse res = mentorAssignmentService.assignMentorToIntern(internId, req.getMentorId());
-        return ResponseEntity.ok(ApiResponse.success("PhÃ¢n cÃ´ng ngÆ°á»i hÆ°á»›ng dáº«n thÃ nh cÃ´ng", res));
+        return ResponseEntity.ok(ApiResponse.success("Phân công người hướng dẫn thành công", res));
     }
 
     @DeleteMapping("/{internId}/assign-mentor")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<ApiResponse<AssignMentorResponse>> removeMentor(@PathVariable Long internId) {
         AssignMentorResponse res = mentorAssignmentService.removeMentorFromIntern(internId);
-        return ResponseEntity.ok(ApiResponse.success("Gá»¡ bá» ngÆ°á»i hÆ°á»›ng dáº«n thÃ nh cÃ´ng", res));
+        return ResponseEntity.ok(ApiResponse.success("Gỡ bỏ người hướng dẫn thành công", res));
     }
 }
-

@@ -6,6 +6,7 @@ import com.holaho.intern.entity.TicketComment;
 import com.holaho.intern.user.entity.User;
 import com.holaho.intern.shared.enums.TicketCategory;
 import com.holaho.intern.shared.enums.TicketStatus;
+import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.repository.SupportTicketRepository;
 import com.holaho.intern.repository.TicketCommentRepository;
 import com.holaho.intern.user.repository.UserRepository;
@@ -30,7 +31,7 @@ public class SupportTicketService {
     @Transactional
     public SupportTicket createTicket(SupportTicketCreateRequest request, Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + userId));
 
         SupportTicket ticket = new SupportTicket();
         ticket.setCreatedBy(user);
@@ -48,7 +49,7 @@ public class SupportTicketService {
     @Transactional
     public SupportTicket updateTicketStatus(Long ticketId, TicketStatus status) {
         SupportTicket ticket = ticketRepository.findByIdWithCreator(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found: " + ticketId));
+                .orElseThrow(() -> new NotFoundException("Ticket không tồn tại: " + ticketId));
 
         ticket.setStatus(status);
 
@@ -61,10 +62,10 @@ public class SupportTicketService {
     @Transactional
     public TicketComment addComment(Long ticketId, Long authorId, String content) {
         SupportTicket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found: " + ticketId));
+                .orElseThrow(() -> new NotFoundException("Ticket không tồn tại: " + ticketId));
 
         User author = userRepository.findById(authorId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + authorId));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + authorId));
 
         TicketComment comment = new TicketComment();
         comment.setTicket(ticket);
@@ -79,7 +80,7 @@ public class SupportTicketService {
     @Transactional(readOnly = true)
     public SupportTicket getTicketById(Long id) {
         return ticketRepository.findByIdWithCreator(id)
-                .orElseThrow(() -> new RuntimeException("Ticket not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Ticket không tồn tại: " + id));
     }
 
     @Transactional(readOnly = true)
@@ -98,4 +99,3 @@ public class SupportTicketService {
         return commentRepository.findByTicketIdWithAuthor(ticketId);
     }
 }
-

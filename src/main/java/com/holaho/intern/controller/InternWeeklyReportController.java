@@ -29,7 +29,7 @@ public class InternWeeklyReportController {
             @Valid @RequestBody WeeklyReportRequest request) {
         Long internId = userService.getInternProfileIdByUserId(principal.getId());
         WeeklyReportDto report = weeklyReportService.internSubmit(internId, request);
-        return ResponseEntity.ok(ApiResponse.success("NÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢p bÃƒÆ’Ã‚Â¡o cÃƒÆ’Ã‚Â¡o tuÃƒÂ¡Ã‚ÂºÃ‚Â§n thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", report));
+        return ResponseEntity.ok(ApiResponse.success("Nộp báo cáo tuần thành công", report));
     }
 
     @PreAuthorize("hasRole('INTERN')")
@@ -43,4 +43,3 @@ public class InternWeeklyReportController {
         return ResponseEntity.ok(ApiResponse.success(weeklyReportService.internMyReports(internId, pageable)));
     }
 }
-

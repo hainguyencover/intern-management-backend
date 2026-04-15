@@ -34,7 +34,7 @@ public class FileStorageConfig {
         try {
             Files.createDirectories(uploadPath);
         } catch (IOException ex) {
-            throw new RuntimeException("Could not create upload directory!", ex);
+            throw new com.holaho.intern.shared.exception.FileStorageException("Could not create upload directory!", ex);
         }
 
         return uploadPath;

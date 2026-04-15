@@ -14,12 +14,14 @@ import com.holaho.intern.intern.entity.InternDocument;
 import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.shared.enums.DocumentType;
 import com.holaho.intern.shared.exception.ApiException;
+import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.intern.repository.InternDocumentRepository;
 import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.intern.service.InternDocumentService;
 import com.holaho.intern.service.StorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class InternDocumentServiceImpl implements InternDocumentService {
 
@@ -37,16 +40,16 @@ public class InternDocumentServiceImpl implements InternDocumentService {
     private final InternProfileRepository internRepo;
     private final StorageService storage;
     private final UserRepository userRepository;
-    private final com.holaho.intern.notification.service.NotificationService notificationService;
-    private final com.holaho.intern.repository.ApplicationRepository appRepo;
+    private final NotificationService notificationService;
+    private final ApplicationRepository appRepo;
 
     @Override
     public InternDocumentResponse uploadForIntern(Long internId, DocumentType type, MultipartFile file,
             Long uploaderId) {
         InternProfile intern = internRepo.findById(internId)
-                .orElseThrow(() -> new RuntimeException("Intern not found: " + internId));
+                .orElseThrow(() -> new NotFoundException("Thực tập sinh không tồn tại: " + internId));
 
-        // lÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°u file via storage service
+        // Lưu file via storage service
         StoredFile stored = storage.saveInternDocument(internId, type, file);
 
         // Rule: update latest record of same type or create new
@@ -70,20 +73,17 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         } else {
             // HR/Admin upload -> Auto Approve
             doc.setStatus("APPROVED");
-            com.holaho.intern.user.entity.User uploader = userRepository.findById(uploaderId)
-                    .orElseThrow(() -> new RuntimeException("Uploader not found"));
+            User uploader = userRepository.findById(uploaderId)
+                    .orElseThrow(() -> new NotFoundException("Người tải lên không tồn tại: " + uploaderId));
             doc.setReviewedBy(uploader);
             doc.setReviewedAt(LocalDateTime.now());
             doc.setReviewNote("Uploaded by HR/Admin");
 
             // Update Application Status to CONTRACT_SENT if it's a contract
             if (DocumentType.INTERNSHIP_CONTRACT == type) {
-                updateApplicationStatus(internId, com.holaho.intern.shared.enums.ApplicationStatus.CONTRACT_SENT);
+                updateApplicationStatus(internId, ApplicationStatus.CONTRACT_SENT);
             }
         }
-
-        // Notify HR (optional, but good for workflow)
-        // notificationService.createNotification(...);
 
         return toResponse(repo.save(doc));
     }
@@ -105,10 +105,10 @@ public class InternDocumentServiceImpl implements InternDocumentService {
     @Override
     public InternDocumentResponse approve(Long documentId, Long hrUserId) {
         InternDocument doc = repo.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+                .orElseThrow(() -> new NotFoundException("Tài liệu không tồn tại: " + documentId));
 
-        com.holaho.intern.user.entity.User hr = userRepository.findById(hrUserId)
-                .orElseThrow(() -> new RuntimeException("HR User not found: " + hrUserId));
+        User hr = userRepository.findById(hrUserId)
+                .orElseThrow(() -> new NotFoundException("HR User không tồn tại: " + hrUserId));
 
         doc.setStatus("APPROVED");
         doc.setReviewedAt(LocalDateTime.now());
@@ -119,9 +119,9 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         // Notify Intern
         notificationService.createNotification(
                 doc.getIntern().getUser().getId(),
-                com.holaho.intern.shared.enums.NotificationType.APPLICATION,
-                "TÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â i liÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡u ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£c duyÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡t",
-                "TÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â i liÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡u " + doc.getType() + " cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§a bÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡n ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£ ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£c chÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥p thuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­n.");
+                NotificationType.APPLICATION,
+                "Tài liệu được duyệt",
+                "Tài liệu " + doc.getType() + " của bạn đã được chấp thuận.");
 
         return toResponse(saved);
     }
@@ -129,10 +129,10 @@ public class InternDocumentServiceImpl implements InternDocumentService {
     @Override
     public InternDocumentResponse reject(Long documentId, Long hrUserId, String note) {
         InternDocument doc = repo.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+                .orElseThrow(() -> new NotFoundException("Tài liệu không tồn tại: " + documentId));
 
-        com.holaho.intern.user.entity.User hr = userRepository.findById(hrUserId)
-                .orElseThrow(() -> new RuntimeException("HR User not found: " + hrUserId));
+        User hr = userRepository.findById(hrUserId)
+                .orElseThrow(() -> new NotFoundException("HR User không tồn tại: " + hrUserId));
 
         doc.setStatus("REJECTED");
         doc.setReviewedAt(LocalDateTime.now());
@@ -144,9 +144,9 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         // Notify Intern
         notificationService.createNotification(
                 doc.getIntern().getUser().getId(),
-                com.holaho.intern.shared.enums.NotificationType.APPLICATION,
-                "TÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â i liÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡u bÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹ tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â« chÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œi",
-                "TÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â i liÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡u " + doc.getType() + " bÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹ tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â« chÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œi. LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ do: " + note);
+                NotificationType.APPLICATION,
+                "Tài liệu bị từ chối",
+                "Tài liệu " + doc.getType() + " bị từ chối. Lý do: " + note);
 
         return toResponse(saved);
     }
@@ -154,9 +154,9 @@ public class InternDocumentServiceImpl implements InternDocumentService {
     @Transactional(readOnly = true)
     public StoredFile download(Long documentId, Long requesterUserId, boolean isHr) {
         InternDocument doc = repo.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+                .orElseThrow(() -> new NotFoundException("Tài liệu không tồn tại: " + documentId));
 
-        // TODO: permission checks
+        // TODO: permission checks — verify requester is owner or HR
         return storage.loadAsResource(doc.getFileUrl());
     }
 
@@ -179,37 +179,36 @@ public class InternDocumentServiceImpl implements InternDocumentService {
     @Override
     public InternDocumentResponse confirmContract(Long internId, Long documentId) {
         InternDocument doc = repo.findById(documentId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không tồn tại: " + documentId));
 
         if (doc.getIntern() == null || !doc.getIntern().getId().equals(internId)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "You cannot confirm other intern's document");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Bạn không thể xác nhận tài liệu của thực tập sinh khác");
         }
 
         if (!DocumentType.INTERNSHIP_CONTRACT.name().equals(doc.getType())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Only internship contract can be confirmed");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Chỉ hợp đồng thực tập mới có thể xác nhận");
         }
 
         if ("SIGNED".equalsIgnoreCase(doc.getStatus())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Contract is already signed");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Hợp đồng đã được ký");
         }
 
-        // Intern chÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â° ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£c xÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡c nhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­n sau khi HR ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£ duyÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡t hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£p ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ng (chÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥p nhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­n cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£ APPROVED
-        // vÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  APPROVE do lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹ch sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯ liÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡u)
+        // Intern chỉ được xác nhận sau khi HR đã duyệt hợp đồng (status APPROVED)
         String st = doc.getStatus();
         if (!"APPROVED".equalsIgnoreCase(st) && !"APPROVE".equalsIgnoreCase(st)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Contract must be APPROVED before confirming");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Hợp đồng cần được duyệt trước khi xác nhận");
         }
 
         doc.setStatus("SIGNED");
         InternDocument saved = repo.save(doc);
 
-        updateApplicationStatus(internId, com.holaho.intern.shared.enums.ApplicationStatus.CONTRACT_SIGNED);
+        updateApplicationStatus(internId, ApplicationStatus.CONTRACT_SIGNED);
 
         return toResponse(saved);
     }
 
-    private void updateApplicationStatus(Long internId, com.holaho.intern.shared.enums.ApplicationStatus newStatus) {
-        List<com.holaho.intern.entity.Application> apps = appRepo.findByIntern_Id(internId);
+    private void updateApplicationStatus(Long internId, ApplicationStatus newStatus) {
+        List<Application> apps = appRepo.findByIntern_Id(internId);
         if (!apps.isEmpty()) {
             // Find latest app
             apps.sort((a1, a2) -> {
@@ -217,17 +216,17 @@ public class InternDocumentServiceImpl implements InternDocumentService {
                     return 0;
                 return a2.getAppliedAt().compareTo(a1.getAppliedAt());
             });
-            com.holaho.intern.entity.Application latestApp = apps.get(0);
+            Application latestApp = apps.get(0);
 
             boolean canUpdate = false;
-            com.holaho.intern.shared.enums.ApplicationStatus current = latestApp.getStatus();
+            ApplicationStatus current = latestApp.getStatus();
 
-            if (newStatus == com.holaho.intern.shared.enums.ApplicationStatus.CONTRACT_SENT) {
-                if (current == com.holaho.intern.shared.enums.ApplicationStatus.APPROVED)
+            if (newStatus == ApplicationStatus.CONTRACT_SENT) {
+                if (current == ApplicationStatus.APPROVED)
                     canUpdate = true;
-            } else if (newStatus == com.holaho.intern.shared.enums.ApplicationStatus.CONTRACT_SIGNED) {
-                if (current == com.holaho.intern.shared.enums.ApplicationStatus.CONTRACT_SENT ||
-                        current == com.holaho.intern.shared.enums.ApplicationStatus.APPROVED)
+            } else if (newStatus == ApplicationStatus.CONTRACT_SIGNED) {
+                if (current == ApplicationStatus.CONTRACT_SENT ||
+                        current == ApplicationStatus.APPROVED)
                     canUpdate = true;
             }
 
@@ -238,4 +237,3 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         }
     }
 }
-

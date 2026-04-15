@@ -49,8 +49,7 @@ public class MentorWeeklyReportController {
             @PathVariable Long id,
             @Valid @RequestBody ReviewWeeklyReportRequest req,
             @AuthenticationPrincipal CustomUserDetails principal) {
-        return ResponseEntity.ok(ApiResponse.success("Ãƒâ€žÃ‚ÂÃƒÆ’Ã‚Â¡nh giÃƒÆ’Ã‚Â¡ bÃƒÆ’Ã‚Â¡o cÃƒÆ’Ã‚Â¡o tuÃƒÂ¡Ã‚ÂºÃ‚Â§n thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng",
+        return ResponseEntity.ok(ApiResponse.success("Đánh giá báo cáo tuần thành công",
                 weeklyReportService.mentorReview(principal.getId(), id, req)));
     }
 }
-

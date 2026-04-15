@@ -28,7 +28,7 @@ public class ContractController {
             @RequestParam("file") MultipartFile file) {
         ContractResponse response = contractService.uploadContract(applicationId, file);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("HÃ¡Â»Â£p Ã„â€˜Ã¡Â»â€œng Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡ÂºÂ£i lÃƒÂªn thÃƒÂ nh cÃƒÂ´ng", response));
+                .body(ApiResponse.success("Hợp đồng được tải lên thành công", response));
     }
 
     @PutMapping("/{id}/sign")
@@ -37,7 +37,7 @@ public class ContractController {
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         ContractResponse response = contractService.signContract(id, userDetails.getId());
-        return ResponseEntity.ok(ApiResponse.success("KÃƒÂ½ hÃ¡Â»Â£p Ã„â€˜Ã¡Â»â€œng thÃƒÂ nh cÃƒÂ´ng", response));
+        return ResponseEntity.ok(ApiResponse.success("Ký hợp đồng thành công", response));
     }
 
     @GetMapping("/me")
@@ -55,4 +55,3 @@ public class ContractController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
-

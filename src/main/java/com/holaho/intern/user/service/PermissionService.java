@@ -3,6 +3,7 @@ package com.holaho.intern.user.service;
 import com.holaho.intern.shared.dto.request.UpdateRolePermissionsRequest;
 import com.holaho.intern.shared.dto.response.PermissionResponse;
 import com.holaho.intern.shared.dto.response.RoleWithPermissionsResponse;
+import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.user.entity.Permission;
 import com.holaho.intern.user.entity.Role;
 import com.holaho.intern.user.repository.PermissionRepository;
@@ -32,7 +33,7 @@ public class PermissionService {
     @Transactional(readOnly = true)
     public RoleWithPermissionsResponse getRoleWithPermissions(Long roleId) {
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new IllegalArgumentException("Role khÃ´ng tá»“n táº¡i"));
+                .orElseThrow(() -> new NotFoundException("Role không tồn tại"));
 
         RoleWithPermissionsResponse response = new RoleWithPermissionsResponse();
         response.setId(role.getId());
@@ -48,7 +49,7 @@ public class PermissionService {
     @Transactional
     public RoleWithPermissionsResponse updateRolePermissions(Long roleId, UpdateRolePermissionsRequest request) {
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new IllegalArgumentException("Role khÃ´ng tá»“n táº¡i"));
+                .orElseThrow(() -> new NotFoundException("Role không tồn tại"));
 
         // Clear existing permissions
         role.setPermissions(new HashSet<>());
@@ -68,9 +69,8 @@ public class PermissionService {
         response.setId(permission.getId());
         response.setCode(permission.getCode());
         response.setName(permission.getName());
-        response.setModule(permission.getModule()); // Use module field correctly
+        response.setModule(permission.getModule());
         response.setDescription(permission.getDescription());
         return response;
     }
 }
-

@@ -33,7 +33,7 @@ public class MentorTaskService {
     private final ProgramGroupRepository programGroupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final InternProfileRepository internProfileRepository;
-    private final UserRepository userRepository; // nÃƒÂ¡Ã‚ÂºÃ‚Â¿u project bÃƒÂ¡Ã‚ÂºÃ‚Â¡n Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ cÃƒÆ’Ã‚Â³ UserRepository
+    private final UserRepository userRepository;
 
     public MentorTaskService(
             TaskRepository taskRepository,
@@ -54,7 +54,7 @@ public class MentorTaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
 
         if (group.getMentorId() == null || !group.getMentorId().equals(mentorUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "BÃƒÂ¡Ã‚ÂºÃ‚Â¡n khÃƒÆ’Ã‚Â´ng phÃƒÂ¡Ã‚ÂºÃ‚Â£i mentor cÃƒÂ¡Ã‚Â»Ã‚Â§a group nÃƒÆ’Ã‚Â y");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không phải mentor của group này");
         }
 
         User creator = userRepository.findById(mentorUserId)
@@ -65,7 +65,7 @@ public class MentorTaskService {
         for (Long internId : req.internIds()) {
             boolean isMember = groupMemberRepository.existsActiveInGroup((group.getId()), internId);
             if (!isMember) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Intern " + internId + " khÃƒÆ’Ã‚Â´ng thuÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢c group");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Intern " + internId + " không thuộc group");
             }
 
             InternProfile intern = internProfileRepository.findById(internId)
@@ -91,7 +91,7 @@ public class MentorTaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
 
         if (group.getMentorId() == null || !group.getMentorId().equals(mentorUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "BÃƒÂ¡Ã‚ÂºÃ‚Â¡n khÃƒÆ’Ã‚Â´ng phÃƒÂ¡Ã‚ÂºÃ‚Â£i mentor cÃƒÂ¡Ã‚Â»Ã‚Â§a group nÃƒÆ’Ã‚Â y");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không phải mentor của group này");
         }
 
         Page<Task> page;
@@ -112,7 +112,7 @@ public class MentorTaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
 
         if (group.getMentorId() == null || !group.getMentorId().equals(mentorUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "BÃƒÂ¡Ã‚ÂºÃ‚Â¡n khÃƒÆ’Ã‚Â´ng phÃƒÂ¡Ã‚ÂºÃ‚Â£i mentor cÃƒÂ¡Ã‚Â»Ã‚Â§a group nÃƒÆ’Ã‚Â y");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không phải mentor của group này");
         }
 
         List<GroupMember> members = groupMemberRepository.findActiveMembersByGroupId(groupId);
@@ -123,7 +123,7 @@ public class MentorTaskService {
             return new GroupInternDto(
                     ip.getId(),
                     u.getId(),
-                    u.getFullName(), // nÃƒÂ¡Ã‚ÂºÃ‚Â¿u User bÃƒÂ¡Ã‚ÂºÃ‚Â¡n cÃƒÆ’Ã‚Â³ field fullName; nÃƒÂ¡Ã‚ÂºÃ‚Â¿u khÃƒÆ’Ã‚Â¡c thÃƒÆ’Ã‚Â¬ sÃƒÂ¡Ã‚Â»Ã‚Â­a lÃƒÂ¡Ã‚ÂºÃ‚Â¡i
+                    u.getFullName(),
                     u.getEmail(),
                     ip.getUniversity(),
                     ip.getMajor()
@@ -137,7 +137,7 @@ public class MentorTaskService {
         Long internId = null;
         if (a != null) {
             internId = a.getId();
-            if (a.getUser() != null) name = a.getUser().getFullName(); // sÃƒÂ¡Ã‚Â»Ã‚Â­a theo field thÃƒÂ¡Ã‚ÂºÃ‚Â­t
+            if (a.getUser() != null) name = a.getUser().getFullName();
         }
 
         return new TaskDto(
@@ -152,4 +152,3 @@ public class MentorTaskService {
         );
     }
 }
-

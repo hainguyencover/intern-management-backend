@@ -27,7 +27,7 @@ public class IntegrationController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<String>> syncHrm() {
         String result = hrmService.syncData();
-        return ResponseEntity.ok(ApiResponse.success("Äá»“ng bá»™ HRM thÃ nh cÃ´ng", result));
+        return ResponseEntity.ok(ApiResponse.success("Đồng bộ HRM thành công", result));
     }
 
     /**
@@ -38,7 +38,6 @@ public class IntegrationController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<String>> syncTimekeeping(@RequestBody List<QrLogDto> logs) {
         String result = attendanceService.syncQrData(logs);
-        return ResponseEntity.ok(ApiResponse.success("Äá»“ng bá»™ dá»¯ liá»‡u cháº¥m cÃ´ng thÃ nh cÃ´ng", result));
+        return ResponseEntity.ok(ApiResponse.success("Đồng bộ dữ liệu chấm công thành công", result));
     }
 }
-

@@ -17,16 +17,16 @@ public class UserDTOs {
 
     @Data
     public static class CreateUserRequest {
-        @NotBlank(message = "Email khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng")
-        @Email(message = "Email khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡")
+        @NotBlank(message = "Email không được để trống")
+        @Email(message = "Email không hợp lệ")
         private String email;
 
-        @NotBlank(message = "HÃ¡Â»Â tÃƒÂªn khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng")
+        @NotBlank(message = "Họ tên không được để trống")
         private String fullName;
 
         private String phone;
 
-        @Size(min = 1, message = "PhÃ¡ÂºÂ£i chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t 1 vai trÃƒÂ²")
+        @Size(min = 1, message = "Phải chọn ít nhất 1 vai trò")
         private List<String> roleCodes;
 
         // Optional fields for specific roles
@@ -56,8 +56,7 @@ public class UserDTOs {
 
     @Data
     public static class RoleAssignRequest {
-        @Size(min = 1, message = "PhÃ¡ÂºÂ£i chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t 1 vai trÃƒÂ²")
+        @Size(min = 1, message = "Phải chọn ít nhất 1 vai trò")
         private List<String> roleCodes;
     }
 }
-

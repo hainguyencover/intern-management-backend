@@ -12,10 +12,11 @@ import com.holaho.intern.user.repository.RoleRepository;
 import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.dto.request.UpdateUserStatusRequest;
 
-
 import com.holaho.intern.shared.dto.request.CreateUserRequest;
 import com.holaho.intern.shared.dto.response.UserResponse;
 import com.holaho.intern.shared.enums.UserStatus;
+import com.holaho.intern.shared.exception.ConflictException;
+import com.holaho.intern.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -47,7 +48,7 @@ public class AdminUserService {
         // Validate email unique
         String email = request.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i");
+            throw new ConflictException("Email đã tồn tại: " + email);
         }
 
         // Use custom password if provided, otherwise generate random
@@ -71,7 +72,7 @@ public class AdminUserService {
         if (request.getRoleCodes() != null) {
             for (String roleCode : request.getRoleCodes()) {
                 Role role = roleRepository.findByCode(roleCode)
-                        .orElseThrow(() -> new IllegalArgumentException("Role khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i: " + roleCode));
+                        .orElseThrow(() -> new NotFoundException("Role không tồn tại: " + roleCode));
                 roles.add(role);
             }
         }
@@ -134,14 +135,14 @@ public class AdminUserService {
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i"));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
         return mapToResponse(user);
     }
 
     @Transactional
-    public UserResponse updateUserStatus(Long id, com.holaho.intern.shared.dto.request.UpdateUserStatusRequest request) {
+    public UserResponse updateUserStatus(Long id, UpdateUserStatusRequest request) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i"));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         user.setStatus(request.getStatus());
         userRepository.save(user);
@@ -153,12 +154,12 @@ public class AdminUserService {
     @Transactional
     public void assignRoles(Long id, List<String> roleCodes) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i"));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         Set<Role> roles = new HashSet<>();
         for (String roleCode : roleCodes) {
             Role role = roleRepository.findByCode(roleCode)
-                    .orElseThrow(() -> new IllegalArgumentException("Role khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i: " + roleCode));
+                    .orElseThrow(() -> new NotFoundException("Role không tồn tại: " + roleCode));
             roles.add(role);
         }
 
@@ -181,7 +182,7 @@ public class AdminUserService {
     @Transactional
     public void toggleUserLock(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i"));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         if (user.getStatus() == UserStatus.ACTIVE) {
             user.setStatus(UserStatus.LOCKED);
@@ -197,7 +198,7 @@ public class AdminUserService {
     @Transactional
     public String resetUserPassword(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i"));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         String newPassword = generateRandomPassword();
         user.setPasswordHash(passwordEncoder.encode(newPassword));
@@ -212,7 +213,7 @@ public class AdminUserService {
     @Transactional
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i"));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         // Delete associated profiles first
         try {
@@ -253,4 +254,3 @@ public class AdminUserService {
         return sb.toString();
     }
 }
-

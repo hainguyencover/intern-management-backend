@@ -15,7 +15,10 @@ import com.holaho.intern.user.repository.PermissionRepository;
 import com.holaho.intern.user.repository.RoleRepository;
 import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.enums.ProgramStatus;
-
+import com.holaho.intern.entity.Application;
+import com.holaho.intern.repository.ApplicationRepository;
+import com.holaho.intern.shared.enums.ApplicationStatus;
+import java.time.LocalDateTime;
 
 import com.holaho.intern.shared.enums.UserStatus;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,7 @@ public class DataInitializer implements CommandLineRunner {
     private final MentorRepository mentorRepository;
     private final DepartmentRepository departmentRepository;
     private final ProgramRepository programRepository;
+    private final ApplicationRepository applicationRepository;
 
     @Override
     @Transactional
@@ -53,7 +57,7 @@ public class DataInitializer implements CommandLineRunner {
         Role internRole = createRoleIfNotExists("INTERN", "Intern");
 
         // Seed Programs
-        createProgramIfNotExists("GENERAL", "ChÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â¡ng trÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¬nh ThÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â±c tÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â­p TÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ng hÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â£p 2024", "ChÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â¡ng trÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¬nh dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â nh cho tÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¥t cÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â£ cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡c vÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ trÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ thÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â±c tÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â­p.");
+        createProgramIfNotExists("GENERAL", "Chương trình Thực tập Tổng hợp 2024", "Chương trình dành cho tất cả các vị trí thực tập.");
 
         // Seed Permissions
         createPermissionIfNotExists("USER_CREATE", "Create Users");
@@ -85,7 +89,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // HR Permissions (Subset)
         assignPermissionToRole(hrRole, "USER_READ");
-        assignPermissionToRole(hrRole, "USER_CREATE"); // HR can create interns/mentors maybe?
+        assignPermissionToRole(hrRole, "USER_CREATE");
 
         // Ensure at least one Department exists
         createDepartmentIfNotExists("IT", "Information Technology", "IT Department");
@@ -93,8 +97,8 @@ public class DataInitializer implements CommandLineRunner {
         createUserIfNotExists("admin@company.com", "System Admin", "admin123", Set.of(adminRole));
         createUserIfNotExists("hr@company.com", "HR Manager", "hr123", Set.of(hrRole));
         createUserIfNotExists("intern@student.com", "Intern Demo", "intern123", Set.of(internRole));
-        createUserIfNotExists("student1@university.com", "NguyÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦n VÃƒÆ’Ã¢â‚¬Å¾Ãƒâ€ Ã¢â‚¬â„¢n A", "intern123", Set.of(internRole));
-        createUserIfNotExists("student2@university.com", "TrÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â§n ThÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ B", "intern123", Set.of(internRole));
+        createUserIfNotExists("student1@university.com", "Nguyễn Văn A", "intern123", Set.of(internRole));
+        createUserIfNotExists("student2@university.com", "Trần Thị B", "intern123", Set.of(internRole));
         createUserIfNotExists("mentor1@company.com", "Mentor One", "mentor123", Set.of(mentorRole));
         createUserIfNotExists("mentor2@company.com", "Mentor Two", "mentor123", Set.of(mentorRole));
 
@@ -105,11 +109,10 @@ public class DataInitializer implements CommandLineRunner {
 
         log.info("  Intern: intern@student.com / intern123");
         log.info("  Mentor 1: mentor1@company.com / mentor123");
-        log.info("  Mentor 2: mentor2@company.com / mentor2123");
+        log.info("  Mentor 2: mentor2@company.com / mentor123");
     }
 
     private void createProgramIfNotExists(String id, String name, String description) {
-        // We use a dummy ID or just check by name for this initializer
         if (programRepository.count() == 0) {
             Department itDept = departmentRepository.findByCode("IT").orElse(null);
             
@@ -117,7 +120,6 @@ public class DataInitializer implements CommandLineRunner {
             p.setName(name);
             p.setDescription(description);
             p.setDepartment(itDept);
-            // Default dates
             p.setStartDate(java.time.LocalDate.now());
             p.setEndDate(java.time.LocalDate.now().plusMonths(3));
             p.setStatus(com.holaho.intern.shared.enums.ProgramStatus.ACTIVE);
@@ -183,14 +185,29 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Created user: {}", u.getEmail());
         }
 
-        // If user has INTERN role, ensure InternProfile
+        // If user has INTERN role, ensure InternProfile and Application
         boolean isIntern = roles.stream().anyMatch(r -> "INTERN".equalsIgnoreCase(r.getCode()));
         if (isIntern) {
-            if (internProfileRepository.findByUser_Id(u.getId()).isEmpty()) {
-                InternProfile ip = new InternProfile();
+            InternProfile ip = internProfileRepository.findByUser_Id(u.getId()).orElse(null);
+            if (ip == null) {
+                ip = new InternProfile();
                 ip.setUser(u);
-                internProfileRepository.save(ip);
+                ip = internProfileRepository.save(ip);
                 log.info("Auto-created InternProfile for user: {}", u.getEmail());
+            }
+
+            if (applicationRepository.findByIntern_Id(ip.getId()).isEmpty()) {
+                com.holaho.intern.entity.Program program = programRepository.findAll().stream().findFirst().orElse(null);
+                if (program != null) {
+                    Application app = new Application();
+                    app.setIntern(ip);
+                    app.setProgram(program);
+                    app.setStatus(ApplicationStatus.APPROVED);
+                    app.setAppliedAt(LocalDateTime.now());
+                    app.setPosition("Software Engineer Intern");
+                    applicationRepository.save(app);
+                    log.info("Auto-created Application (APPROVED) for user: {}", u.getEmail());
+                }
             }
         }
 
@@ -198,17 +215,15 @@ public class DataInitializer implements CommandLineRunner {
         boolean isMentor = roles.stream().anyMatch(r -> "MENTOR".equalsIgnoreCase(r.getCode()));
         if (isMentor) {
             if (mentorRepository.findByUser_Id(u.getId()).isEmpty()) {
-                // Determine department (e.g. IT)
                 Department itDept = departmentRepository.findByCode("IT").orElse(null);
 
                 Mentor m = new Mentor();
                 m.setUser(u);
                 m.setDepartment(itDept);
-                m.setTitle("Senior Mentor"); // Default title
+                m.setTitle("Senior Mentor");
                 mentorRepository.save(m);
                 log.info("Auto-created Mentor profile for user: {}", u.getEmail());
             }
         }
     }
 }
-

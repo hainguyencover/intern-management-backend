@@ -1,8 +1,5 @@
 package com.holaho.intern.shared.dto.request;
 
-import com.holaho.intern.user.entity.User;
-
-
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -14,19 +11,11 @@ import lombok.*;
 @Builder
 public class CreateMentorRequest {
 
-    @NotNull(message = "User ID khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng")
+    @NotNull(message = "User ID không được để trống")
     private Long userId;
 
     private Long departmentId;
 
-    @Size(max = 255, message = "Chá»©c danh khÃ´ng quÃ¡ 255 kÃ½ tá»±")
+    @Size(max = 255, message = "Chức danh không quá 255 ký tự")
     private String title;
 }
-
-
-
-
-
-
-
-

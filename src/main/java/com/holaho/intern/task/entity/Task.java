@@ -45,7 +45,7 @@ public class Task extends BaseEntity {
         @JoinColumn(name = "created_by")
         private User createdBy;
 
-        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ NEW: task Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£c giao cho 1 intern
+        // Task được giao cho 1 intern
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "assignee_intern_id")
         private InternProfile assignee;
@@ -53,4 +53,3 @@ public class Task extends BaseEntity {
         @Column(name = "progress_percent")
         private Integer progressPercent = 0;
 }
-

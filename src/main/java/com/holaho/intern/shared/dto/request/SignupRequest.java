@@ -26,7 +26,7 @@ public class SignupRequest {
     @NotNull
     @Min(1900)
     @Max(2100)
-    private Integer dobYear; // nÃ„Æ’m sinh
+    private Integer dobYear; // năm sinh
 
     @NotBlank
     private String address;
@@ -50,4 +50,3 @@ public class SignupRequest {
     @Max(2100)
     private Integer endYear;
 }
-

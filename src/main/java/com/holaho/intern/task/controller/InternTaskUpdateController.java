@@ -28,7 +28,7 @@ public class InternTaskUpdateController {
             @PathVariable Long taskId,
             @Valid @RequestBody TaskUpdateRequest req,
             @AuthenticationPrincipal CustomUserDetails principal) {
-        return ResponseEntity.ok(ApiResponse.success("BÃƒÆ’Ã‚Â¡o cÃƒÆ’Ã‚Â¡o tiÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢ cÃƒÆ’Ã‚Â´ng viÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡c thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng",
+        return ResponseEntity.ok(ApiResponse.success("Báo cáo tiến độ công việc thành công",
                 taskUpdateService.internCreateUpdate(taskId, principal.getId(), req)));
     }
 
@@ -56,4 +56,3 @@ public class InternTaskUpdateController {
         }
     }
 }
-

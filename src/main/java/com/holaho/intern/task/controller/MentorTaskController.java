@@ -31,7 +31,7 @@ public class MentorTaskController {
     public ResponseEntity<ApiResponse<CreateMentorTaskResponse>> createTasks(
             @Valid @RequestBody CreateMentorTaskRequest req,
             @AuthenticationPrincipal CustomUserDetails principal) {
-        return ResponseEntity.ok(ApiResponse.success("Giao nhiÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡m vÃƒÂ¡Ã‚Â»Ã‚Â¥ thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng",
+        return ResponseEntity.ok(ApiResponse.success("Giao nhiệm vụ thành công",
                 mentorTaskService.createTasks(req, principal.getId())));
     }
 
@@ -69,4 +69,3 @@ public class MentorTaskController {
         }
     }
 }
-

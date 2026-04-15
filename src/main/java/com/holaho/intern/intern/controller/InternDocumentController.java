@@ -85,15 +85,15 @@ public class InternDocumentController {
 
         boolean isIntern = hasRole(userId, "INTERN");
         if (!isIntern) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "BÃƒÂ¡Ã‚ÂºÃ‚Â¡n khÃƒÆ’Ã‚Â´ng cÃƒÆ’Ã‚Â³ quyÃƒÂ¡Ã‚Â»Ã‚Ân tÃƒÂ¡Ã‚ÂºÃ‚Â£i tÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u nÃƒÆ’Ã‚Â y");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Bạn không có quyền tải tài liệu này");
         }
 
         var ip = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "KhÃƒÆ’Ã‚Â´ng tÃƒÆ’Ã‚Â¬m thÃƒÂ¡Ã‚ÂºÃ‚Â¥y thÃƒÆ’Ã‚Â´ng tin thÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p sinh"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin thực tập sinh"));
 
         boolean owns = internDocumentRepository.existsByIdAndIntern_Id(documentId, ip.getId());
         if (!owns) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "BÃƒÂ¡Ã‚ÂºÃ‚Â¡n chÃƒÂ¡Ã‚Â»Ã¢â‚¬Â° cÃƒÆ’Ã‚Â³ thÃƒÂ¡Ã‚Â»Ã†â€™ tÃƒÂ¡Ã‚ÂºÃ‚Â£i tÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u cÃƒÂ¡Ã‚Â»Ã‚Â§a chÃƒÆ’Ã‚Â­nh mÃƒÆ’Ã‚Â¬nh");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Bạn chỉ có thể tải tài liệu của chính mình");
         }
     }
 
@@ -106,11 +106,11 @@ public class InternDocumentController {
         Long userId = user.getId();
 
         if (!hasRole(userId, "INTERN")) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "ChÃƒÂ¡Ã‚Â»Ã¢â‚¬Â° thÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p sinh mÃƒÂ¡Ã‚Â»Ã¢â‚¬Âºi cÃƒÆ’Ã‚Â³ quyÃƒÂ¡Ã‚Â»Ã‚Ân truy cÃƒÂ¡Ã‚ÂºÃ‚Â­p");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Chỉ thực tập sinh mới có quyền truy cập");
         }
 
         var ip = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "KhÃƒÆ’Ã‚Â´ng tÃƒÆ’Ã‚Â¬m thÃƒÂ¡Ã‚ÂºÃ‚Â¥y thÃƒÆ’Ã‚Â´ng tin thÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p sinh"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin thực tập sinh"));
 
         List<InternDocumentResponse> docs = documentService.getMyDocuments(ip.getId());
         return ResponseEntity.ok(ApiResponse.success(docs));
@@ -128,41 +128,41 @@ public class InternDocumentController {
         if (hasRole(userId, "INTERN")) {
             var ip = internProfileRepository.findByUser_Id(userId)
                     .orElseThrow(
-                            () -> new ApiException(HttpStatus.NOT_FOUND, "KhÃƒÆ’Ã‚Â´ng tÃƒÆ’Ã‚Â¬m thÃƒÂ¡Ã‚ÂºÃ‚Â¥y thÃƒÆ’Ã‚Â´ng tin thÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p sinh"));
+                            () -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin thực tập sinh"));
             targetInternId = ip.getId();
         } else if (hasRole(userId, "HR") || hasRole(userId, "ADMIN")) {
             if (internIdParam == null) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "HR/Admin phÃƒÂ¡Ã‚ÂºÃ‚Â£i cung cÃƒÂ¡Ã‚ÂºÃ‚Â¥p internId Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã†â€™ tÃƒÂ¡Ã‚ÂºÃ‚Â£i lÃƒÆ’Ã‚Âªn tÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u");
+                throw new ApiException(HttpStatus.BAD_REQUEST, "HR/Admin phải cung cấp internId để tải lên tài liệu");
             }
             targetInternId = internIdParam;
             if (!internProfileRepository.existsById(targetInternId)) {
-                throw new ApiException(HttpStatus.NOT_FOUND, "KhÃƒÆ’Ã‚Â´ng tÃƒÆ’Ã‚Â¬m thÃƒÂ¡Ã‚ÂºÃ‚Â¥y hÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ sÃƒâ€ Ã‚Â¡ thÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p sinh: " + targetInternId);
+                throw new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ thực tập sinh: " + targetInternId);
             }
         } else {
-            throw new ApiException(HttpStatus.FORBIDDEN, "QuyÃƒÂ¡Ã‚Â»Ã‚Ân truy cÃƒÂ¡Ã‚ÂºÃ‚Â­p bÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹ tÃƒÂ¡Ã‚Â»Ã‚Â« chÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœi");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Quyền truy cập bị từ chối");
         }
 
         if (file == null || file.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Vui lÃƒÆ’Ã‚Â²ng chÃƒÂ¡Ã‚Â»Ã‚Ân file");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Vui lòng chọn file");
         }
 
         if (!isPdf(file)) {
-            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "ChÃƒÂ¡Ã‚Â»Ã¢â‚¬Â° hÃƒÂ¡Ã‚Â»Ã¢â‚¬â€ trÃƒÂ¡Ã‚Â»Ã‚Â£ file Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹nh dÃƒÂ¡Ã‚ÂºÃ‚Â¡ng PDF");
+            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Chỉ hỗ trợ file định dạng PDF");
         }
 
         if (type == null || type.isBlank()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "LoÃƒÂ¡Ã‚ÂºÃ‚Â¡i tÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u lÃƒÆ’Ã‚Â  bÃƒÂ¡Ã‚ÂºÃ‚Â¯t buÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢c");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Loại tài liệu là bắt buộc");
         }
 
         DocumentType docType;
         try {
             docType = DocumentType.valueOf(type.strip());
         } catch (IllegalArgumentException e) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "LoÃƒÂ¡Ã‚ÂºÃ‚Â¡i tÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u khÃƒÆ’Ã‚Â´ng hÃƒÂ¡Ã‚Â»Ã‚Â£p lÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡: '" + type + "'");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Loại tài liệu không hợp lệ: '" + type + "'");
         }
 
         InternDocumentResponse resp = documentService.uploadForIntern(targetInternId, docType, file, userId);
-        return ResponseEntity.ok(ApiResponse.success("TÃƒÂ¡Ã‚ÂºÃ‚Â£i lÃƒÆ’Ã‚Âªn tÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", resp));
+        return ResponseEntity.ok(ApiResponse.success("Tải lên tài liệu thành công", resp));
     }
 
     // ----------------------------
@@ -186,11 +186,11 @@ public class InternDocumentController {
         authorizeDownload(documentId, user);
 
         var doc = internDocumentRepository.findById(documentId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i: " + documentId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không tồn tại: " + documentId));
 
         String fileUrl = doc.getFileUrl();
         if (fileUrl == null || fileUrl.isBlank()) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "TÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u khÃƒÆ’Ã‚Â´ng cÃƒÆ’Ã‚Â³ Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Âng dÃƒÂ¡Ã‚ÂºÃ‚Â«n file");
+            throw new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không có đường dẫn file");
         }
 
         String filename = filenameFromFileUrl(fileUrl);
@@ -224,7 +224,7 @@ public class InternDocumentController {
     @GetMapping("/documents/{id}/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDocumentStatus(@PathVariable("id") Long documentId) {
         var doc = internDocumentRepository.findById(documentId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i: " + documentId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không tồn tại: " + documentId));
 
         return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "id", doc.getId(),
@@ -239,7 +239,7 @@ public class InternDocumentController {
     public ResponseEntity<ApiResponse<InternDocumentResponse>> approveDocument(@PathVariable("id") Long documentId) {
         User user = currentUserOrThrow();
         InternDocumentResponse resp = documentService.approve(documentId, user.getId());
-        return ResponseEntity.ok(ApiResponse.success("PhÃƒÆ’Ã‚Âª duyÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡t tÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", resp));
+        return ResponseEntity.ok(ApiResponse.success("Phê duyệt tài liệu thành công", resp));
     }
 
     @PostMapping("/hr/documents/{id}/reject")
@@ -249,7 +249,7 @@ public class InternDocumentController {
             @RequestParam(value = "note", required = false) String note) {
         User user = currentUserOrThrow();
         InternDocumentResponse resp = documentService.reject(documentId, user.getId(), note);
-        return ResponseEntity.ok(ApiResponse.success("TÃƒÂ¡Ã‚Â»Ã‚Â« chÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœi tÃƒÆ’Ã‚Â i liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", resp));
+        return ResponseEntity.ok(ApiResponse.success("Từ chối tài liệu thành công", resp));
     }
 
     @PostMapping(value = "/hr/interns/{internId}/documents/contracts", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -259,7 +259,7 @@ public class InternDocumentController {
             @RequestParam("file") MultipartFile file) {
         internProfileRepository.findById(internId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
-                        "KhÃƒÆ’Ã‚Â´ng tÃƒÆ’Ã‚Â¬m thÃƒÂ¡Ã‚ÂºÃ‚Â¥y hÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ sÃƒâ€ Ã‚Â¡ thÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p sinh: " + internId));
+                        "Không tìm thấy hồ sơ thực tập sinh: " + internId));
         User user = currentUserOrThrow();
         InternDocumentResponse resp = documentService.uploadForIntern(
                 internId,
@@ -267,7 +267,7 @@ public class InternDocumentController {
                 file,
                 user.getId());
 
-        return ResponseEntity.ok(ApiResponse.success("TÃƒÂ¡Ã‚ÂºÃ‚Â£i lÃƒÆ’Ã‚Âªn hÃƒÂ¡Ã‚Â»Ã‚Â£p Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ng thÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", resp));
+        return ResponseEntity.ok(ApiResponse.success("Tải lên hợp đồng thực tập thành công", resp));
     }
 
     @PostMapping("/intern/documents/{id}/confirm")
@@ -275,10 +275,9 @@ public class InternDocumentController {
     public ResponseEntity<ApiResponse<InternDocumentResponse>> confirmMyContract(@PathVariable("id") Long documentId) {
         User user = currentUserOrThrow();
         InternProfile ip = internProfileRepository.findByUser_Id(user.getId())
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "KhÃƒÆ’Ã‚Â´ng tÃƒÆ’Ã‚Â¬m thÃƒÂ¡Ã‚ÂºÃ‚Â¥y hÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ sÃƒâ€ Ã‚Â¡ thÃƒÂ¡Ã‚Â»Ã‚Â±c tÃƒÂ¡Ã‚ÂºÃ‚Â­p sinh"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ thực tập sinh"));
 
         InternDocumentResponse resp = documentService.confirmContract(ip.getId(), documentId);
-        return ResponseEntity.ok(ApiResponse.success("XÃƒÆ’Ã‚Â¡c nhÃƒÂ¡Ã‚ÂºÃ‚Â­n hÃƒÂ¡Ã‚Â»Ã‚Â£p Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ng thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", resp));
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận hợp đồng thành công", resp));
     }
 }
-

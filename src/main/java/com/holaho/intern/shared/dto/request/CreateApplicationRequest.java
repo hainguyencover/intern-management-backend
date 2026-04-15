@@ -16,6 +16,5 @@ public class CreateApplicationRequest {
     @Size(max = 1000, message = "{application.note.size}")
     private String note;
 
-    private Long programId; // Optional: nÃ¡ÂºÂ¿u apply vÃƒÂ o program cÃ¡Â»Â¥ thÃ¡Â»Æ’
+    private Long programId; // Optional: nếu apply vào program cụ thể
 }
-

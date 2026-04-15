@@ -24,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -209,14 +210,14 @@ public class TaskController {
      */
     private Long getUserIdFromAuth(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
-            throw new RuntimeException("Authentication required");
+            throw new AuthenticationCredentialsNotFoundException("Authentication required");
         }
 
         Object principal = authentication.getPrincipal();
 
         // If using CustomUserDetails
-        if (principal instanceof com.holaho.intern.shared.security.CustomUserDetails) {
-            return ((com.holaho.intern.shared.security.CustomUserDetails) principal).getId();
+        if (principal instanceof CustomUserDetails) {
+            return ((CustomUserDetails) principal).getId();
         }
 
         // If using Spring's UserDetails, fetch from database by email
@@ -225,7 +226,7 @@ public class TaskController {
             return userService.getCurrentUser(email).getId();
         }
 
-        throw new RuntimeException("Unable to extract user ID from authentication");
+        throw new AuthenticationCredentialsNotFoundException("Unable to extract user ID from authentication");
     }
 }
 

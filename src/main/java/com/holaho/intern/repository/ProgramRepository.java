@@ -25,7 +25,7 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
         @Query("SELECT p FROM Program p JOIN FETCH p.department WHERE p.id = :id")
         Optional<Program> findByIdWithDepartment(@Param("id") Long id);
 
-        // TÃƒÆ’Ã‚Â¬m program theo status
+        // Tìm program theo status
         List<Program> findByStatus(ProgramStatus status);
 
         Page<Program> findByStatus(ProgramStatus status, Pageable pageable);
@@ -41,7 +41,7 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
                         @Param("departmentId") Long departmentId,
                         @Param("status") ProgramStatus status);
 
-        // Search vÃƒÂ¡Ã‚Â»Ã¢â‚¬Âºi filter nÃƒÆ’Ã‚Â¢ng cao
+        // Search với filter nâng cao
         @EntityGraph(attributePaths = {"department"})
         @Query("SELECT p FROM Program p " +
                         "WHERE (:departmentId IS NULL OR p.department.id = :departmentId) " +
@@ -77,7 +77,7 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
                         "WHERE p.startDate <= :date AND p.endDate >= :date")
         List<Program> findActiveOnDate(@Param("date") LocalDate date);
 
-        // Ãƒâ€žÃ‚Â ÃƒÂ¡Ã‚ÂºÃ‚Â¿m program theo department vÃƒÆ’Ã‚Â  status
+        // Đếm program theo department và status
         long countByDepartment_IdAndStatus(Long departmentId, ProgramStatus status);
 
         @EntityGraph(attributePaths = {"department"})
@@ -114,4 +114,3 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
 
         List<Program> findByStatusAndEndDateBefore(ProgramStatus status, LocalDate date);
 }
-

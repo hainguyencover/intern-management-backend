@@ -16,7 +16,7 @@ import java.util.Optional;
 @Repository
 public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> {
 
-        // TÃ¬m members trong group
+        // Tìm members trong group
         List<GroupMember> findByGroupId(Long groupId);
 
         @Query("SELECT gm FROM GroupMember gm " +
@@ -25,7 +25,7 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
                         "WHERE gm.group.id = :groupId")
         List<GroupMember> findByGroupIdWithIntern(@Param("groupId") Long groupId);
 
-        // TÃ¬m groups cá»§a má»™t intern
+        // Tìm groups của một intern
         List<GroupMember> findByInternId(Long internId);
 
         /**
@@ -43,7 +43,7 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
          */
         long countByIntern_Id(Long internId);
 
-        // âœ… ÄÃšNG vá»›i entity GroupMember cÃ³ field: InternProfile intern
+        // ✅ ĐÚNG với entity GroupMember có field: InternProfile intern
         Optional<GroupMember> findFirstByIntern_IdAndLeftAtIsNull(Long internId);
 
         @Query("""
@@ -91,14 +91,14 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
 
         boolean existsByGroup_IdAndIntern_IdAndLeftAtIsNull(Long groupId, Long internId);
 
-        // Check intern Ä‘Ã£ trong group chÆ°a (vÃ  chÆ°a left)
+        // Check intern đã trong group chưa (và chưa left)
         @Query("SELECT gm FROM GroupMember gm WHERE gm.group.id = :groupId " +
                         "AND gm.intern.id = :internId AND gm.leftAt IS NULL")
         Optional<GroupMember> findActiveByGroupAndIntern(
                         @Param("groupId") Long groupId,
                         @Param("internId") Long internId);
 
-        // Láº¥y danh sÃ¡ch intern active trong group
+        // Lấy danh sách intern active trong group
         @Query("SELECT gm FROM GroupMember gm WHERE gm.group.id = :groupId AND gm.leftAt IS NULL")
         List<GroupMember> findActiveByGroupId(@Param("groupId") Long groupId);
 
@@ -121,4 +121,3 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
 
         long countByGroup_ProgramId(Long programId);
 }
-

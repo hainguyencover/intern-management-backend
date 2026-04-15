@@ -28,7 +28,7 @@ public class ProgramResponse {
     private java.time.LocalDateTime createdAt;
     private java.time.LocalDateTime updatedAt;
 
-    // Constructor tÃƒÂ¡Ã‚Â»Ã‚Â« entity
+    // Constructor từ entity
     public ProgramResponse(com.holaho.intern.entity.Program program) {
         this.id = program.getId();
         this.departmentId = program.getDepartment() != null ? program.getDepartment().getId() : null;
@@ -42,4 +42,3 @@ public class ProgramResponse {
         this.updatedAt = program.getUpdatedAt();
     }
 }
-

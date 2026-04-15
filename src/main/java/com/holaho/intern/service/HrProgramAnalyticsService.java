@@ -30,9 +30,8 @@ public class HrProgramAnalyticsService {
                     r.programName(),
                     total,
                     completed,
-                    Math.round(rate * 100.0) / 100.0 // lÃƒÂ m trÃƒÂ²n 2 chÃ¡Â»Â¯ sÃ¡Â»â€˜
+                    Math.round(rate * 100.0) / 100.0 // làm tròn 2 chữ số
             );
         }).toList();
     }
 }
-

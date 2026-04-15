@@ -11,7 +11,6 @@ public record ProgramUpsertRequest(
                 String description,
                 @NotNull LocalDate startDate,
                 @NotNull LocalDate endDate,
-                ProgramStatus status // optional: nÃƒÂ¡Ã‚ÂºÃ‚Â¿u null thÃƒÆ’Ã‚Â¬ service set ACTIVE
+                ProgramStatus status // optional: nếu null thì service set ACTIVE
 ) {
 }
-

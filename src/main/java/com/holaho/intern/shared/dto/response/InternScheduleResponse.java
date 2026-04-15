@@ -19,6 +19,5 @@ public record InternScheduleResponse(
 
         Long groupId,
         String groupName
-        // mentorName thÃƒÂªm sau vÃƒÂ¬ ProgramGroup Ã„â€˜ang join Mentor entity
+        // mentorName thêm sau vì ProgramGroup đang join Mentor entity
 ) {}
-

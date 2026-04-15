@@ -66,7 +66,7 @@ public class MentorServiceImpl implements MentorService {
                 .orElseThrow(() -> new NotFoundException("User", request.getUserId()));
 
         if (mentorRepository.existsByUser_Id(request.getUserId())) {
-            throw new ConflictException("Mentor profile Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i cho user: " + request.getUserId());
+            throw new ConflictException("Mentor profile đã tồn tại cho user: " + request.getUserId());
         }
 
         Department department = null;

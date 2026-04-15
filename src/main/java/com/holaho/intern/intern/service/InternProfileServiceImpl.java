@@ -20,6 +20,7 @@ import com.holaho.intern.user.entity.User;
 import com.holaho.intern.entity.GroupMember;
 import com.holaho.intern.shared.enums.GroupStatus;
 import com.holaho.intern.shared.enums.UserStatus;
+import com.holaho.intern.shared.exception.ConflictException;
 import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.shared.exception.ResourceNotFoundException;
 import com.holaho.intern.shared.elasticsearch.service.SearchService;
@@ -50,7 +51,7 @@ public class InternProfileServiceImpl implements InternProfileService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final GroupMemberRepository groupMemberRepository;
-    private final com.holaho.intern.shared.mapper.InternMapper internMapper;
+    private final InternMapper internMapper;
     private final SearchService searchService;
     private final AiService aiService;
 
@@ -60,14 +61,14 @@ public class InternProfileServiceImpl implements InternProfileService {
         User user;
         if (request.getUserId() != null) {
             user = userRepository.findById(request.getUserId())
-                    .orElseThrow(() -> new RuntimeException("User not found: " + request.getUserId()));
+                    .orElseThrow(() -> new NotFoundException("User không tồn tại: " + request.getUserId()));
         } else if (request.getEmail() != null && !request.getEmail().isBlank()) {
             Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
             if (userOpt.isPresent()) {
                 user = userOpt.get();
             } else {
                 if (request.getFullName() == null || request.getFullName().isBlank()) {
-                    throw new IllegalArgumentException("Full name is required for new user creation");
+                    throw new IllegalArgumentException("Họ tên là bắt buộc khi tạo user mới");
                 }
                 user = new User();
                 user.setEmail(request.getEmail());
@@ -84,18 +85,18 @@ public class InternProfileServiceImpl implements InternProfileService {
                 user.setStatus(UserStatus.ACTIVE);
 
                 Role internRole = roleRepository.findByCode("INTERN")
-                        .orElseThrow(() -> new RuntimeException("Role INTERN not found"));
+                        .orElseThrow(() -> new NotFoundException("Role INTERN không tồn tại trong hệ thống"));
                 user.setRoles(Set.of(internRole));
 
                 user = userRepository.save(user);
                 log.info("Auto-created user {} with password: {}", user.getEmail(), passwordToUse);
             }
         } else {
-            throw new IllegalArgumentException("User ID or Email must be provided");
+            throw new IllegalArgumentException("Cần cung cấp User ID hoặc Email");
         }
 
         if (internProfileRepository.existsByUser_Id(user.getId())) {
-            throw new RuntimeException("Intern profile already exists for user: " + user.getId());
+            throw new ConflictException("Hồ sơ thực tập sinh đã tồn tại cho user: " + user.getId());
         }
 
         InternProfile profile = new InternProfile();
@@ -112,7 +113,7 @@ public class InternProfileServiceImpl implements InternProfileService {
 
         if (request.getMentorId() != null) {
             Mentor mentor = mentorRepository.findById(request.getMentorId())
-                    .orElseThrow(() -> new RuntimeException("Mentor not found: " + request.getMentorId()));
+                    .orElseThrow(() -> new NotFoundException("Mentor không tồn tại: " + request.getMentorId()));
             profile.setMentor(mentor);
         }
 
@@ -128,7 +129,7 @@ public class InternProfileServiceImpl implements InternProfileService {
     @CacheEvict(value = { "universities", "majors" }, allEntries = true)
     public InternProfileResponse updateIntern(Long id, InternProfileRequest request) {
         InternProfile profile = internProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Intern profile not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại: " + id));
 
         updateProfileData(profile, request);
 
@@ -149,7 +150,7 @@ public class InternProfileServiceImpl implements InternProfileService {
     @Transactional(readOnly = true)
     public InternProfileResponse getInternProfileById(Long id) {
         InternProfile profile = internProfileRepository.findByIdWithUser(id)
-                .orElseThrow(() -> new RuntimeException("Intern profile not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại: " + id));
         return mapToResponse(profile);
     }
 
@@ -157,7 +158,7 @@ public class InternProfileServiceImpl implements InternProfileService {
     @Transactional(readOnly = true)
     public InternProfileResponse getInternProfileByUserId(Long userId) {
         InternProfile profile = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new RuntimeException("Intern profile not found for user: " + userId));
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại cho user: " + userId));
         return mapToResponse(profile);
     }
 
@@ -176,7 +177,7 @@ public class InternProfileServiceImpl implements InternProfileService {
     @Transactional(readOnly = true)
     public InternProfileResponse getInternProfile(Long id) {
         InternProfile profile = internProfileRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Intern profile not found"));
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại: " + id));
         return mapToResponse(profile);
     }
 
@@ -184,7 +185,7 @@ public class InternProfileServiceImpl implements InternProfileService {
     @Transactional(readOnly = true)
     public InternProfileResponse getMyProfile(Long userId) {
         InternProfile profile = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Intern profile not found"));
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại cho user: " + userId));
         return mapToResponse(profile);
     }
 
@@ -259,7 +260,7 @@ public class InternProfileServiceImpl implements InternProfileService {
     @Transactional
     public void deleteInternProfile(Long id) {
         InternProfile profile = internProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Intern profile not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại: " + id));
 
         internProfileRepository.delete(profile);
         searchService.deleteIntern(id);
@@ -270,10 +271,10 @@ public class InternProfileServiceImpl implements InternProfileService {
     @Transactional
     public InternProfileResponse updateMyProfile(InternProfileRequest request, String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new NotFoundException("User not found: " + email));
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + email));
 
         InternProfile profile = internProfileRepository.findByUser_Id(user.getId())
-                .orElseThrow(() -> new NotFoundException("Intern profile not found"));
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại"));
 
         updateProfileData(profile, request);
 
@@ -300,13 +301,13 @@ public class InternProfileServiceImpl implements InternProfileService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.holaho.intern.shared.dto.InternCountStatDto> getInternStatsByUniversity() {
+    public List<InternCountStatDto> getInternStatsByUniversity() {
         return internProfileRepository.countInternsGroupedByUniversity();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.holaho.intern.shared.dto.InternCountStatDto> getInternStatsByMajor() {
+    public List<InternCountStatDto> getInternStatsByMajor() {
         return internProfileRepository.countInternsGroupedByMajor();
     }
 
@@ -339,7 +340,7 @@ public class InternProfileServiceImpl implements InternProfileService {
         if (request.getCvUrl() != null && !request.getCvUrl().equals(profile.getCvUrl())) {
             try {
                 log.info("Triggering AI CV Screening for intern profile ID: {}", profile.getId());
-                com.holaho.intern.shared.dto.response.CvScreeningResponse screening = aiService.screenCv(new byte[0],
+                CvScreeningResponse screening = aiService.screenCv(new byte[0],
                         "intern_cv.pdf");
                 profile.setCvSkills(String.join(", ", screening.getSkills()));
                 profile.setCvScore(screening.getScore());
@@ -353,9 +354,8 @@ public class InternProfileServiceImpl implements InternProfileService {
 
         if (request.getMentorId() != null) {
             Mentor mentor = mentorRepository.findById(request.getMentorId())
-                    .orElseThrow(() -> new RuntimeException("Mentor not found: " + request.getMentorId()));
+                    .orElseThrow(() -> new NotFoundException("Mentor không tồn tại: " + request.getMentorId()));
             profile.setMentor(mentor);
         }
     }
 }
-

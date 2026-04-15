@@ -6,10 +6,9 @@ import lombok.Data;
 
 @Data
 public class DocumentVerifyRequest {
-    @NotBlank(message = "VÃ¡Â»â€¹ trÃƒÂ­ Ã¡Â»Â©ng tuyÃ¡Â»Æ’n khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng")
+    @NotBlank(message = "Vị trí ứng tuyển không được để trống")
     private String position;
 
     @Size(max = 1000)
     private String reviewNote;
 }
-

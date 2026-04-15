@@ -30,13 +30,13 @@ public class HrmService {
     public List<HrmUserDto> fetchEmployeesFromHrm() {
         // In a real app, this would use RestTemplate/WebClient to call external HRM API
         List<HrmUserDto> mockData = new ArrayList<>();
-        mockData.add(new HrmUserDto("HRM001", "NguyÃ¡Â»â€¦n VÃ„Æ’n A", "nguyen.a@example.com", "Engineering", "Senior Engineer",
+        mockData.add(new HrmUserDto("HRM001", "Nguyễn Văn A", "nguyen.a@example.com", "Engineering", "Senior Engineer",
                 "ACTIVE"));
-        mockData.add(new HrmUserDto("HRM002", "TrÃ¡ÂºÂ§n ThÃ¡Â»â€¹ B", "tran.b@example.com", "HR", "Recruiter", "ACTIVE"));
-        mockData.add(new HrmUserDto("HRM003", "LÃƒÂª VÃ„Æ’n C", "le.c@example.com", "Engineering", "Team Lead", "ACTIVE"));
+        mockData.add(new HrmUserDto("HRM002", "Trần Thị B", "tran.b@example.com", "HR", "Recruiter", "ACTIVE"));
+        mockData.add(new HrmUserDto("HRM003", "Lê Văn C", "le.c@example.com", "Engineering", "Team Lead", "ACTIVE"));
         // Add a new one that likely doesn't exist
         mockData.add(
-                new HrmUserDto("HRM004", "PhÃ¡ÂºÂ¡m VÃ„Æ’n MÃ¡Â»â€ºi", "pham.moi@example.com", "Mentorship", "Mentor", "ACTIVE"));
+                new HrmUserDto("HRM004", "Phạm Văn Mới", "pham.moi@example.com", "Mentorship", "Mentor", "ACTIVE"));
         return mockData;
     }
 
@@ -79,7 +79,6 @@ public class HrmService {
                 log.error("Error syncing user: " + hrmUser.getEmail(), e);
             }
         }
-        return String.format("Ã„ÂÃƒÂ£ Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ thÃƒÂ nh cÃƒÂ´ng. ThÃƒÂªm mÃ¡Â»â€ºi: %d, CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t: %d", created, updated);
+        return String.format("Đã đồng bộ thành công. Thêm mới: %d, Cập nhật: %d", created, updated);
     }
 }
-

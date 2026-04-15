@@ -77,7 +77,7 @@ public interface InternProfileRepository
 
     @Query("""
                 select new com.holaho.intern.shared.dto.InternCountStatDto(
-                    coalesce(ip.university, 'ChÃƒâ€ Ã‚Â°a cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t'),
+                    coalesce(ip.university, 'Chưa cập nhật'),
                     count(ip.id)
                 )
                 from InternProfile ip
@@ -88,7 +88,7 @@ public interface InternProfileRepository
 
     @Query("""
                 select new com.holaho.intern.shared.dto.InternCountStatDto(
-                    coalesce(ip.major, 'ChÃƒâ€ Ã‚Â°a cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t'),
+                    coalesce(ip.major, 'Chưa cập nhật'),
                     count(ip.id)
                 )
                 from InternProfile ip
@@ -97,10 +97,10 @@ public interface InternProfileRepository
             """)
     List<InternCountStatDto> countInternsGroupedByMajor();
 
-    // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ ThÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœng kÃƒÆ’Ã‚Âª theo trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Âng + ngÃƒÆ’Ã‚Â nh
+    // Thống kê theo trường + ngành
     @Query("""
                 select new com.holaho.intern.shared.dto.InternCountStatDto(
-                    concat(coalesce(ip.university, 'ChÃƒâ€ Ã‚Â°a cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t'), ' - ', coalesce(ip.major, 'ChÃƒâ€ Ã‚Â°a cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t')),
+                    concat(coalesce(ip.university, 'Chưa cập nhật'), ' - ', coalesce(ip.major, 'Chưa cập nhật')),
                     count(ip.id)
                 )
                 from InternProfile ip
@@ -148,4 +148,3 @@ public interface InternProfileRepository
     @Query("SELECT i FROM InternProfile i JOIN FETCH i.user WHERE i.dob IS NOT NULL AND MONTH(i.dob) = :month ORDER BY DAY(i.dob)")
     List<InternProfile> findByBirthdayMonth(@Param("month") int month);
 }
-

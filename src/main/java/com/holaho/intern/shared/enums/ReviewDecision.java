@@ -4,8 +4,8 @@ import lombok.Getter;
 
 @Getter
 public enum ReviewDecision {
-    APPROVE("DuyÃ¡Â»â€¡t"),
-    REJECT("TÃ¡Â»Â« chÃ¡Â»â€˜i");
+    APPROVE("Duyệt"),
+    REJECT("Từ chối");
 
     private final String displayName;
 
@@ -14,4 +14,3 @@ public enum ReviewDecision {
     }
 
 }
-

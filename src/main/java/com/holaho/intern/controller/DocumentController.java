@@ -54,7 +54,7 @@ public class DocumentController {
             @Valid @RequestBody VerifyDocumentRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         DocumentResponse response = documentService.verifyDocument(id, request, userDetails.getId());
-        return ResponseEntity.ok(ApiResponse.success("XÃƒÂ¡c thÃ¡Â»Â±c tÃƒÂ i liÃ¡Â»â€¡u thÃƒÂ nh cÃƒÂ´ng", response));
+        return ResponseEntity.ok(ApiResponse.success("Xác thực tài liệu thành công", response));
     }
 
     @DeleteMapping("/{id}")
@@ -63,7 +63,6 @@ public class DocumentController {
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         documentService.deleteDocument(id);
-        return ResponseEntity.ok(ApiResponse.success("XÃƒÂ³a tÃƒÂ i liÃ¡Â»â€¡u thÃƒÂ nh cÃƒÂ´ng", null));
+        return ResponseEntity.ok(ApiResponse.success("Xóa tài liệu thành công", null));
     }
 }
-

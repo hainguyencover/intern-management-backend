@@ -48,7 +48,6 @@ public class HrApplicationController {
             @Valid @RequestBody ReviewApplicationRequest req,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         ApplicationResponse response = applicationService.reviewApplication(id, req, userDetails.getId());
-        return ResponseEntity.ok(ApiResponse.success("XÃƒÆ’Ã‚Â©t duyÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡t hÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ sÃƒâ€ Ã‚Â¡ thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng", response));
+        return ResponseEntity.ok(ApiResponse.success("Xét duyệt hồ sơ thành công", response));
     }
 }
-
