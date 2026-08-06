@@ -11,9 +11,6 @@ import lombok.*;
 
 import java.time.LocalDate;
 
-import org.hibernate.annotations.NotFound;
-import org.hibernate.annotations.NotFoundAction;
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,7 +24,6 @@ public class Program extends BaseEntity {
 
         @ManyToOne(fetch = FetchType.LAZY, optional = false)
         @JoinColumn(name = "department_id", nullable = false)
-        @NotFound(action = NotFoundAction.IGNORE)
         private Department department;
 
         @Column(nullable = false, length = 255)

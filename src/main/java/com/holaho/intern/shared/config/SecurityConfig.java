@@ -19,6 +19,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -35,6 +37,7 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
     private final RateLimitFilter rateLimitFilter;
     private final TenantFilter tenantFilter;
+    private final TraceIdFilter traceIdFilter;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
@@ -42,11 +45,13 @@ public class SecurityConfig {
     public SecurityConfig(JwtTokenProvider jwtTokenProvider,
             CustomUserDetailsService customUserDetailsService,
             RateLimitFilter rateLimitFilter,
-            TenantFilter tenantFilter) {
+            TenantFilter tenantFilter,
+            TraceIdFilter traceIdFilter) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.customUserDetailsService = customUserDetailsService;
         this.rateLimitFilter = rateLimitFilter;
         this.tenantFilter = tenantFilter;
+        this.traceIdFilter = traceIdFilter;
     }
 
     @Bean
@@ -89,16 +94,16 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers
-                        .contentTypeOptions(contentType -> {}) // X-Content-Type-Options: nosniff
+                        .contentTypeOptions(contentType -> {
+                        }) // X-Content-Type-Options: nosniff
                         .frameOptions(frame -> frame.deny()) // X-Frame-Options: DENY
                         .xssProtection(xss -> xss.headerValue(
-                                org.springframework.security.web.header.writers.XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
+                                XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31536000)) // 1 year HSTS
                         .referrerPolicy(referrer -> referrer.policy(
-                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                        .permissionsPolicy(permissions -> permissions.policy(
+                                ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)).permissionsPolicyHeader(permissions -> permissions.policy(
                                 "camera=(), microphone=(), geolocation=(), payment=()"))
                 )
                 .authorizeHttpRequests(auth -> auth
@@ -143,6 +148,7 @@ public class SecurityConfig {
                             response.getWriter().write(mapper.writeValueAsString(body));
                         }));
 
+        http.addFilterBefore(traceIdFilter, org.springframework.security.web.session.DisableEncodeUrlFilter.class);
         http.addFilterBefore(tenantFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

@@ -2,35 +2,23 @@ package com.holaho.intern.controller;
 
 import com.holaho.intern.shared.dto.request.LoginRequest;
 import com.holaho.intern.shared.dto.request.RegisterRequest;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.entity.User;
 import com.holaho.intern.shared.enums.UserStatus;
-import com.holaho.intern.repository.RoleRepository;
-import com.holaho.intern.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.holaho.intern.user.repository.RoleRepository;
+import com.holaho.intern.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
 @Transactional
-class AuthControllerIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
@@ -40,9 +28,6 @@ class AuthControllerIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
@@ -64,9 +49,7 @@ class AuthControllerIntegrationTest {
         request.setUniversity("Integration Uni");
         request.setMajor("Computer Science");
 
-        mockMvc.perform(post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(postWithTenant("/api/v1/auth/register", request))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.email").value("integration@example.com"));
@@ -87,9 +70,7 @@ class AuthControllerIntegrationTest {
                 .password("password123")
                 .build();
 
-        mockMvc.perform(post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(postWithTenant("/api/v1/auth/login", request))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.token").isNotEmpty());
@@ -102,10 +83,7 @@ class AuthControllerIntegrationTest {
                 .password("wrongpass")
                 .build();
 
-        mockMvc.perform(post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound()); // Spring Security returns 401 on bad credentials by default
+        mockMvc.perform(postWithTenant("/api/v1/auth/login", request))
+                .andExpect(status().isNotFound()); // User not found returns 404 in current logic
     }
 }
-

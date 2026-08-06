@@ -1,42 +1,29 @@
 package com.holaho.intern.controller;
 
 import com.holaho.intern.shared.dto.request.ApplicationSubmitRequest;
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.entity.User;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.entity.User;
 import com.holaho.intern.shared.enums.UserStatus;
-import com.holaho.intern.repository.InternProfileRepository;
+import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.repository.DepartmentRepository;
 import com.holaho.intern.repository.ProgramRepository;
-import com.holaho.intern.repository.RoleRepository;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.repository.RoleRepository;
+import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.security.JwtTokenProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
 @Transactional
-class ApplicationControllerIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+class ApplicationControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
@@ -58,9 +45,6 @@ class ApplicationControllerIntegrationTest {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     private String internToken;
     private User internUser;
@@ -116,10 +100,8 @@ class ApplicationControllerIntegrationTest {
         request.setProgramId(programId);
         request.setNote("I love coding!");
 
-        mockMvc.perform(post("/api/v1/applications")
-                .header("Authorization", "Bearer " + internToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(postWithTenant("/api/v1/applications", request)
+                .header("Authorization", "Bearer " + internToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.position").value("Java Developer Intern"));
@@ -130,10 +112,7 @@ class ApplicationControllerIntegrationTest {
         ApplicationSubmitRequest request = new ApplicationSubmitRequest();
         request.setPosition("Java Developer Intern");
 
-        mockMvc.perform(post("/api/v1/applications")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(postWithTenant("/api/v1/applications", request))
                 .andExpect(status().isUnauthorized());
     }
 }
-

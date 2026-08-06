@@ -30,6 +30,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,13 +52,13 @@ public class AdminController {
     // ========== USER MANAGEMENT ==========
 
     @GetMapping("/users")
-    public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
+    public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers(
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<UserResponse> users = adminService.getAllUsers(role, status, keyword, pageable);
-        return ResponseEntity.ok(ApiResponse.success(users));
+        return ResponseEntity.ok(ApiResponse.successPage(users));
     }
 
     @GetMapping("/users/{id}")
