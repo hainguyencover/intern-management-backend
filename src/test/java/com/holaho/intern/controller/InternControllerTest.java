@@ -1,8 +1,9 @@
 package com.holaho.intern.controller;
 
+import com.holaho.intern.intern.controller.InternController;
 import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.dto.response.InternProfileResponse;
-import com.holaho.intern.service.InternProfileService;
+import com.holaho.intern.intern.service.InternProfileService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,4 +52,3 @@ class InternControllerTest {
                 .andExpect(jsonPath("$.data.email").value("john@example.com"));
     }
 }
-

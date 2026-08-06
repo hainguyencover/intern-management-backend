@@ -56,8 +56,12 @@ public class DataInitializer implements CommandLineRunner {
         Role mentorRole = createRoleIfNotExists("MENTOR", "Mentor");
         Role internRole = createRoleIfNotExists("INTERN", "Intern");
 
+        // Ensure at least one Department exists
+        createDepartmentIfNotExists("IT", "Information Technology", "IT Department");
+
         // Seed Programs
-        createProgramIfNotExists("GENERAL", "Chương trình Thực tập Tổng hợp 2024", "Chương trình dành cho tất cả các vị trí thực tập.");
+        createProgramIfNotExists("GENERAL", "Chương trình Thực tập Tổng hợp 2024",
+                "Chương trình dành cho tất cả các vị trí thực tập.");
 
         // Seed Permissions
         createPermissionIfNotExists("USER_CREATE", "Create Users");
@@ -91,9 +95,6 @@ public class DataInitializer implements CommandLineRunner {
         assignPermissionToRole(hrRole, "USER_READ");
         assignPermissionToRole(hrRole, "USER_CREATE");
 
-        // Ensure at least one Department exists
-        createDepartmentIfNotExists("IT", "Information Technology", "IT Department");
-
         createUserIfNotExists("admin@company.com", "System Admin", "admin123", Set.of(adminRole));
         createUserIfNotExists("hr@company.com", "HR Manager", "hr123", Set.of(hrRole));
         createUserIfNotExists("intern@student.com", "Intern Demo", "intern123", Set.of(internRole));
@@ -115,7 +116,7 @@ public class DataInitializer implements CommandLineRunner {
     private void createProgramIfNotExists(String id, String name, String description) {
         if (programRepository.count() == 0) {
             Department itDept = departmentRepository.findByCode("IT").orElse(null);
-            
+
             Program p = new Program();
             p.setName(name);
             p.setDescription(description);
@@ -197,7 +198,8 @@ public class DataInitializer implements CommandLineRunner {
             }
 
             if (applicationRepository.findByIntern_Id(ip.getId()).isEmpty()) {
-                com.holaho.intern.entity.Program program = programRepository.findAll().stream().findFirst().orElse(null);
+                com.holaho.intern.entity.Program program = programRepository.findAll().stream().findFirst()
+                        .orElse(null);
                 if (program != null) {
                     Application app = new Application();
                     app.setIntern(ip);

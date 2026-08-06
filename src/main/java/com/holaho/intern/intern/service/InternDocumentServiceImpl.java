@@ -7,7 +7,6 @@ import com.holaho.intern.user.entity.User;
 import com.holaho.intern.shared.enums.ApplicationStatus;
 import com.holaho.intern.shared.enums.NotificationType;
 
-
 import com.holaho.intern.shared.dto.StoredFile;
 import com.holaho.intern.shared.dto.response.InternDocumentResponse;
 import com.holaho.intern.intern.entity.InternDocument;
@@ -156,7 +155,14 @@ public class InternDocumentServiceImpl implements InternDocumentService {
         InternDocument doc = repo.findById(documentId)
                 .orElseThrow(() -> new NotFoundException("Tài liệu không tồn tại: " + documentId));
 
-        // TODO: permission checks — verify requester is owner or HR
+        // Permission check: requester must be the document owner or HR
+        if (!isHr) {
+            Long ownerUserId = doc.getIntern().getUser().getId();
+            if (!ownerUserId.equals(requesterUserId)) {
+                throw new ApiException(HttpStatus.FORBIDDEN,
+                        "Bạn không có quyền tải tài liệu của thực tập sinh khác");
+            }
+        }
         return storage.loadAsResource(doc.getFileUrl());
     }
 

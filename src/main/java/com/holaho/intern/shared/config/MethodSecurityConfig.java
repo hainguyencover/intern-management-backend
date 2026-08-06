@@ -1,8 +1,2 @@
-package com.holaho.intern.shared.config;
-
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-
-@Configuration
-@EnableMethodSecurity
-public class MethodSecurityConfig {}
+// Deprecated: Configuration merged into SecurityConfig.java.
+// Class kept empty to avoid any compile conflicts.

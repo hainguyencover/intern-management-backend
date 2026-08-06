@@ -4,7 +4,6 @@ import com.holaho.intern.shared.dto.response.SystemConfigResponse;
 import com.holaho.intern.entity.SystemConfig;
 import com.holaho.intern.shared.mapper.SystemConfigMapper;
 import com.holaho.intern.repository.SystemConfigRepository;
-import com.holaho.intern.service.impl.SystemConfigServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

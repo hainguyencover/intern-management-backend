@@ -85,6 +85,17 @@ public class AuthController {
     }
 
     /**
+     * Request password reset (forgot password flow)
+     * POST /api/v1/auth/forgot-password
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody com.holaho.intern.shared.dto.request.ForgotPasswordRequest request) {
+        log.info("Forgot password request for email: {}", request.getEmail());
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Password reset instructions sent", null));
+    }
+
+    /**
      * Reset password (forgot password flow)
      * POST /api/v1/auth/reset-password
      */
@@ -92,7 +103,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         log.info("Reset password request for email: {}", request.getEmail());
         authService.resetPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("Password reset instructions sent", null));
+        return ResponseEntity.ok(ApiResponse.success("Password reset successfully", null));
     }
 
     /**

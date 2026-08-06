@@ -3,6 +3,7 @@ package com.holaho.intern.service;
 import com.holaho.intern.shared.dto.request.QrLogDto;
 import com.holaho.intern.shared.exception.ConflictException;
 import com.holaho.intern.shared.exception.NotFoundException;
+import com.holaho.intern.service.SystemConfigService;
 
 
 import com.holaho.intern.shared.dto.response.AttendanceResponse;
@@ -31,6 +32,7 @@ public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final InternProfileRepository internProfileRepository;
+    private final SystemConfigService systemConfigService;
 
     @Transactional
     public AttendanceResponse checkIn(Long internId) {
@@ -48,8 +50,15 @@ public class AttendanceService {
         LocalDateTime now = LocalDateTime.now();
         attendance.setCheckIn(now);
 
-        // Check LATE logic (Work starts at 08:30)
-        LocalTime workStartTime = LocalTime.of(8, 30);
+        // Check LATE logic (fetch from SystemConfigService, default to 08:30)
+        String workStartTimeStr = systemConfigService.getValue("work.start_time", "08:30");
+        LocalTime workStartTime;
+        try {
+            workStartTime = LocalTime.parse(workStartTimeStr);
+        } catch (Exception e) {
+            log.warn("Invalid work.start_time config: {}, defaulting to 08:30", workStartTimeStr);
+            workStartTime = LocalTime.of(8, 30);
+        }
         if (now.toLocalTime().isAfter(workStartTime)) {
             attendance.setStatus("LATE");
         } else {

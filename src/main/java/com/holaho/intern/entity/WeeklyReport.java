@@ -5,6 +5,7 @@ import com.holaho.intern.user.entity.User;
 
 
 import com.holaho.intern.shared.entity.BaseEntity;
+import com.holaho.intern.shared.enums.WeeklyReportStatus;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -67,8 +68,9 @@ public class WeeklyReport extends BaseEntity {
         @JoinColumn(name = "mentor_id")
         private User mentor;
 
+        @Enumerated(EnumType.STRING)
         @Column(nullable = false, length = 20)
-        private String status = "DRAFT"; // DRAFT, SUBMITTED, REVIEWED
+        private WeeklyReportStatus status = WeeklyReportStatus.DRAFT;
 
         @Column(name = "submitted_at")
         private LocalDateTime submittedAt;

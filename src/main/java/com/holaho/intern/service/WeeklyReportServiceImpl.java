@@ -13,6 +13,7 @@ import com.holaho.intern.repository.WeeklyReportRepository;
 import com.holaho.intern.user.entity.User;
 import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.enums.GroupStatus;
+import com.holaho.intern.shared.enums.WeeklyReportStatus;
 
 import com.holaho.intern.shared.dto.InternCountStatDto;
 import com.holaho.intern.shared.dto.WeeklyReportDto;
@@ -38,6 +39,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -49,6 +52,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
     private final UserRepository userRepository;
     private final MentorRepository mentorRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final WeeklyReportMapper weeklyReportMapper;
     private final EvaluationMapper evaluationMapper;
@@ -120,7 +124,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
             report.setMentor(intern.getMentor().getUser());
         }
 
-        report.setStatus("SUBMITTED");
+        report.setStatus(WeeklyReportStatus.SUBMITTED);
         report.setSubmittedAt(LocalDateTime.now());
 
         // Perform AI Sentiment Analysis
@@ -135,6 +139,16 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
         report = reportRepository.save(report);
         log.info("Intern {} submitted report for week {}", internId, req.getWeekNumber());
+
+        if (report.getMentor() != null) {
+            eventPublisher.publishEvent(new com.holaho.intern.shared.events.DomainEvents.WeeklyReportSubmittedEvent(
+                    this,
+                    report.getId(),
+                    report.getMentor().getId(),
+                    intern.getUser().getFullName(),
+                    report.getWeekStart().toString() + " -> " + report.getWeekEnd().toString()
+            ));
+        }
         return weeklyReportMapper.toDto(report);
     }
 
@@ -175,10 +189,21 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
         if (req.rating() != null) {
             report.setRating(req.rating());
         }
-        report.setStatus("REVIEWED");
+        report.setStatus(WeeklyReportStatus.REVIEWED);
         report.setReviewedAt(LocalDateTime.now());
 
         report = reportRepository.save(report);
+
+        if (report.getIntern() != null) {
+            eventPublisher.publishEvent(new com.holaho.intern.shared.events.DomainEvents.WeeklyReportReviewedEvent(
+                    this,
+                    report.getId(),
+                    report.getIntern().getUser().getId(),
+                    mentor.getFullName(),
+                    req.rating() != null ? String.valueOf(req.rating()) : "N/A"
+            ));
+        }
+
         return weeklyReportMapper.toDto(report);
     }
 
@@ -195,8 +220,16 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
     public WeeklyReportDto updateStatus(Long id, String status) {
         WeeklyReport report = reportRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Report not found"));
-        report.setStatus(status);
-        if ("REVIEWED".equals(status)) {
+
+        WeeklyReportStatus reportStatus;
+        try {
+            reportStatus = WeeklyReportStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            throw new com.holaho.intern.shared.exception.BadRequestException("Invalid report status: " + status);
+        }
+
+        report.setStatus(reportStatus);
+        if (reportStatus == WeeklyReportStatus.REVIEWED) {
             report.setReviewedAt(LocalDateTime.now());
         }
         return weeklyReportMapper.toDto(reportRepository.save(report));

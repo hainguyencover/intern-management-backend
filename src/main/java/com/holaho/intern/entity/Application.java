@@ -3,7 +3,6 @@ package com.holaho.intern.entity;
 import com.holaho.intern.entity.Program;
 import com.holaho.intern.intern.entity.InternProfile;
 
-
 import com.holaho.intern.shared.entity.BaseEntity;
 
 import com.holaho.intern.shared.enums.ApplicationStatus;
@@ -40,5 +39,16 @@ public class Application extends BaseEntity {
 
     @Column(length = 1000)
     private String note;
-}
 
+    @Column(name = "ai_score")
+    private Integer aiScore;
+
+    @Column(name = "ai_skills", length = 1000)
+    private String aiSkills; // Comma separated or JSON
+
+    @Column(name = "ai_summary", columnDefinition = "TEXT")
+    private String aiSummary;
+
+    @Column(name = "ai_recommendation", columnDefinition = "TEXT")
+    private String aiRecommendation;
+}

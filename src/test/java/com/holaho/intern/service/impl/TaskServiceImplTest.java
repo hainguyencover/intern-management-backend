@@ -1,9 +1,10 @@
 package com.holaho.intern.service.impl;
 
 import com.holaho.intern.shared.dto.response.TaskResponse;
-import com.holaho.intern.entity.Task;
+import com.holaho.intern.task.entity.Task;
 import com.holaho.intern.shared.mapper.TaskMapper;
-import com.holaho.intern.repository.TaskRepository;
+import com.holaho.intern.task.repository.TaskRepository;
+import com.holaho.intern.task.service.TaskServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,4 +57,3 @@ public class TaskServiceImplTest {
         assertEquals("Test Task", result.getTitle());
     }
 }
-

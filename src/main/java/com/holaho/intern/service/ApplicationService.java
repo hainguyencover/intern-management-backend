@@ -32,6 +32,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -46,6 +48,7 @@ public class ApplicationService {
     private final EmailService emailService;
     private final AiService aiService;
     private final StorageService storageService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ApplicationResponse submit(ApplicationSubmitRequest request, Long userId) {
@@ -188,6 +191,15 @@ public class ApplicationService {
             userRepository.save(user);
 
             log.info("Auto activated InternProfile to ONBOARDING and assigned ROLE_INTERN for user: {}", user.getEmail());
+
+            // Publish Domain Event for notification/email
+            eventPublisher.publishEvent(new com.holaho.intern.shared.events.DomainEvents.ApplicationAcceptedEvent(
+                    this,
+                    application.getId(),
+                    user.getId(),
+                    user.getFullName(),
+                    user.getEmail()
+            ));
         } else {
             application.setStatus(ApplicationStatus.REJECTED);
         }
@@ -195,16 +207,7 @@ public class ApplicationService {
         application = applicationRepository.save(application);
         log.info("Reviewed application {} with decision: {}", applicationId, request.decision());
 
-        // Send notification email
-        try {
-            String toEmail = application.getIntern().getUser().getEmail();
-            String internName = application.getIntern().getUser().getFullName();
-            String decisionStr = (request.decision() == ReviewDecision.APPROVE) ? "ĐƯỢC CHẤP NHẬN" : "BỊ TỪ CHỐI";
-
-            emailService.sendApplicationResultEmail(toEmail, internName, decisionStr, request.comment());
-        } catch (Exception e) {
-            log.warn("Failed to send notification email", e);
-        }
+        // We no longer call emailService directly here because the NotificationEventListener will handle it!
 
         return mapToResponse(application);
     }

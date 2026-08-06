@@ -25,6 +25,12 @@ public class ApplicationResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    // AI Screening Fields
+    private Integer aiScore;
+    private List<String> aiSkills;
+    private String aiSummary;
+    private String aiRecommendation;
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -39,4 +45,3 @@ public class ApplicationResponse {
         private LocalDateTime decidedAt;
     }
 }
-

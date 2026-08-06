@@ -1,29 +1,17 @@
 package com.holaho.intern.service;
 
-import com.holaho.intern.entity.BackupJob;
 import com.holaho.intern.repository.ApplicationRepository;
-import com.holaho.intern.repository.BackupJobRepository;
 import com.holaho.intern.repository.AuditLogRepository;
-import com.holaho.intern.entity.GroupMember;
-import com.holaho.intern.entity.Program;
-import com.holaho.intern.repository.GroupMemberRepository;
 import com.holaho.intern.repository.ProgramGroupRepository;
 import com.holaho.intern.repository.ProgramRepository;
-import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.intern.repository.InternDocumentRepository;
 import com.holaho.intern.intern.repository.InternProfileRepository;
-import com.holaho.intern.mentor.entity.Mentor;
 import com.holaho.intern.mentor.repository.MentorRepository;
-import com.holaho.intern.task.repository.TaskRepository;
-import com.holaho.intern.shared.dto.response.DashboardDtos;
-import com.holaho.intern.shared.enums.ProgramStatus;
-import com.holaho.intern.shared.enums.TaskStatus;
-
-
 import com.holaho.intern.shared.dto.InternCountStatDto;
 import com.holaho.intern.shared.dto.response.DashboardOverviewResponse;
 import com.holaho.intern.shared.enums.ApplicationStatus;
 import com.holaho.intern.shared.enums.GroupStatus;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -140,13 +128,12 @@ public class StatisticsService {
     @Transactional(readOnly = true)
     public com.holaho.intern.shared.dto.response.DashboardDtos.InternDashboardResponse getInternDashboard(Long userId) {
         com.holaho.intern.intern.entity.InternProfile intern = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new RuntimeException("Intern profile not found for user: " + userId));
+                .orElseThrow(() -> new com.holaho.intern.shared.exception.NotFoundException("InternProfile", userId));
         Long internId = intern.getId();
 
         // Find active group
         java.util.Optional<com.holaho.intern.entity.GroupMember> membership = groupMemberRepository
                 .findFirstByIntern_IdAndLeftAtIsNull(internId);
-        Long groupId = membership.map(m -> m.getGroup().getId()).orElse(-1L);
 
         int completedTasks = (int) taskRepository
                 .findByAssignee_Id(internId, org.springframework.data.domain.Pageable.unpaged())
@@ -201,7 +188,15 @@ public class StatisticsService {
                 .tasksTotal(allTasks)
                 .daysInternship(Math.max(0, daysInternship))
                 .totalDays(totalDays)
-                .recentActivities(java.util.Collections.emptyList()) // Todo: Query audit log
+                .recentActivities(auditLogRepository
+                        .findByActorIdOrderByCreatedAtDesc(userId,
+                                org.springframework.data.domain.PageRequest.of(0, 5))
+                        .stream().map(log -> com.holaho.intern.shared.dto.response.DashboardDtos.ActivityDto.builder()
+                                .content(log.getAction() + " on " + log.getEntityType())
+                                .timeAgo(getTimeAgo(log.getCreatedAt()))
+                                .color("green")
+                                .build())
+                        .collect(java.util.stream.Collectors.toList()))
                 .build();
     }
 

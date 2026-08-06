@@ -1,12 +1,17 @@
 package com.holaho.intern.service.impl;
 
+import com.holaho.intern.intern.repository.InternProfileRepository;
+import com.holaho.intern.intern.service.InternProfileServiceImpl;
+import com.holaho.intern.mentor.repository.MentorRepository;
 import com.holaho.intern.shared.dto.request.InternProfileRequest;
 import com.holaho.intern.shared.dto.response.InternProfileResponse;
-import com.holaho.intern.entity.InternProfile;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.entity.User;
+import com.holaho.intern.intern.entity.InternProfile;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.entity.User;
 import com.holaho.intern.shared.mapper.InternMapper;
 import com.holaho.intern.repository.*;
+import com.holaho.intern.user.repository.RoleRepository;
+import com.holaho.intern.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -112,8 +117,7 @@ class InternProfileServiceImplTest {
         when(internProfileRepository.findById(1L)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThrows(com.holaho.intern.shared.exception.ResourceNotFoundException.class,
+        assertThrows(com.holaho.intern.shared.exception.NotFoundException.class,
                 () -> internProfileService.getInternProfile(1L));
     }
 }
-

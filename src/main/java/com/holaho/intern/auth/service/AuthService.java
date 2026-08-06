@@ -9,6 +9,7 @@ import com.holaho.intern.shared.dto.response.UserResponse;
 import com.holaho.intern.entity.RefreshToken;
 import com.holaho.intern.shared.dto.response.TwoFactorResponse;
 import com.holaho.intern.shared.dto.request.TwoFactorVerifyRequest;
+import com.holaho.intern.shared.dto.request.ForgotPasswordRequest;
 
 public interface AuthService {
     JwtResponse login(LoginRequest request);
@@ -18,6 +19,8 @@ public interface AuthService {
     UserResponse getCurrentUser();
 
     void changePassword(ChangePasswordRequest request);
+
+    void forgotPassword(ForgotPasswordRequest request);
 
     void resetPassword(ResetPasswordRequest request);
 

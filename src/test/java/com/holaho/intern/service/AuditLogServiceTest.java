@@ -4,7 +4,6 @@ import com.holaho.intern.shared.dto.response.AuditLogResponse;
 import com.holaho.intern.entity.AuditLog;
 import com.holaho.intern.shared.mapper.AuditLogMapper;
 import com.holaho.intern.repository.AuditLogRepository;
-import com.holaho.intern.service.impl.AuditLogServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

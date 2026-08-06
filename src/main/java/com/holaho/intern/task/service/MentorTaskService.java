@@ -18,10 +18,11 @@ import com.holaho.intern.shared.dto.TaskDto;
 import com.holaho.intern.shared.dto.request.CreateMentorTaskRequest;
 import com.holaho.intern.shared.dto.response.CreateMentorTaskResponse;
 import com.holaho.intern.shared.enums.TaskStatus;
+import com.holaho.intern.shared.exception.BadRequestException;
+import com.holaho.intern.shared.exception.ForbiddenException;
+import com.holaho.intern.shared.exception.NotFoundException;
 import org.springframework.data.domain.*;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,25 +52,25 @@ public class MentorTaskService {
 
     public CreateMentorTaskResponse createTasks(CreateMentorTaskRequest req, Long mentorUserId) {
         ProgramGroup group = programGroupRepository.findById(req.groupId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+                .orElseThrow(() -> new NotFoundException("Group", req.groupId()));
 
         if (group.getMentorId() == null || !group.getMentorId().equals(mentorUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không phải mentor của group này");
+            throw new ForbiddenException("Bạn không phải mentor của group này");
         }
 
         User creator = userRepository.findById(mentorUserId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mentor user not found"));
+                .orElseThrow(() -> new NotFoundException("Mentor user", mentorUserId));
 
         List<Long> createdIds = new ArrayList<>();
 
         for (Long internId : req.internIds()) {
             boolean isMember = groupMemberRepository.existsActiveInGroup((group.getId()), internId);
             if (!isMember) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Intern " + internId + " không thuộc group");
+                throw new BadRequestException("Intern " + internId + " không thuộc group");
             }
 
             InternProfile intern = internProfileRepository.findById(internId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "InternProfile not found: " + internId));
+                    .orElseThrow(() -> new NotFoundException("InternProfile", internId));
 
             Task task = new Task();
             task.setGroup(group);
@@ -88,10 +89,10 @@ public class MentorTaskService {
 
     public Page<TaskDto> listTasks(Long groupId, String status, Pageable pageable, Long mentorUserId) {
         ProgramGroup group = programGroupRepository.findById(groupId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+                .orElseThrow(() -> new NotFoundException("Group", groupId));
 
         if (group.getMentorId() == null || !group.getMentorId().equals(mentorUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không phải mentor của group này");
+            throw new ForbiddenException("Bạn không phải mentor của group này");
         }
 
         Page<Task> page;
@@ -100,7 +101,7 @@ public class MentorTaskService {
         } else {
             TaskStatus st;
             try { st = TaskStatus.valueOf(status); }
-            catch (Exception e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status"); }
+            catch (Exception e) { throw new BadRequestException("Invalid status: " + status); }
             page = taskRepository.findByCreatedByIdAndStatus(groupId, st, pageable);
         }
 
@@ -109,10 +110,10 @@ public class MentorTaskService {
 
     public List<GroupInternDto> listInternsInGroup(Long groupId, Long mentorUserId) {
         ProgramGroup group = programGroupRepository.findById(groupId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+                .orElseThrow(() -> new NotFoundException("Group", groupId));
 
         if (group.getMentorId() == null || !group.getMentorId().equals(mentorUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không phải mentor của group này");
+            throw new ForbiddenException("Bạn không phải mentor của group này");
         }
 
         List<GroupMember> members = groupMemberRepository.findActiveMembersByGroupId(groupId);

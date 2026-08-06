@@ -65,6 +65,15 @@ public class SecurityConfig {
     }
 
     @Bean
+    public org.springframework.security.access.hierarchicalroles.RoleHierarchy roleHierarchy() {
+        return org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl.fromHierarchy(
+                "ROLE_ADMIN > ROLE_HR\n" +
+                "ROLE_HR > ROLE_MENTOR\n" +
+                "ROLE_MENTOR > ROLE_INTERN"
+        );
+    }
+
+    @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();

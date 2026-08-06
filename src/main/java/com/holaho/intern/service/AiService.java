@@ -9,5 +9,10 @@ public interface AiService {
     Map<String, Object> analyzeSentiment(String text);
 
     Double calculateMatchingScore(Long internId, Long mentorId);
-}
 
+    String chat(String message);
+
+    String generateInterviewQuestions(Long applicationId);
+
+    Map<String, Object> getAnalytics();
+}

@@ -2,13 +2,13 @@ package com.holaho.intern.service;
 
 import com.holaho.intern.shared.dto.request.LoginRequest;
 import com.holaho.intern.shared.dto.response.JwtResponse;
-import com.holaho.intern.entity.Role;
-import com.holaho.intern.entity.User;
+import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.entity.User;
 import com.holaho.intern.entity.RefreshToken;
-import com.holaho.intern.repository.UserRepository;
+import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.repository.RefreshTokenRepository;
 import com.holaho.intern.shared.security.JwtTokenProvider;
-import com.holaho.intern.service.impl.AuthServiceImpl;
+import com.holaho.intern.auth.service.AuthServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

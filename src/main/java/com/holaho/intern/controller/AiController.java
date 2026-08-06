@@ -33,5 +33,24 @@ public class AiController {
         Map<String, Object> sentiment = aiService.analyzeSentiment(text);
         return ResponseEntity.ok(ApiResponse.success(sentiment));
     }
-}
 
+    @PostMapping("/chat")
+    public ResponseEntity<ApiResponse<String>> chat(
+            @RequestBody com.holaho.intern.shared.dto.request.AiChatRequest request) {
+        String response = aiService.chat(request.getMessage());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/applications/{id}/interview-questions")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
+    public ResponseEntity<ApiResponse<String>> generateQuestions(@PathVariable Long id) {
+        String questions = aiService.generateInterviewQuestions(id);
+        return ResponseEntity.ok(ApiResponse.success(questions));
+    }
+
+    @GetMapping("/analytics")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAnalytics() {
+        return ResponseEntity.ok(ApiResponse.success(aiService.getAnalytics()));
+    }
+}

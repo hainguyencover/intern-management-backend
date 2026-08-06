@@ -5,6 +5,9 @@ import com.holaho.intern.shared.dto.response.NotificationResponse;
 import com.holaho.intern.notification.entity.Notification;
 import com.holaho.intern.shared.security.CustomUserDetails;
 import com.holaho.intern.notification.service.NotificationService;
+import com.holaho.intern.notification.dto.NotificationPreferenceDto;
+import com.holaho.intern.notification.entity.NotificationPreference;
+import com.holaho.intern.notification.service.NotificationPreferenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,16 +26,17 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final NotificationPreferenceService preferenceService;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Page<NotificationResponse>>> getMyNotifications(
+    public ResponseEntity<ApiResponse<java.util.List<NotificationResponse>>> getMyNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         Page<Notification> page = notificationService.getNotificationsByUserId(userDetails.getId(), pageable);
         Page<NotificationResponse> response = page.map(this::mapToResponse);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.successPage(response));
     }
 
     @GetMapping("/unread")
@@ -63,6 +67,39 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Void>> markAllAsRead(@AuthenticationPrincipal CustomUserDetails userDetails) {
         notificationService.markAllAsRead(userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success("All notifications marked as read", null));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> deleteNotification(@PathVariable Long id) {
+        notificationService.deleteNotification(id);
+        return ResponseEntity.ok(ApiResponse.success("Notification deleted successfully", null));
+    }
+
+    @GetMapping("/preferences")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<NotificationPreferenceDto.Response>>> getPreferences(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        List<NotificationPreference> list = preferenceService.getPreferencesByUserId(userDetails.getId());
+        List<NotificationPreferenceDto.Response> response = list.stream()
+                .map(p -> NotificationPreferenceDto.Response.builder()
+                        .id(p.getId())
+                        .eventType(p.getEventType())
+                        .emailEnabled(p.isEmailEnabled())
+                        .websocketEnabled(p.isWebsocketEnabled())
+                        .inAppEnabled(p.isInAppEnabled())
+                        .build())
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PutMapping("/preferences")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> updatePreference(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody NotificationPreferenceDto.Request request) {
+        preferenceService.updatePreference(userDetails.getId(), request);
+        return ResponseEntity.ok(ApiResponse.success("Notification preference updated successfully", null));
     }
 
     private NotificationResponse mapToResponse(Notification notification) {

@@ -42,6 +42,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -54,6 +56,7 @@ public class TaskServiceImpl implements TaskService {
     private final InternProfileRepository internProfileRepository;
     private final EmailService emailService;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final TaskMapper taskMapper;
     private final TaskUpdateMapper taskUpdateMapper;
@@ -87,19 +90,16 @@ public class TaskServiceImpl implements TaskService {
         log.info("Created task: {}", task.getTitle());
 
         if (task.getAssignee() != null && task.getAssignee().getUser().getEmail() != null) {
-            emailService.sendTaskAssignmentEmail(
+            eventPublisher.publishEvent(new com.holaho.intern.shared.events.DomainEvents.TaskAssignedEvent(
+                    this,
+                    task.getId(),
+                    task.getAssignee().getUser().getId(),
                     task.getAssignee().getUser().getEmail(),
                     task.getAssignee().getUser().getFullName(),
                     task.getTitle(),
-                    task.getDueDate() != null ? task.getDueDate().toString() : null,
-                    creator.getFullName());
-
-            notificationService.createNotification(
-                    task.getAssignee().getUser().getId(),
-                    NotificationType.TASK,
-                    "Bạn được giao công việc mới: " + task.getTitle(),
-                    "Người giao: " + creator.getFullName() + ". Hạn chót: "
-                            + (task.getDueDate() != null ? task.getDueDate().toString() : "Không có"));
+                    creator.getFullName(),
+                    task.getDueDate() != null ? task.getDueDate().toString() : "Không có"
+            ));
         }
 
         return taskMapper.toResponse(task);
@@ -123,13 +123,27 @@ public class TaskServiceImpl implements TaskService {
         taskUpdateRepository.save(update);
 
         task.setProgressPercent(request.getProgressPercent());
+        boolean justCompleted = false;
         if (request.getProgressPercent() >= 100) {
+            if (task.getStatus() != TaskStatus.DONE) {
+                justCompleted = true;
+            }
             task.setStatus(TaskStatus.DONE);
         } else if (request.getProgressPercent() > 0) {
             task.setStatus(TaskStatus.IN_PROGRESS);
         }
 
         task = taskRepository.save(task);
+
+        if (justCompleted && task.getCreatedBy() != null) {
+            eventPublisher.publishEvent(new com.holaho.intern.shared.events.DomainEvents.TaskCompletedEvent(
+                    this,
+                    task.getId(),
+                    task.getCreatedBy().getId(),
+                    intern.getUser().getFullName(),
+                    task.getTitle()
+            ));
+        }
         searchService.indexTask(task);
         log.info("Updated task {} progress to {}%", taskId, request.getProgressPercent());
 
