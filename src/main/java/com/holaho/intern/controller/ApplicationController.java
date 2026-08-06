@@ -37,13 +37,13 @@ public class ApplicationController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Page<ApplicationResponse>>> search(
+    public ResponseEntity<ApiResponse<List<ApplicationResponse>>> search(
             @RequestParam(required = false) ApplicationStatus status,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10) Pageable pageable) {
 
         Page<ApplicationResponse> response = applicationService.searchApplications(status, keyword, pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.successPage(response));
     }
 
     @PostMapping
@@ -70,5 +70,12 @@ public class ApplicationController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         ApplicationResponse response = applicationService.reviewApplication(id, request, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success("Xét duyệt hồ sơ thành công", response));
+    }
+
+    @PostMapping("/{id}/ai-rescan")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<String>> rescanAi(@PathVariable Long id) {
+        applicationService.triggerAiScreening(id);
+        return ResponseEntity.ok(ApiResponse.success("Đã kích hoạt lại AI screening"));
     }
 }
