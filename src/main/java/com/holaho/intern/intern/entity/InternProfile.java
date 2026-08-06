@@ -63,5 +63,8 @@ public class InternProfile extends BaseEntity {
 
     @Column(name = "cv_summary", columnDefinition = "TEXT")
     private String cvSummary;
+
+    @Column(nullable = false, length = 30)
+    private String status = "ONBOARDING"; // ONBOARDING, ACTIVE, COMPLETED, SUSPENDED
 }
 

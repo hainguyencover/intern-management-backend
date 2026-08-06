@@ -40,7 +40,7 @@ public class InternController {
      */
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
-    public ResponseEntity<ApiResponse<Page<InternProfileResponse>>> searchInterns(
+    public ResponseEntity<ApiResponse<java.util.List<InternProfileResponse>>> searchInterns(
             @RequestParam(required = false) String university,
             @RequestParam(required = false) String major,
             @RequestParam(required = false) String keyword,
@@ -56,7 +56,7 @@ public class InternController {
                 .excludeBusy(excludeBusy)
                 .build();
         Page<InternProfileResponse> interns = internProfileService.searchInterns(criteria, pageable);
-        return ResponseEntity.ok(ApiResponse.success(interns));
+        return ResponseEntity.ok(ApiResponse.successPage(interns));
     }
 
     /**
@@ -173,5 +173,18 @@ public class InternController {
     public ResponseEntity<ApiResponse<java.util.List<com.holaho.intern.shared.dto.InternCountStatDto>>> getStatsMajor() {
         return ResponseEntity.ok(ApiResponse.success(internProfileService.getInternStatsByMajor()));
     }
-}
 
+    /**
+     * Update status of an intern (HR/Admin)
+     * PUT /api/v1/interns/profiles/{id}/status?status=...
+     */
+    @PutMapping("/profiles/{id}/status")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> updateStatus(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        log.info("Update status of intern {} to {}", id, status);
+        internProfileService.updateInternStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.success("Intern status updated successfully", null));
+    }
+}

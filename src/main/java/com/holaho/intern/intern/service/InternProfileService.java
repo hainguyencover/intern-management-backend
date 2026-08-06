@@ -26,6 +26,7 @@ public interface InternProfileService {
     void deleteInternProfile(Long id);
     InternProfileResponse updateMyProfile(InternProfileRequest request, String email);
     void assignMentorByUserId(Long internId, Long mentorUserId);
+    void updateInternStatus(Long id, String status);
     List<com.holaho.intern.shared.dto.InternCountStatDto> getInternStatsByUniversity();
     List<com.holaho.intern.shared.dto.InternCountStatDto> getInternStatsByMajor();
 }

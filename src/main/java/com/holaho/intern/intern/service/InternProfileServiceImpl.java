@@ -9,7 +9,6 @@ import com.holaho.intern.shared.dto.InternCountStatDto;
 import com.holaho.intern.shared.dto.response.CvScreeningResponse;
 import com.holaho.intern.shared.mapper.InternMapper;
 
-
 import com.holaho.intern.shared.dto.InternSearchCriteria;
 import com.holaho.intern.shared.dto.request.InternProfileRequest;
 import com.holaho.intern.shared.dto.response.InternProfileResponse;
@@ -20,9 +19,9 @@ import com.holaho.intern.user.entity.User;
 import com.holaho.intern.entity.GroupMember;
 import com.holaho.intern.shared.enums.GroupStatus;
 import com.holaho.intern.shared.enums.UserStatus;
+import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.ConflictException;
 import com.holaho.intern.shared.exception.NotFoundException;
-import com.holaho.intern.shared.exception.ResourceNotFoundException;
 import com.holaho.intern.shared.elasticsearch.service.SearchService;
 import com.holaho.intern.service.AiService;
 import com.holaho.intern.intern.service.InternProfileService;
@@ -68,7 +67,7 @@ public class InternProfileServiceImpl implements InternProfileService {
                 user = userOpt.get();
             } else {
                 if (request.getFullName() == null || request.getFullName().isBlank()) {
-                    throw new IllegalArgumentException("Họ tên là bắt buộc khi tạo user mới");
+                    throw new BadRequestException("Họ tên là bắt buộc khi tạo user mới");
                 }
                 user = new User();
                 user.setEmail(request.getEmail());
@@ -92,7 +91,7 @@ public class InternProfileServiceImpl implements InternProfileService {
                 log.info("Auto-created user {} with password: {}", user.getEmail(), passwordToUse);
             }
         } else {
-            throw new IllegalArgumentException("Cần cung cấp User ID hoặc Email");
+            throw new BadRequestException("Cần cung cấp User ID hoặc Email");
         }
 
         if (internProfileRepository.existsByUser_Id(user.getId())) {
@@ -297,6 +296,16 @@ public class InternProfileServiceImpl implements InternProfileService {
 
         profile.setMentor(mentor);
         internProfileRepository.save(profile);
+    }
+
+    @Override
+    @Transactional
+    public void updateInternStatus(Long id, String status) {
+        InternProfile profile = internProfileRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại: " + id));
+        profile.setStatus(status);
+        internProfileRepository.save(profile);
+        log.info("Updated status of intern profile {} to {}", id, status);
     }
 
     @Override

@@ -40,11 +40,11 @@ public class DocumentController {
 
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
-    public ResponseEntity<ApiResponse<PageResponse<DocumentResponse>>> getPendingDocuments(
+    public ResponseEntity<ApiResponse<java.util.List<DocumentResponse>>> getPendingDocuments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Page<DocumentResponse> documents = documentService.getPendingDocuments(page, size);
-        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(documents)));
+        return ResponseEntity.ok(ApiResponse.successPage(documents));
     }
 
     @PostMapping("/{id}/verify")

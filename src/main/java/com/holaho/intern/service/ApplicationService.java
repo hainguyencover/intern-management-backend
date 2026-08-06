@@ -4,8 +4,6 @@ import com.holaho.intern.entity.Program;
 import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.ConflictException;
 import com.holaho.intern.shared.exception.NotFoundException;
-import com.holaho.intern.shared.exception.ResourceNotFoundException;
-
 
 import com.holaho.intern.shared.dto.request.ApplicationSubmitRequest;
 import com.holaho.intern.shared.dto.request.CreateApplicationRequest;
@@ -22,6 +20,7 @@ import com.holaho.intern.repository.ApplicationReviewRepository;
 import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.repository.ProgramRepository;
 import com.holaho.intern.user.repository.UserRepository;
+import com.holaho.intern.user.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -43,7 +42,10 @@ public class ApplicationService {
     private final InternProfileRepository internProfileRepository;
     private final ProgramRepository programRepository;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final EmailService emailService;
+    private final AiService aiService;
+    private final StorageService storageService;
 
     @Transactional
     public ApplicationResponse submit(ApplicationSubmitRequest request, Long userId) {
@@ -118,7 +120,7 @@ public class ApplicationService {
     @Transactional(readOnly = true)
     public List<ApplicationResponse> getMyApplications(Long userId) {
         InternProfile intern = internProfileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Intern profile not found"));
+                .orElseThrow(() -> new NotFoundException("Intern profile not found"));
 
         List<Application> applications = applicationRepository.findByIntern_Id(intern.getId());
         return applications.stream()
@@ -135,7 +137,7 @@ public class ApplicationService {
     @Transactional(readOnly = true)
     public ApplicationResponse getApplication(Long id) {
         Application application = applicationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+                .orElseThrow(() -> new NotFoundException("Application not found"));
         return mapToResponse(application);
     }
 
@@ -147,7 +149,8 @@ public class ApplicationService {
 
         if (application.getStatus() != ApplicationStatus.SUBMITTED) {
             throw new BadRequestException(
-                    "Chỉ có thể duyệt đơn ứng tuyển ở trạng thái SUBMITTED. Trạng thái hiện tại: " + application.getStatus());
+                    "Chỉ có thể duyệt đơn ứng tuyển ở trạng thái SUBMITTED. Trạng thái hiện tại: "
+                            + application.getStatus());
         }
 
         // Check if already reviewed
@@ -171,6 +174,20 @@ public class ApplicationService {
         // Update application status
         if (request.decision() == ReviewDecision.APPROVE) {
             application.setStatus(ApplicationStatus.APPROVED);
+
+            // Auto-transition candidate profile status to ONBOARDING
+            InternProfile profile = application.getIntern();
+            profile.setStatus("ONBOARDING");
+            internProfileRepository.save(profile);
+
+            // Assign ROLE_INTERN to user
+            User user = profile.getUser();
+            com.holaho.intern.user.entity.Role internRole = roleRepository.findByCode("INTERN")
+                    .orElseThrow(() -> new NotFoundException("Role INTERN không tồn tại"));
+            user.getRoles().add(internRole);
+            userRepository.save(user);
+
+            log.info("Auto activated InternProfile to ONBOARDING and assigned ROLE_INTERN for user: {}", user.getEmail());
         } else {
             application.setStatus(ApplicationStatus.REJECTED);
         }
@@ -190,6 +207,36 @@ public class ApplicationService {
         }
 
         return mapToResponse(application);
+    }
+
+    @Transactional
+    public void triggerAiScreening(Long applicationId) {
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new NotFoundException("Application not found"));
+
+        String cvUrl = application.getIntern().getCvUrl();
+        if (cvUrl == null || cvUrl.isEmpty()) {
+            log.warn("Cannot trigger AI screening for application {}: No CV URL found", applicationId);
+            return;
+        }
+
+        try {
+            log.info("Triggering AI screening for application {} with CV: {}", applicationId, cvUrl);
+            org.springframework.core.io.Resource resource = storageService.loadFileAsResource(cvUrl);
+            byte[] fileContent = resource.getContentAsByteArray();
+
+            var screeningResult = aiService.screenCv(fileContent, cvUrl);
+
+            application.setAiScore(screeningResult.getScore());
+            application.setAiSkills(String.join(", ", screeningResult.getSkills()));
+            application.setAiSummary(screeningResult.getSummary());
+            application.setAiRecommendation(screeningResult.getRecommendation());
+
+            applicationRepository.save(application);
+            log.info("AI screening completed for application {}", applicationId);
+        } catch (Exception e) {
+            log.error("Failed to perform AI screening for application {}", applicationId, e);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -237,6 +284,11 @@ public class ApplicationService {
                 .reviews(reviews)
                 .createdAt(application.getCreatedAt())
                 .updatedAt(application.getUpdatedAt())
+                .aiScore(application.getAiScore())
+                .aiSkills(
+                        application.getAiSkills() != null ? List.of(application.getAiSkills().split(", ")) : List.of())
+                .aiSummary(application.getAiSummary())
+                .aiRecommendation(application.getAiRecommendation())
                 .build();
     }
 
