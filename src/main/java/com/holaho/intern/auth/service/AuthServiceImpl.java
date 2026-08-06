@@ -1,6 +1,5 @@
 package com.holaho.intern.auth.service;
 
-import com.holaho.intern.entity.Application;
 import com.holaho.intern.shared.dto.request.ChangePasswordRequest;
 import com.holaho.intern.shared.dto.request.LoginRequest;
 import com.holaho.intern.shared.dto.request.RegisterRequest;
@@ -9,7 +8,6 @@ import com.holaho.intern.shared.dto.request.TwoFactorVerifyRequest;
 import com.holaho.intern.shared.dto.response.JwtResponse;
 import com.holaho.intern.shared.dto.response.TwoFactorResponse;
 import com.holaho.intern.shared.dto.response.UserResponse;
-
 
 import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.entity.RefreshToken;
@@ -27,6 +25,7 @@ import com.holaho.intern.repository.RefreshTokenRepository;
 import com.holaho.intern.repository.ApplicationRepository;
 import com.holaho.intern.shared.security.JwtTokenProvider;
 import com.holaho.intern.shared.security.CustomUserDetails;
+import com.holaho.intern.shared.annotation.Auditable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,6 +63,8 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
+    private final com.holaho.intern.user.repository.PasswordResetTokenRepository passwordResetTokenRepository;
+    private final com.holaho.intern.service.EmailService emailService;
     private final SecretGenerator secretGenerator = new DefaultSecretGenerator();
     private final CodeVerifier codeVerifier = new DefaultCodeVerifier(
             new DefaultCodeGenerator(),
@@ -77,12 +78,19 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
+    @Auditable(action = "USER_LOGIN")
     public JwtResponse login(LoginRequest request) {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
 
         try {
             User user = userRepository.findByEmail(normalizedEmail)
                     .orElseThrow(() -> new NotFoundException("User not found"));
+
+            // Check if account is locked
+            if (user.getLockTime() != null && user.getLockTime().isAfter(java.time.Instant.now())) {
+                long minutesLeft = java.time.Duration.between(java.time.Instant.now(), user.getLockTime()).toMinutes() + 1;
+                throw new BadRequestException("Tài khoản đã bị khoá tạm thời do đăng nhập sai quá nhiều lần. Vui lòng thử lại sau " + minutesLeft + " phút.");
+            }
 
             // Check if 2FA is required and verify code
             if (user.getIsTwoFactorEnabled() != null && user.getIsTwoFactorEnabled()) {
@@ -101,6 +109,13 @@ public class AuthServiceImpl implements AuthService {
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             assert userDetails != null;
             String token = tokenProvider.generateToken(userDetails);
+
+            // Reset failed attempts upon successful login
+            if (user.getFailedAttempts() > 0 || user.getLockTime() != null) {
+                user.setFailedAttempts(0);
+                user.setLockTime(null);
+                userRepository.save(user);
+            }
 
             // Extract roles (without ROLE_ prefix)
             Set<String> roles = authentication.getAuthorities().stream()
@@ -124,6 +139,15 @@ public class AuthServiceImpl implements AuthService {
 
         } catch (BadCredentialsException e) {
             log.error("Login failed - Bad credentials for user: {}", normalizedEmail);
+            userRepository.findByEmail(normalizedEmail).ifPresent(user -> {
+                int attempts = user.getFailedAttempts() + 1;
+                user.setFailedAttempts(attempts);
+                if (attempts >= 5) {
+                    user.setLockTime(java.time.Instant.now().plus(15, java.time.temporal.ChronoUnit.MINUTES));
+                    log.warn("Account locked for user: {} due to 5 failed attempts", normalizedEmail);
+                }
+                userRepository.save(user);
+            });
             throw new BadCredentialsException("Email hoặc mật khẩu không đúng");
         } catch (LockedException e) {
             log.error("Login failed - Account locked: {}", normalizedEmail);
@@ -136,6 +160,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
+    @Auditable(action = "USER_REGISTER")
     public JwtResponse register(RegisterRequest request) {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmail(normalizedEmail)) {
@@ -267,6 +292,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
+    @Auditable(action = "CHANGE_PASSWORD")
     public void changePassword(ChangePasswordRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
@@ -285,20 +311,61 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void resetPassword(ResetPasswordRequest request) {
+    public void forgotPassword(com.holaho.intern.shared.dto.request.ForgotPasswordRequest request) {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
 
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new NotFoundException("User not found with email: " + normalizedEmail));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + normalizedEmail));
 
-        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
+        passwordResetTokenRepository.deleteByUser(user);
+        passwordResetTokenRepository.flush();
 
-        log.warn("Password reset for user: {} (INSECURE - implement token verification)", normalizedEmail);
+        com.holaho.intern.user.entity.PasswordResetToken resetToken = new com.holaho.intern.user.entity.PasswordResetToken();
+        resetToken.setUser(user);
+        resetToken.setToken(UUID.randomUUID().toString());
+        resetToken.setExpiryDate(Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
+
+        passwordResetTokenRepository.save(resetToken);
+
+        emailService.sendPasswordResetEmail(user.getEmail(), user.getFullName(), resetToken.getToken());
+
+        log.info("Password reset email sent for user: {}", normalizedEmail);
     }
 
     @Override
     @Transactional
+    @Auditable(action = "RESET_PASSWORD")
+    public void resetPassword(ResetPasswordRequest request) {
+        com.holaho.intern.user.entity.PasswordResetToken resetToken = passwordResetTokenRepository
+                .findByToken(request.getToken())
+                .orElseThrow(() -> new BadRequestException("Token đặt lại mật khẩu không hợp lệ (không tìm thấy)"));
+
+        if (resetToken.isExpired()) {
+            throw new BadRequestException("Token đặt lại mật khẩu đã hết hạn");
+        }
+
+        if (resetToken.isUsed()) {
+            throw new BadRequestException("Token đặt lại mật khẩu đã được sử dụng");
+        }
+
+        User user = resetToken.getUser();
+
+        if (request.getEmail() != null && !request.getEmail().trim().equalsIgnoreCase(user.getEmail())) {
+            throw new BadRequestException("Token đặt lại mật khẩu không hợp lệ (email không khớp)");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        resetToken.setUsedAt(Instant.now());
+        passwordResetTokenRepository.save(resetToken);
+
+        log.info("Password reset successful for user: {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
+    @Auditable(action = "USER_LOGOUT")
     public void logout() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null) {
@@ -330,31 +397,63 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
-            refreshTokenRepository.delete(token);
+            token.setRevoked(true);
+            refreshTokenRepository.save(token);
             throw new ApiException(HttpStatus.UNAUTHORIZED,
                     "Refresh token was expired. Please make a new signin request");
         }
         return token;
     }
 
+    private RefreshToken createRefreshTokenWithoutDeleting(User user) {
+        RefreshToken refreshToken = RefreshToken.builder()
+                .user(user)
+                .token(UUID.randomUUID().toString())
+                .expiryDate(Instant.now().plusMillis(refreshExpirationMs))
+                .build();
+        return refreshTokenRepository.save(refreshToken);
+    }
+
     @Override
     @Transactional
     public JwtResponse refreshToken(String requestRefreshToken) {
-        return refreshTokenRepository.findByToken(requestRefreshToken)
-                .map(this::verifyExpiration)
-                .map(RefreshToken::getUser)
-                .map(user -> {
-                    CustomUserDetails userDetails = new CustomUserDetails(user);
-                    String token = tokenProvider.generateToken(userDetails);
-                    RefreshToken newRefreshToken = createRefreshToken(user.getId());
-
-                    List<String> roles = user.getRoles().stream()
-                            .map(Role::getCode)
-                            .collect(Collectors.toList());
-
-                    return new JwtResponse(token, newRefreshToken.getToken(), user.getId(), user.getEmail(),
-                            user.getFullName(), roles);
-                })
+        RefreshToken token = refreshTokenRepository.findByToken(requestRefreshToken)
                 .orElseThrow(() -> new NotFoundException("Refresh token is not in database!"));
+
+        // Replay Attack Detection
+        if (token.isUsed() || token.isRevoked()) {
+            User user = token.getUser();
+            refreshTokenRepository.deleteByUser(user); // Revoke all active sessions for this user
+            log.warn("Security Alert: Replay attack detected for user: {}. Revoking all sessions.", user.getEmail());
+            throw new ApiException(HttpStatus.UNAUTHORIZED,
+                    "Cảnh báo bảo mật: Token này đã được sử dụng. Tất cả các phiên đăng nhập khác của bạn đã bị thu hồi.");
+        }
+
+        // Verify expiration
+        verifyExpiration(token);
+
+        User user = token.getUser();
+
+        // Mark old token as used
+        token.setUsed(true);
+        refreshTokenRepository.save(token);
+
+        // Generate new token pair
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        String newAccessToken = tokenProvider.generateToken(userDetails);
+
+        // Create new Refresh Token without deleting history
+        RefreshToken newRefreshToken = createRefreshTokenWithoutDeleting(user);
+
+        // Set replacement tracking
+        token.setReplacedByToken(newRefreshToken.getToken());
+        refreshTokenRepository.save(token);
+
+        List<String> roles = user.getRoles().stream()
+                .map(Role::getCode)
+                .collect(Collectors.toList());
+
+        return new JwtResponse(newAccessToken, newRefreshToken.getToken(), user.getId(), user.getEmail(),
+                user.getFullName(), roles);
     }
 }

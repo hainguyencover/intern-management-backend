@@ -45,5 +45,14 @@ public class User extends BaseEntity {
 
         @Column(name = "is_two_factor_enabled")
         private Boolean isTwoFactorEnabled = false;
+
+        @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+        private Set<UserPermission> userPermissions = new HashSet<>();
+
+        @Column(name = "failed_attempts", nullable = false)
+        private Integer failedAttempts = 0;
+
+        @Column(name = "lock_time")
+        private java.time.Instant lockTime;
 }
 
