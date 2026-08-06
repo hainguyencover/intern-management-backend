@@ -1,6 +1,8 @@
 package com.holaho.intern.user.controller;
 
 import com.holaho.intern.shared.dto.request.UpdateRolePermissionsRequest;
+import com.holaho.intern.shared.dto.request.UpdateUserPermissionsRequest;
+import com.holaho.intern.shared.dto.response.UserPermissionsResponse;
 
 
 import com.holaho.intern.shared.dto.admin.RoleDTOs;
@@ -56,6 +58,21 @@ public class RoleController {
             @RequestBody com.holaho.intern.shared.dto.request.UpdateRolePermissionsRequest request) {
         RoleWithPermissionsResponse response = permissionService.updateRolePermissions(id, request);
         return ResponseEntity.ok(ApiResponse.success("Role permissions updated successfully", response));
+    }
+
+    @GetMapping("/users/{id}/permissions")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<UserPermissionsResponse>> getUserPermissions(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(permissionService.getUserPermissions(id)));
+    }
+
+    @PutMapping("/users/{id}/permissions")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<UserPermissionsResponse>> updateUserPermissions(
+            @PathVariable Long id,
+            @RequestBody UpdateUserPermissionsRequest request) {
+        UserPermissionsResponse response = permissionService.updateUserPermissions(id, request);
+        return ResponseEntity.ok(ApiResponse.success("User permissions updated successfully", response));
     }
 
     private RoleDTOs.RoleResponse mapRoleToResponse(Role role) {

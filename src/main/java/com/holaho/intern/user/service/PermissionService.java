@@ -1,13 +1,19 @@
 package com.holaho.intern.user.service;
 
 import com.holaho.intern.shared.dto.request.UpdateRolePermissionsRequest;
+import com.holaho.intern.shared.dto.request.UpdateUserPermissionsRequest;
 import com.holaho.intern.shared.dto.response.PermissionResponse;
 import com.holaho.intern.shared.dto.response.RoleWithPermissionsResponse;
+import com.holaho.intern.shared.dto.response.UserPermissionsResponse;
 import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.user.entity.Permission;
 import com.holaho.intern.user.entity.Role;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.entity.UserPermission;
 import com.holaho.intern.user.repository.PermissionRepository;
 import com.holaho.intern.user.repository.RoleRepository;
+import com.holaho.intern.user.repository.UserPermissionRepository;
+import com.holaho.intern.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +28,8 @@ public class PermissionService {
 
     private final PermissionRepository permissionRepository;
     private final RoleRepository roleRepository;
+    private final UserPermissionRepository userPermissionRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<PermissionResponse> getAllPermissions() {
@@ -62,6 +70,54 @@ public class PermissionService {
 
         role = roleRepository.save(role);
         return getRoleWithPermissions(role.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public UserPermissionsResponse getUserPermissions(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + userId));
+
+        List<UserPermission> overrides = userPermissionRepository.findByUserId(userId);
+        List<UserPermissionsResponse.PermissionOverrideDetail> details = overrides.stream()
+                .map(o -> UserPermissionsResponse.PermissionOverrideDetail.builder()
+                        .permissionId(o.getPermission().getId())
+                        .permissionCode(o.getPermission().getCode())
+                        .permissionName(o.getPermission().getName())
+                        .mode(o.getMode())
+                        .build())
+                .collect(Collectors.toList());
+
+        return UserPermissionsResponse.builder()
+                .userId(user.getId())
+                .overrides(details)
+                .build();
+    }
+
+    @Transactional
+    public UserPermissionsResponse updateUserPermissions(Long userId, UpdateUserPermissionsRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + userId));
+
+        // 1. Remove all old custom permissions for this user
+        List<UserPermission> existing = userPermissionRepository.findByUserId(userId);
+        userPermissionRepository.deleteAll(existing);
+        userPermissionRepository.flush();
+
+        // 2. Insert new permission overrides
+        if (request.getOverrides() != null) {
+            for (var override : request.getOverrides()) {
+                Permission permission = permissionRepository.findById(override.getPermissionId())
+                        .orElseThrow(() -> new NotFoundException("Permission không tồn tại: " + override.getPermissionId()));
+
+                UserPermission userPerm = new UserPermission();
+                userPerm.setUser(user);
+                userPerm.setPermission(permission);
+                userPerm.setMode(override.getMode());
+                userPermissionRepository.save(userPerm);
+            }
+        }
+
+        return getUserPermissions(userId);
     }
 
     private PermissionResponse mapToResponse(Permission permission) {

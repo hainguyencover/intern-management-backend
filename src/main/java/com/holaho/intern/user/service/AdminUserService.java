@@ -11,8 +11,10 @@ import com.holaho.intern.user.entity.User;
 import com.holaho.intern.user.repository.RoleRepository;
 import com.holaho.intern.user.repository.UserRepository;
 import com.holaho.intern.shared.dto.request.UpdateUserStatusRequest;
+import com.holaho.intern.service.EmailService;
 
 import com.holaho.intern.shared.dto.request.CreateUserRequest;
+import com.holaho.intern.shared.dto.request.UpdateUserRequest;
 import com.holaho.intern.shared.dto.response.UserResponse;
 import com.holaho.intern.shared.enums.UserStatus;
 import com.holaho.intern.shared.exception.ConflictException;
@@ -42,6 +44,7 @@ public class AdminUserService {
     private final MentorRepository mentorRepository;
     private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
@@ -85,7 +88,9 @@ public class AdminUserService {
 
         log.info("Created user {} with password provided: {}", email,
                 (request.getPassword() != null ? "YES" : "NO - Generated: " + passwordToUse));
-        // TODO: Send email with temp password
+        
+        // Send email with credentials
+        emailService.sendAccountCreatedEmail(user.getEmail(), user.getFullName(), passwordToUse);
 
         return mapToResponse(user);
     }
@@ -124,7 +129,7 @@ public class AdminUserService {
             try {
                 userStatus = UserStatus.valueOf(status.toUpperCase());
             } catch (IllegalArgumentException e) {
-                // Ignore invalid status or handle it
+                throw new com.holaho.intern.shared.exception.BadRequestException("Trạng thái không hợp lệ: " + status);
             }
         }
         // Use the new repository method that supports filtering by role and keyword
@@ -205,7 +210,9 @@ public class AdminUserService {
         userRepository.save(user);
 
         log.info("Reset password for user {}, new password: {}", user.getEmail(), newPassword);
-        // TODO: Send email with new password
+        
+        // Send email with new password
+        emailService.sendPasswordResetEmail(user.getEmail(), user.getFullName(), newPassword);
 
         return newPassword;
     }
@@ -242,6 +249,121 @@ public class AdminUserService {
         response.setCreatedAt(user.getCreatedAt());
         response.setUpdatedAt(user.getUpdatedAt());
         return response;
+    }
+
+    @Transactional
+    public UserResponse updateUser(Long id, UpdateUserRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
+
+        if (request.getFullName() != null) {
+            user.setFullName(request.getFullName());
+        }
+        if (request.getPhone() != null) {
+            user.setPhone(request.getPhone());
+        }
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
+        }
+
+        user = userRepository.save(user);
+        log.info("Updated user info for user: {}", user.getEmail());
+
+        return mapToResponse(user);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportUsersToExcel() throws java.io.IOException {
+        List<User> users = userRepository.findAll();
+        try (org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Users");
+            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("ID");
+            header.createCell(1).setCellValue("Email");
+            header.createCell(2).setCellValue("Full Name");
+            header.createCell(3).setCellValue("Phone");
+            header.createCell(4).setCellValue("Status");
+            header.createCell(5).setCellValue("Roles");
+            header.createCell(6).setCellValue("Created At");
+
+            int rowIdx = 1;
+            for (User user : users) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(user.getId());
+                row.createCell(1).setCellValue(user.getEmail());
+                row.createCell(2).setCellValue(user.getFullName() != null ? user.getFullName() : "");
+                row.createCell(3).setCellValue(user.getPhone() != null ? user.getPhone() : "");
+                row.createCell(4).setCellValue(user.getStatus() != null ? user.getStatus().name() : "");
+                row.createCell(5).setCellValue(user.getRoles().stream().map(Role::getCode).collect(Collectors.joining(",")));
+                row.createCell(6).setCellValue(user.getCreatedAt() != null ? user.getCreatedAt().toString() : "");
+            }
+
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Transactional
+    public int importUsersFromExcel(org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        int count = 0;
+        try (java.io.InputStream is = file.getInputStream();
+             org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook(is)) {
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.getSheetAt(0);
+            int rowCount = sheet.getPhysicalNumberOfRows();
+            for (int i = 1; i < rowCount; i++) { // Skip header row
+                org.apache.poi.ss.usermodel.Row row = sheet.getRow(i);
+                if (row == null) continue;
+
+                org.apache.poi.ss.usermodel.Cell emailCell = row.getCell(0);
+                if (emailCell == null) continue;
+                String email = emailCell.getStringCellValue().trim().toLowerCase();
+                if (email.isBlank()) continue;
+
+                if (userRepository.existsByEmail(email)) {
+                    log.warn("Skip importing user {} - email already exists", email);
+                    continue;
+                }
+
+                String fullName = row.getCell(1) != null ? row.getCell(1).getStringCellValue().trim() : "";
+                String phone = row.getCell(2) != null ? row.getCell(2).getStringCellValue().trim() : "";
+                String rolesStr = row.getCell(3) != null ? row.getCell(3).getStringCellValue().trim() : "INTERN";
+
+                // Generate random password
+                String randomPassword = generateRandomPassword();
+
+                User user = new User();
+                user.setEmail(email);
+                user.setFullName(fullName);
+                user.setPhone(phone);
+                user.setPasswordHash(passwordEncoder.encode(randomPassword));
+                user.setStatus(UserStatus.ACTIVE);
+
+                Set<Role> roles = new HashSet<>();
+                for (String roleCode : rolesStr.split(",")) {
+                    roleRepository.findByCode(roleCode.trim().toUpperCase()).ifPresent(roles::add);
+                }
+                if (roles.isEmpty()) {
+                    roleRepository.findByCode("INTERN").ifPresent(roles::add);
+                }
+                user.setRoles(roles);
+
+                user = userRepository.save(user);
+
+                // Optional profile creation based on columns if present
+                CreateUserRequest request = new CreateUserRequest();
+                if (row.getCell(4) != null) request.setStudentCode(row.getCell(4).getStringCellValue().trim());
+                if (row.getCell(5) != null) request.setUniversity(row.getCell(5).getStringCellValue().trim());
+                if (row.getCell(6) != null) request.setMajor(row.getCell(6).getStringCellValue().trim());
+                if (row.getCell(7) != null) request.setTitle(row.getCell(7).getStringCellValue().trim());
+
+                createProfileForRole(user, request);
+
+                emailService.sendAccountCreatedEmail(user.getEmail(), user.getFullName(), randomPassword);
+                count++;
+            }
+        }
+        return count;
     }
 
     private String generateRandomPassword() {

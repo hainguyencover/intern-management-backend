@@ -7,6 +7,7 @@ import com.holaho.intern.shared.dto.request.QrLogDto;
 
 import com.holaho.intern.shared.dto.request.CreateUserRequest;
 import com.holaho.intern.shared.dto.request.UpdateUserStatusRequest;
+import com.holaho.intern.shared.dto.request.UpdateUserRequest;
 import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.dto.response.AuditLogResponse;
 import com.holaho.intern.shared.dto.response.UserResponse;
@@ -81,6 +82,15 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("User status updated successfully", user));
     }
 
+    @PutMapping("/users/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    public ResponseEntity<ApiResponse<UserResponse>> updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateUserRequest request) {
+        UserResponse user = adminService.updateUser(id, request);
+        return ResponseEntity.ok(ApiResponse.success("User updated successfully", user));
+    }
+
     @PostMapping("/users/{id}/reset-password")
     public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@PathVariable Long id) {
         String newPassword = adminService.resetUserPassword(id);
@@ -151,6 +161,24 @@ public class AdminController {
             @RequestBody java.util.List<com.holaho.intern.shared.dto.request.QrLogDto> logs) {
         return ResponseEntity
                 .ok(ApiResponse.success("QR logs synchronization successful", attendanceService.syncQrData(logs)));
+    }
+
+    @GetMapping("/users/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> exportUsers() throws java.io.IOException {
+        byte[] excelContent = adminService.exportUsersToExcel();
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users.xlsx")
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelContent);
+    }
+
+    @PostMapping(value = "/users/import", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Integer>> importUsers(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        int count = adminService.importUsersFromExcel(file);
+        return ResponseEntity.ok(ApiResponse.success(count + " users imported successfully", count));
     }
 }
 

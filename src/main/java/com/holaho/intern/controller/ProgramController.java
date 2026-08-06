@@ -34,7 +34,7 @@ public class ProgramController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
-    public ResponseEntity<ApiResponse<Page<ProgramResponse>>> search(
+    public ResponseEntity<ApiResponse<List<ProgramResponse>>> search(
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) ProgramStatus status,
             @RequestParam(required = false) String keyword,
@@ -47,7 +47,7 @@ public class ProgramController {
                 sort[0]));
 
         Page<ProgramResponse> response = programService.search(departmentId, status, keyword, pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.successPage(response));
     }
 
     @GetMapping("/{id}")
