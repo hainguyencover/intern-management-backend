@@ -71,7 +71,7 @@ public class TaskController {
      */
     @GetMapping("/assigned-to-me")
     @PreAuthorize("hasRole('INTERN')")
-    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getAssignedToMe(
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> getAssignedToMe(
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -81,7 +81,7 @@ public class TaskController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<TaskResponse> tasks = taskService.getMyAssignedTasks(internId, pageable);
-        return ResponseEntity.ok(ApiResponse.success(tasks));
+        return ResponseEntity.ok(ApiResponse.successPage(tasks));
     }
 
     /**
@@ -99,7 +99,7 @@ public class TaskController {
      */
     @GetMapping("/group/{groupId}")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN', 'INTERN')")
-    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getByGroup(
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> getByGroup(
             @PathVariable Long groupId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -111,7 +111,7 @@ public class TaskController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort[0]));
         Page<TaskResponse> tasks = taskService.getTasksByGroup(groupId, pageable);
-        return ResponseEntity.ok(ApiResponse.success(tasks));
+        return ResponseEntity.ok(ApiResponse.successPage(tasks));
     }
 
     /**
@@ -119,7 +119,7 @@ public class TaskController {
      */
     @GetMapping("/assigned")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getAssignedTasks(
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> getAssignedTasks(
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long groupId,
@@ -133,7 +133,7 @@ public class TaskController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<TaskResponse> tasks = taskService.getAssignedTasks(creatorId, assigneeId, groupId, status, keyword,
                 pageable);
-        return ResponseEntity.ok(ApiResponse.success(tasks));
+        return ResponseEntity.ok(ApiResponse.successPage(tasks));
     }
 
     /**
@@ -141,13 +141,13 @@ public class TaskController {
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getAll(
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<TaskResponse> tasks = taskService.getAllTasks(pageable);
-        return ResponseEntity.ok(ApiResponse.success(tasks));
+        return ResponseEntity.ok(ApiResponse.successPage(tasks));
     }
 
     /**

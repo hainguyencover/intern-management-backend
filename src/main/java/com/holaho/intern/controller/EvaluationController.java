@@ -49,8 +49,8 @@ public class EvaluationController {
             @RequestParam(required = false) String keyword,
             Pageable pageable) {
         if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_MENTOR"))) {
-            return ResponseEntity.ok(ApiResponse
-                    .success(evaluationService.getMentorEvaluations(principal.getId(), period, keyword, pageable)));
+            org.springframework.data.domain.Page<EvaluationResponse> page = evaluationService.getMentorEvaluations(principal.getId(), period, keyword, pageable);
+            return ResponseEntity.ok(ApiResponse.successPage(page));
         } else if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_INTERN"))) {
             return ResponseEntity.ok(ApiResponse.success(evaluationService.getInternEvaluations(principal.getId())));
         }
