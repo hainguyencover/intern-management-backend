@@ -46,6 +46,9 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
         // ✅ ĐÚNG với entity GroupMember có field: InternProfile intern
         Optional<GroupMember> findFirstByIntern_IdAndLeftAtIsNull(Long internId);
 
+        @Query("SELECT gm FROM GroupMember gm JOIN FETCH gm.group g JOIN FETCH g.program p WHERE gm.intern.id = :internId AND gm.leftAt IS NULL")
+        List<GroupMember> findActiveGroupMembershipsWithProgram(@Param("internId") Long internId);
+
         @Query("""
                             select count(gm) > 0
                             from GroupMember gm
@@ -120,4 +123,7 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
         List<GroupMember> findActiveMembers(@Param("groupId") Long groupId);
 
         long countByGroup_ProgramId(Long programId);
+
+        @Query("SELECT COUNT(gm) FROM GroupMember gm WHERE gm.group.mentorId = :mentorId AND gm.leftAt IS NULL")
+        long countActiveMembersByMentorId(@Param("mentorId") Long mentorId);
 }

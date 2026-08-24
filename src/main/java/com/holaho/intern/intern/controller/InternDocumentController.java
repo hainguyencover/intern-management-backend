@@ -1,22 +1,28 @@
 package com.holaho.intern.intern.controller;
 
-import com.holaho.intern.shared.dto.response.ApiResponse;
-import com.holaho.intern.shared.dto.response.InternDocumentResponse;
+import com.holaho.intern.intern.entity.InternDocument;
 import com.holaho.intern.intern.entity.InternProfile;
-import com.holaho.intern.user.entity.User;
-import com.holaho.intern.shared.exception.ApiException;
-import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.intern.repository.InternDocumentRepository;
-import com.holaho.intern.user.repository.UserRepository;
+import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.intern.service.InternDocumentService;
 import com.holaho.intern.service.StorageService;
+import com.holaho.intern.shared.dto.request.DocumentReviewRequest;
+import com.holaho.intern.shared.dto.response.ApiResponse;
+import com.holaho.intern.shared.dto.response.InternDocumentResponse;
 import com.holaho.intern.shared.enums.DocumentType;
+import com.holaho.intern.shared.exception.ApiException;
+import com.holaho.intern.user.entity.User;
+import com.holaho.intern.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -65,14 +71,6 @@ public class InternDocumentController {
         return name;
     }
 
-    private boolean isPdf(MultipartFile file) {
-        if (file == null)
-            return false;
-        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
-        String ct = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
-        return name.endsWith(".pdf") || ct.contains("pdf");
-    }
-
     private boolean isPdfFilename(String filename) {
         return filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".pdf");
     }
@@ -116,19 +114,20 @@ public class InternDocumentController {
         return ResponseEntity.ok(ApiResponse.success(docs));
     }
 
-    @PostMapping(path = { "/intern/documents", "/intern/documents/upload", "/documents/upload" })
+    @PostMapping(path = { "/intern/documents", "/intern/documents/upload", "/documents/upload" }, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<InternDocumentResponse>> uploadMyDocument(
             @RequestParam(value = "type", required = false) String type,
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "documentType", required = false) String documentTypeParam,
             @RequestParam(value = "internId", required = false) Long internIdParam) {
+
         User user = currentUserOrThrow();
         Long userId = user.getId();
         Long targetInternId;
 
         if (hasRole(userId, "INTERN")) {
             var ip = internProfileRepository.findByUser_Id(userId)
-                    .orElseThrow(
-                            () -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin thực tập sinh"));
+                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin thực tập sinh"));
             targetInternId = ip.getId();
         } else if (hasRole(userId, "HR") || hasRole(userId, "ADMIN")) {
             if (internIdParam == null) {
@@ -142,23 +141,16 @@ public class InternDocumentController {
             throw new ApiException(HttpStatus.FORBIDDEN, "Quyền truy cập bị từ chối");
         }
 
-        if (file == null || file.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Vui lòng chọn file");
-        }
-
-        if (!isPdf(file)) {
-            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Chỉ hỗ trợ file định dạng PDF");
-        }
-
-        if (type == null || type.isBlank()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Loại tài liệu là bắt buộc");
+        String rawType = (type != null && !type.isBlank()) ? type : documentTypeParam;
+        if (rawType == null || rawType.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Loại tài liệu là bắt buộc (type hoặc documentType)");
         }
 
         DocumentType docType;
         try {
-            docType = DocumentType.valueOf(type.strip());
+            docType = DocumentType.valueOf(rawType.strip());
         } catch (IllegalArgumentException e) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Loại tài liệu không hợp lệ: '" + type + "'");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Loại tài liệu không hợp lệ: '" + rawType + "'");
         }
 
         InternDocumentResponse resp = documentService.uploadForIntern(targetInternId, docType, file, userId);
@@ -166,8 +158,60 @@ public class InternDocumentController {
     }
 
     // ----------------------------
-    // HR: view intern documents
+    // HR: view documents & review list
     // ----------------------------
+    @GetMapping("/hr/documents")
+    @PreAuthorize("hasAnyRole('HR','ADMIN')")
+    public ResponseEntity<ApiResponse<Page<InternDocumentResponse>>> getDocumentsForHr(
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "documentType", required = false) String documentType,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+
+        User user = currentUserOrThrow();
+        Long tenantId = user.getTenantId();
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "uploadedAt"));
+        Page<InternDocumentResponse> docs = documentService.getDocumentsForHr(status, documentType, tenantId, pageable);
+        return ResponseEntity.ok(ApiResponse.success(docs));
+    }
+
+    @GetMapping("/hr/documents/{id}")
+    @PreAuthorize("hasAnyRole('HR','ADMIN')")
+    public ResponseEntity<ApiResponse<InternDocumentResponse>> getDocumentDetailForHr(@PathVariable("id") Long documentId) {
+        User user = currentUserOrThrow();
+        var doc = internDocumentRepository.findByIdWithIntern(documentId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không tồn tại: " + documentId));
+
+        if (user.getTenantId() != null && doc.getTenantId() != null && !user.getTenantId().equals(doc.getTenantId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập tài liệu thuộc tenant khác");
+        }
+
+        String internName = (doc.getIntern() != null && doc.getIntern().getUser() != null)
+                ? doc.getIntern().getUser().getFullName()
+                : null;
+        String reviewedByName = (doc.getReviewedBy() != null) ? doc.getReviewedBy().getFullName() : null;
+
+        InternDocumentResponse resp = new InternDocumentResponse(
+                doc.getId(),
+                doc.getIntern() != null ? doc.getIntern().getId() : null,
+                internName,
+                doc.getType(),
+                doc.getOriginalFileName(),
+                doc.getFileUrl(),
+                doc.getFileSize(),
+                doc.getContentType(),
+                doc.getStatus(),
+                doc.getUploadedAt(),
+                doc.getReviewedBy() != null ? doc.getReviewedBy().getId() : null,
+                reviewedByName,
+                doc.getReviewedAt(),
+                doc.getReviewNote(),
+                doc.getRejectionReason()
+        );
+        return ResponseEntity.ok(ApiResponse.success(resp));
+    }
+
     @GetMapping("/hr/interns/{id}/documents")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<ApiResponse<List<InternDocumentResponse>>> getInternDocumentsForHr(
@@ -193,7 +237,7 @@ public class InternDocumentController {
             throw new ApiException(HttpStatus.NOT_FOUND, "Tài liệu không có đường dẫn file");
         }
 
-        String filename = filenameFromFileUrl(fileUrl);
+        String filename = doc.getOriginalFileName() != null ? doc.getOriginalFileName() : filenameFromFileUrl(fileUrl);
         boolean pdf = isPdfFilename(filename);
         Resource resource = storage.loadFileAsResource(fileUrl);
         MediaType contentType = pdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM;
@@ -230,11 +274,12 @@ public class InternDocumentController {
                 "id", doc.getId(),
                 "status", doc.getStatus(),
                 "reviewedById", doc.getReviewedBy() != null ? doc.getReviewedBy().getId() : null,
-                "reviewedAt", doc.getReviewedAt(),
-                "reviewNote", doc.getReviewNote() != null ? doc.getReviewNote() : "")));
+                "reviewedAt", doc.getReviewedAt() != null ? doc.getReviewedAt() : "",
+                "reviewNote", doc.getReviewNote() != null ? doc.getReviewNote() : "",
+                "rejectionReason", doc.getRejectionReason() != null ? doc.getRejectionReason() : "")));
     }
 
-    @PostMapping("/hr/documents/{id}/approve")
+    @RequestMapping(path = { "/hr/documents/{id}/approve" }, method = { RequestMethod.POST, RequestMethod.PATCH })
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<ApiResponse<InternDocumentResponse>> approveDocument(@PathVariable("id") Long documentId) {
         User user = currentUserOrThrow();
@@ -242,13 +287,31 @@ public class InternDocumentController {
         return ResponseEntity.ok(ApiResponse.success("Phê duyệt tài liệu thành công", resp));
     }
 
-    @PostMapping("/hr/documents/{id}/reject")
+    @RequestMapping(path = { "/hr/documents/{id}/reject" }, method = { RequestMethod.POST, RequestMethod.PATCH })
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<ApiResponse<InternDocumentResponse>> rejectDocument(
             @PathVariable("id") Long documentId,
-            @RequestParam(value = "note", required = false) String note) {
+            @RequestBody(required = false) DocumentReviewRequest request,
+            @RequestParam(value = "note", required = false) String noteParam,
+            @RequestParam(value = "reason", required = false) String reasonParam) {
+
         User user = currentUserOrThrow();
-        InternDocumentResponse resp = documentService.reject(documentId, user.getId(), note);
+        String reason = null;
+        if (request != null) {
+            reason = request.getEffectiveReason();
+        }
+        if ((reason == null || reason.isBlank()) && reasonParam != null && !reasonParam.isBlank()) {
+            reason = reasonParam.trim();
+        }
+        if ((reason == null || reason.isBlank()) && noteParam != null && !noteParam.isBlank()) {
+            reason = noteParam.trim();
+        }
+
+        if (reason == null || reason.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Lý do từ chối không được để trống.");
+        }
+
+        InternDocumentResponse resp = documentService.reject(documentId, user.getId(), reason);
         return ResponseEntity.ok(ApiResponse.success("Từ chối tài liệu thành công", resp));
     }
 

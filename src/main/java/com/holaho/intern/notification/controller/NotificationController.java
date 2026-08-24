@@ -1,13 +1,14 @@
 package com.holaho.intern.notification.controller;
 
-import com.holaho.intern.shared.dto.response.ApiResponse;
-import com.holaho.intern.shared.dto.response.NotificationResponse;
-import com.holaho.intern.notification.entity.Notification;
-import com.holaho.intern.shared.security.CustomUserDetails;
-import com.holaho.intern.notification.service.NotificationService;
 import com.holaho.intern.notification.dto.NotificationPreferenceDto;
+import com.holaho.intern.notification.dto.NotificationResponse;
+import com.holaho.intern.notification.dto.UnreadCountResponse;
 import com.holaho.intern.notification.entity.NotificationPreference;
+import com.holaho.intern.notification.enums.NotificationStatus;
 import com.holaho.intern.notification.service.NotificationPreferenceService;
+import com.holaho.intern.notification.service.NotificationService;
+import com.holaho.intern.shared.dto.response.ApiResponse;
+import com.holaho.intern.shared.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,39 +31,32 @@ public class NotificationController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<java.util.List<NotificationResponse>>> getMyNotifications(
+    public ResponseEntity<ApiResponse<Page<NotificationResponse>>> getMyNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @RequestParam(required = false) NotificationStatus status,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        Page<Notification> page = notificationService.getNotificationsByUserId(userDetails.getId(), pageable);
-        Page<NotificationResponse> response = page.map(this::mapToResponse);
-        return ResponseEntity.ok(ApiResponse.successPage(response));
-    }
-
-    @GetMapping("/unread")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<NotificationResponse>>> getUnreadNotifications(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        List<Notification> list = notificationService.getUnreadNotifications(userDetails.getId());
-        List<NotificationResponse> response = list.stream().map(this::mapToResponse).toList();
-        return ResponseEntity.ok(ApiResponse.success(response));
+        Page<NotificationResponse> page = notificationService.getNotificationsForRecipient(userDetails.getId(), status, pageable);
+        return ResponseEntity.ok(ApiResponse.successPage(page));
     }
 
     @GetMapping("/unread-count")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Integer>> getUnreadCount(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        int count = notificationService.getUnreadNotifications(userDetails.getId()).size();
-        return ResponseEntity.ok(ApiResponse.success(count));
+    public ResponseEntity<ApiResponse<UnreadCountResponse>> getUnreadCount(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        long count = notificationService.getUnreadCount(userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success(new UnreadCountResponse(count)));
     }
 
-    @PutMapping("/{id}/read")
+    @RequestMapping(value = "/{id}/read", method = {RequestMethod.PATCH, RequestMethod.PUT})
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
-        notificationService.markAsRead(id);
-        return ResponseEntity.ok(ApiResponse.success("Notification marked as read", null));
+    public ResponseEntity<ApiResponse<NotificationResponse>> markAsRead(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        NotificationResponse response = notificationService.markAsRead(id, userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success("Notification marked as read", response));
     }
 
-    @PutMapping("/read-all")
+    @RequestMapping(value = "/read-all", method = {RequestMethod.PATCH, RequestMethod.PUT})
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> markAllAsRead(@AuthenticationPrincipal CustomUserDetails userDetails) {
         notificationService.markAllAsRead(userDetails.getId());
@@ -71,8 +65,10 @@ public class NotificationController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> deleteNotification(@PathVariable Long id) {
-        notificationService.deleteNotification(id);
+    public ResponseEntity<ApiResponse<Void>> deleteNotification(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        notificationService.deleteNotification(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success("Notification deleted successfully", null));
     }
 
@@ -101,16 +97,4 @@ public class NotificationController {
         preferenceService.updatePreference(userDetails.getId(), request);
         return ResponseEntity.ok(ApiResponse.success("Notification preference updated successfully", null));
     }
-
-    private NotificationResponse mapToResponse(Notification notification) {
-        return NotificationResponse.builder()
-                .id(notification.getId())
-                .title(notification.getTitle())
-                .content(notification.getContent())
-                .type(notification.getType().name())
-                .read(notification.isRead())
-                .createdAt(notification.getCreatedAt())
-                .build();
-    }
 }
-

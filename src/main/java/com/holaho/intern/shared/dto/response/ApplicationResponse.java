@@ -17,6 +17,8 @@ public class ApplicationResponse {
     private Long internId;
     private String internName;
     private String internEmail;
+    private Long programId;
+    private String programName;
     private String position;
     private LocalDateTime appliedAt;
     private String status;

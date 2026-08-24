@@ -78,4 +78,87 @@ public class ApplicationController {
         applicationService.triggerAiScreening(id);
         return ResponseEntity.ok(ApiResponse.success("Đã kích hoạt lại AI screening"));
     }
+
+    /**
+     * US-048: Start Review Process
+     * POST /api/v1/applications/{id}/start-review
+     */
+    @PostMapping("/{id}/start-review")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<ApplicationResponse>> startReview(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ApplicationResponse response = applicationService.startReview(id, userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success("Bắt đầu xét duyệt hồ sơ thành công", response));
+    }
+
+    /**
+     * US-049: Automated Eligibility Screening Engine
+     * GET /api/v1/applications/{id}/eligibility
+     */
+    @GetMapping("/{id}/eligibility")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<com.holaho.intern.shared.dto.response.EligibilityCheckResponse>> checkEligibility(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(applicationService.checkEligibility(id)));
+    }
+
+    /**
+     * US-050: Request Revision by HR
+     * POST /api/v1/applications/{id}/request-revision
+     */
+    @PostMapping("/{id}/request-revision")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<ApplicationResponse>> requestRevision(
+            @PathVariable Long id,
+            @RequestParam String comment,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ApplicationResponse response = applicationService.requestRevision(id, userDetails.getId(), comment);
+        return ResponseEntity.ok(ApiResponse.success("Đã yêu cầu ứng viên bổ sung hồ sơ", response));
+    }
+
+    /**
+     * US-050: Candidate Resubmit Profile
+     * POST /api/v1/applications/{id}/resubmit
+     */
+    @PostMapping("/{id}/resubmit")
+    @PreAuthorize("hasRole('INTERN')")
+    public ResponseEntity<ApiResponse<ApplicationResponse>> resubmit(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ApplicationResponse response = applicationService.resubmit(id, userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success("Nộp lại hồ sơ ứng tuyển thành công", response));
+    }
+
+    /**
+     * US-051: Status Audit History
+     * GET /api/v1/applications/{id}/history
+     */
+    @GetMapping("/{id}/history")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'INTERN')")
+    public ResponseEntity<ApiResponse<List<com.holaho.intern.shared.dto.response.StatusHistoryResponse>>> getStatusHistory(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(applicationService.getStatusHistory(id)));
+    }
+
+    /**
+     * US-052: Review Queue & Overdue SLA Statistics
+     * GET /api/v1/applications/queue
+     */
+    @GetMapping("/queue")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<com.holaho.intern.shared.dto.response.ReviewQueueStatsDto>> getReviewQueueStats() {
+        return ResponseEntity.ok(ApiResponse.success(applicationService.getReviewQueueStats()));
+    }
+
+    /**
+     * US-053: Candidate Result View
+     * GET /api/v1/applications/me/latest-result
+     */
+    @GetMapping("/me/latest-result")
+    @PreAuthorize("hasRole('INTERN')")
+    public ResponseEntity<ApiResponse<com.holaho.intern.shared.dto.response.CandidateResultResponse>> getLatestCandidateResult(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(applicationService.getLatestCandidateResult(userDetails.getId())));
+    }
 }

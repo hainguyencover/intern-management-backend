@@ -42,5 +42,13 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
                         @Param("internId") Long internId,
                         @Param("startDate") java.time.LocalDate startDate,
                         @Param("endDate") java.time.LocalDate endDate);
+
+        @Query("SELECT COUNT(lr) > 0 FROM LeaveRequest lr WHERE " +
+                        "lr.intern.id = :internId AND " +
+                        "lr.status = 'APPROVED' AND " +
+                        ":date BETWEEN lr.startDate AND lr.endDate")
+        boolean existsApprovedLeaveOnDate(
+                        @Param("internId") Long internId,
+                        @Param("date") java.time.LocalDate date);
 }
 

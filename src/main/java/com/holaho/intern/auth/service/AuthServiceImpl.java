@@ -158,6 +158,8 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    private final EmailVerificationService emailVerificationService;
+
     @Override
     @Transactional
     @Auditable(action = "USER_REGISTER")
@@ -172,6 +174,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName());
         user.setStatus(UserStatus.ACTIVE);
+        user.setEmailVerified(false);
 
         Role internRole = roleRepository.findByCode("INTERN")
                 .orElseThrow(() -> new NotFoundException("INTERN role not found"));
@@ -184,7 +187,12 @@ public class AuthServiceImpl implements AuthService {
         internProfile.setStudentCode(request.getStudentCode());
         internProfile.setUniversity(request.getUniversity());
         internProfile.setMajor(request.getMajor());
+        internProfile.setStatus("DRAFT");
         internProfileRepository.save(internProfile);
+
+        // Issue email verification token & dispatch email
+        String verificationToken = emailVerificationService.createVerificationToken(user);
+        emailService.sendEmailVerificationToken(user.getEmail(), user.getFullName(), verificationToken);
 
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(normalizedEmail, request.getPassword()));
@@ -205,11 +213,23 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
+    public void verifyEmail(com.holaho.intern.auth.dto.request.VerifyEmailRequest request) {
+        emailVerificationService.verifyEmail(request.getToken());
+    }
+
+    @Override
+    @Transactional
+    public void resendVerification(com.holaho.intern.auth.dto.request.ResendVerificationRequest request) {
+        emailVerificationService.resendVerification(request.getEmail());
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new BadRequestException("User not authenticated");
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "User not authenticated");
         }
 
         User user = userRepository.findByEmail(authentication.getName())
@@ -228,6 +248,7 @@ public class AuthServiceImpl implements AuthService {
                 .status(user.getStatus().name())
                 .roles(new ArrayList<>(roles))
                 .isTwoFactorEnabled(user.getIsTwoFactorEnabled())
+                .emailVerified(Boolean.TRUE.equals(user.getEmailVerified()))
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt());
 

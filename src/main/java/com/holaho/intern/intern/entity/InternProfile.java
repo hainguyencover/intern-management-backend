@@ -35,6 +35,13 @@ public class InternProfile extends BaseEntity {
     @Column(length = 255)
     private String university;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "university_id")
+    private com.holaho.intern.entity.University universityEntity;
+
+    @Column(name = "university_id", insertable = false, updatable = false)
+    private Long universityId;
+
     @Column(length = 255)
     private String major;
 
@@ -65,6 +72,9 @@ public class InternProfile extends BaseEntity {
     private String cvSummary;
 
     @Column(nullable = false, length = 30)
-    private String status = "ONBOARDING"; // ONBOARDING, ACTIVE, COMPLETED, SUSPENDED
+    private String status = "DRAFT"; // DRAFT, APPLICANT, ONBOARDING, ACTIVE, COMPLETED, SUSPENDED
+
+    @Version
+    private Long version;
 }
 

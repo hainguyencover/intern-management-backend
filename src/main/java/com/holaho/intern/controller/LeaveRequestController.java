@@ -60,7 +60,7 @@ public class LeaveRequestController {
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
     public ResponseEntity<ApiResponse<Page<LeaveRequestResponse>>> getPendingLeaveRequests(
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
         Page<LeaveRequest> page = leaveRequestService.getPendingLeaveRequests(pageable);

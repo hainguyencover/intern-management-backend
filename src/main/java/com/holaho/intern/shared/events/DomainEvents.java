@@ -22,6 +22,24 @@ public class DomainEvents {
     }
 
     @Getter
+    public static class ApplicationRejectedEvent extends ApplicationEvent {
+        private final Long applicationId;
+        private final Long userId;
+        private final String candidateName;
+        private final String email;
+        private final String reason;
+
+        public ApplicationRejectedEvent(Object source, Long applicationId, Long userId, String candidateName, String email, String reason) {
+            super(source);
+            this.applicationId = applicationId;
+            this.userId = userId;
+            this.candidateName = candidateName;
+            this.email = email;
+            this.reason = reason;
+        }
+    }
+
+    @Getter
     public static class InternAssignedEvent extends ApplicationEvent {
         private final Long internId;
         private final Long mentorUserId;

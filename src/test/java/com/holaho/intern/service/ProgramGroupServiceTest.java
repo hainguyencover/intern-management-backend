@@ -106,6 +106,7 @@ class ProgramGroupServiceTest {
 
         when(groupRepository.findByMentorIdAndStatus(mentorId, GroupStatus.ACTIVE))
                 .thenReturn(List.of(existingGroup));
+        when(programRepository.findById(1L)).thenReturn(Optional.of(currentProgram));
 
         // Act & Assert
         BadRequestException ex = assertThrows(BadRequestException.class,

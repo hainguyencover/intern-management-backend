@@ -163,9 +163,11 @@ class WeeklyReportServiceImplTest {
         InternProfile intern = new InternProfile();
         intern.setId(1L);
         when(internRepository.findAll()).thenReturn(List.of(intern));
-        when(evaluationRepository.findByInternId(1L)).thenReturn(Collections.emptyList());
+        when(evaluationRepository.findAverageScoresGroupedByIntern()).thenReturn(Collections.emptyList());
         when(groupMemberRepository.findFirstByIntern_IdAndLeftAtIsNull(1L)).thenReturn(Optional.empty());
-        when(reportRepository.countByIntern_Id(1L)).thenReturn(5L);
+        List<Object[]> reportCounts = new java.util.ArrayList<>();
+        reportCounts.add(new Object[]{1L, 5L});
+        when(reportRepository.countReportsGroupedByIntern()).thenReturn(reportCounts);
         when(finalReportMapper.toSummaryDto(any(), any(), anyDouble(), anyString(), anyInt()))
                 .thenReturn(FinalReportSummaryDto.builder().build());
 

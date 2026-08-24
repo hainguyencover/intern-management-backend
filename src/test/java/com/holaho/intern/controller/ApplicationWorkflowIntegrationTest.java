@@ -3,7 +3,6 @@ package com.holaho.intern.controller;
 import com.holaho.intern.entity.Department;
 import com.holaho.intern.entity.Program;
 import com.holaho.intern.entity.Application;
-import com.holaho.intern.entity.Interview;
 import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.user.entity.Role;
 import com.holaho.intern.user.entity.User;
@@ -24,11 +23,10 @@ import com.holaho.intern.shared.dto.request.InterviewScheduleRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Collections;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -64,18 +62,18 @@ class ApplicationWorkflowIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        if (roleRepository.findByCode("INTERN").isEmpty()) {
+        Role internRole = roleRepository.findByCode("INTERN").orElseGet(() -> {
             Role r = new Role();
             r.setCode("INTERN");
             r.setName("Intern");
-            roleRepository.save(r);
-        }
-        if (roleRepository.findByCode("HR").isEmpty()) {
+            return roleRepository.save(r);
+        });
+        Role hrRole = roleRepository.findByCode("HR").orElseGet(() -> {
             Role r = new Role();
             r.setCode("HR");
             r.setName("HR");
-            roleRepository.save(r);
-        }
+            return roleRepository.save(r);
+        });
 
         // Candidate User & Profile
         candidateUser = new User();
@@ -83,12 +81,15 @@ class ApplicationWorkflowIntegrationTest extends BaseIntegrationTest {
         candidateUser.setFullName("Candidate User");
         candidateUser.setPasswordHash("hash");
         candidateUser.setStatus(UserStatus.ACTIVE);
+        candidateUser.setEmailVerified(true);
+        candidateUser.setRoles(Collections.singleton(internRole));
         candidateUser = userRepository.save(candidateUser);
 
         candidateProfile = new InternProfile();
         candidateProfile.setUser(candidateUser);
         candidateProfile.setUniversity("Hust");
         candidateProfile.setMajor("CS");
+        candidateProfile.setCvUrl("https://storage.holaho.com/cv/candidate_cv.pdf");
         candidateProfile = internProfileRepository.save(candidateProfile);
 
         // HR User
@@ -97,6 +98,7 @@ class ApplicationWorkflowIntegrationTest extends BaseIntegrationTest {
         hrUser.setFullName("HR Manager");
         hrUser.setPasswordHash("hash");
         hrUser.setStatus(UserStatus.ACTIVE);
+        hrUser.setRoles(Collections.singleton(hrRole));
         hrUser = userRepository.save(hrUser);
 
         // Dept & Program
@@ -150,5 +152,40 @@ class ApplicationWorkflowIntegrationTest extends BaseIntegrationTest {
                         .principal(() -> hrUser.getEmail()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("APPROVED"));
+    }
+
+    @Test
+    void review_RejectWithoutComment_FailsValidation() throws Exception {
+        Application app = new Application();
+        app.setIntern(candidateProfile);
+        app.setProgram(program);
+        app.setStatus(ApplicationStatus.SUBMITTED);
+        app.setAppliedAt(LocalDateTime.now());
+        app = applicationRepository.save(app);
+
+        // Rejection without comment should fail (US-007-AC-02)
+        ReviewApplicationRequest reviewReq = new ReviewApplicationRequest(ReviewDecision.REJECT, "  ");
+        mockMvc.perform(postWithTenant("/api/v1/applications/" + app.getId() + "/review", reviewReq)
+                        .principal(() -> hrUser.getEmail()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void review_ApprovedWithoutCv_FailsValidation() throws Exception {
+        candidateProfile.setCvUrl(null);
+        internProfileRepository.save(candidateProfile);
+
+        Application app = new Application();
+        app.setIntern(candidateProfile);
+        app.setProgram(program);
+        app.setStatus(ApplicationStatus.SUBMITTED);
+        app.setAppliedAt(LocalDateTime.now());
+        app = applicationRepository.save(app);
+
+        // Approval without CV should fail (US-007-AC-03)
+        ReviewApplicationRequest reviewReq = new ReviewApplicationRequest(ReviewDecision.APPROVE, "Valid comment");
+        mockMvc.perform(postWithTenant("/api/v1/applications/" + app.getId() + "/review", reviewReq)
+                        .principal(() -> hrUser.getEmail()))
+                .andExpect(status().isConflict());
     }
 }

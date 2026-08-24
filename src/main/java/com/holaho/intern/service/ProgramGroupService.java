@@ -9,6 +9,7 @@ import com.holaho.intern.repository.ProgramRepository;
 import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.mentor.entity.Mentor;
+import com.holaho.intern.service.validator.MentorScheduleValidator;
 import com.holaho.intern.shared.dto.request.GroupRequest;
 import com.holaho.intern.shared.dto.request.UpdateGroupRequest;
 import com.holaho.intern.shared.dto.response.GroupMemberResponse;
@@ -32,7 +33,11 @@ import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
+import com.holaho.intern.mentor.repository.MentorRepository;
+import com.holaho.intern.mentor.service.MentorAssignmentService;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +48,9 @@ public class ProgramGroupService {
     private final ProgramRepository programRepository;
     private final GroupMemberRepository memberRepository;
     private final InternProfileRepository internProfileRepository;
+    private final MentorRepository mentorRepository;
+    private final MentorAssignmentService mentorAssignmentService;
+    private final MentorScheduleValidator mentorScheduleValidator;
 
     @Transactional
     public GroupResponse createGroup(ProgramGroup request) {
@@ -56,7 +64,7 @@ public class ProgramGroupService {
         group.setMentorId(request.getMentorId());
         group.setStatus(GroupStatus.ACTIVE);
 
-        validateMentorSchedule(request.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
+        mentorScheduleValidator.validateMentorSchedule(request.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
                 group.getWorkEndTime(), program, null);
 
         group = groupRepository.save(group);
@@ -75,6 +83,14 @@ public class ProgramGroupService {
 
         if (memberRepository.existsByGroupIdAndInternId(groupId, internId)) {
             throw new ConflictException("Thực tập sinh đã được phân vào nhóm này rồi");
+        }
+
+        // BR-06: Check mentor capacity constraint (max 10 active interns per mentor)
+        if (group.getMentorId() != null) {
+            long currentCount = memberRepository.countActiveMembersByMentorId(group.getMentorId());
+            if (currentCount >= 10) {
+                throw new BadRequestException("Mentor đã quản lý tối đa 10 thực tập sinh (BR-06). Không thể phân bổ thêm.");
+            }
         }
 
         GroupMember member = new GroupMember();
@@ -99,6 +115,18 @@ public class ProgramGroupService {
             }
             if (updated) {
                 internProfileRepository.save(intern);
+            }
+        }
+
+        // Auto-assign group mentor to intern if group has a valid mentor
+        if (group.getMentorId() != null && mentorRepository.existsById(group.getMentorId())) {
+            boolean alreadyAssigned = intern.getMentor() != null && intern.getMentor().getId().equals(group.getMentorId());
+            if (!alreadyAssigned) {
+                try {
+                    mentorAssignmentService.assignMentorToIntern(internId, group.getMentorId(), "Phân công theo nhóm: " + group.getName());
+                } catch (Exception e) {
+                    log.warn("Auto-assign mentor {} to intern {} failed: {}", group.getMentorId(), internId, e.getMessage());
+                }
             }
         }
 
@@ -174,7 +202,23 @@ public class ProgramGroupService {
             group.setName(request.getName());
         }
         if (request.getMentorId() != null) {
+            Long oldMentorId = group.getMentorId();
             group.setMentorId(request.getMentorId());
+
+            if (!request.getMentorId().equals(oldMentorId)) {
+                List<GroupMember> activeMembers = memberRepository.findActiveByGroupId(id);
+                for (GroupMember member : activeMembers) {
+                    try {
+                        mentorAssignmentService.assignMentorToIntern(
+                                member.getIntern().getId(),
+                                request.getMentorId(),
+                                "Cập nhật Mentor theo nhóm: " + group.getName()
+                        );
+                    } catch (Exception e) {
+                        log.warn("Auto-assign updated mentor {} to intern {} failed: {}", request.getMentorId(), member.getIntern().getId(), e.getMessage());
+                    }
+                }
+            }
         }
         if (request.getStatus() != null) {
             group.setStatus(request.getStatus());
@@ -192,7 +236,7 @@ public class ProgramGroupService {
         // Validate schedule if mentor is set (assuming mentor is mandatory for active
         // groups)
         if (group.getStatus() == GroupStatus.ACTIVE && group.getMentorId() != null) {
-            validateMentorSchedule(group.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
+            mentorScheduleValidator.validateMentorSchedule(group.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
                     group.getWorkEndTime(), group.getProgram(), id);
         }
 
@@ -258,7 +302,7 @@ public class ProgramGroupService {
         group.setWorkEndTime(request.getWorkEndTime());
         group.setWorkDays(request.getWorkDays());
 
-        validateMentorSchedule(request.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
+        mentorScheduleValidator.validateMentorSchedule(request.getMentorId(), group.getWorkDays(), group.getWorkStartTime(),
                 group.getWorkEndTime(), program, null);
 
         group = groupRepository.save(group);
@@ -268,74 +312,93 @@ public class ProgramGroupService {
     }
 
     private GroupResponse mapToResponse(ProgramGroup group) {
-        return new GroupResponse(group);
-    }
+        GroupResponse response = new GroupResponse(group);
 
-    private void validateMentorSchedule(Long mentorId, String workDaysStr, java.time.LocalTime start,
-            java.time.LocalTime end, Program currentProgram, Long excludeGroupId) {
-        if (mentorId == null || !StringUtils.hasText(workDaysStr) || start == null || end == null) {
-            return;
-        }
+        List<GroupMember> members = memberRepository.findByGroupIdWithIntern(group.getId());
+        response.setTotalMembers((long) members.size());
 
-        List<ProgramGroup> activeGroups = groupRepository.findByMentorIdAndStatus(mentorId, GroupStatus.ACTIVE);
+        List<GroupMemberResponse> memberResponses = members.stream()
+                .map(m -> GroupMemberResponse.builder()
+                        .id(m.getId())
+                        .groupId(m.getGroup().getId())
+                        .internId(m.getIntern().getId())
+                        .internName(m.getIntern().getUser() != null ? m.getIntern().getUser().getFullName() : null)
+                        .internEmail(m.getIntern().getUser() != null ? m.getIntern().getUser().getEmail() : null)
+                        .studentCode(m.getIntern().getStudentCode())
+                        .joinedAt(m.getJoinedAt())
+                        .build())
+                .collect(Collectors.toList());
+        response.setMembers(memberResponses);
 
-        for (ProgramGroup g : activeGroups) {
-            if (excludeGroupId != null && g.getId().equals(excludeGroupId)) {
-                continue;
-            }
-
-            // Must overlap in DATE (Program duration) first
-            if (currentProgram != null && g.getProgram() != null && !hasDateOverlap(
-                    currentProgram.getStartDate(), currentProgram.getEndDate(),
-                    g.getProgram().getStartDate(), g.getProgram().getEndDate())) {
-                continue; // Different periods (e.g. Jan vs Mar) -> No conflict
-            }
-
-            if (g.getWorkDays() == null || g.getWorkStartTime() == null || g.getWorkEndTime() == null) {
-                continue;
-            }
-
-            if (hasDayOverlap(workDaysStr, g.getWorkDays())
-                    && hasTimeOverlap(start, end, g.getWorkStartTime(), g.getWorkEndTime())) {
-                throw new BadRequestException(
-                        "Mentor đã có lịch dạy tại nhóm: " + g.getName() + " (Chương trình: " + g.getProgram().getName()
-                                + ")");
-            }
-        }
-    }
-
-    private boolean hasDayOverlap(String days1, String days2) {
-        String[] d1 = days1.split(",");
-        String[] d2 = days2.split(",");
-        for (String s1 : d1) {
-            for (String s2 : d2) {
-                if (s1.trim().equalsIgnoreCase(s2.trim())) {
-                    return true;
+        if (group.getMentorId() != null) {
+            mentorRepository.findByIdWithUser(group.getMentorId()).ifPresent(mentor -> {
+                if (mentor.getUser() != null) {
+                    response.setMentorName(mentor.getUser().getFullName());
                 }
-            }
+            });
         }
-        return false;
+
+        return response;
     }
 
-    private boolean hasTimeOverlap(java.time.LocalTime start1, java.time.LocalTime end1, java.time.LocalTime start2,
-            java.time.LocalTime end2) {
-        return start1.isBefore(end2) && start2.isBefore(end1);
+    @Transactional(readOnly = true)
+    public com.holaho.intern.shared.dto.response.MyGroupInfoResponse getMyGroupInfoByUserId(Long userId) {
+        InternProfile intern = internProfileRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new NotFoundException("Intern profile for user ID", userId));
+
+        Optional<GroupMember> membershipOpt = memberRepository.findFirstByIntern_IdAndLeftAtIsNull(intern.getId());
+        if (membershipOpt.isEmpty()) {
+            return com.holaho.intern.shared.dto.response.MyGroupInfoResponse.builder()
+                    .coInterns(List.of())
+                    .build();
+        }
+
+        GroupMember currentMember = membershipOpt.get();
+        ProgramGroup group = currentMember.getGroup();
+        Program program = group.getProgram();
+
+        com.holaho.intern.shared.dto.response.MyGroupInfoResponse res = com.holaho.intern.shared.dto.response.MyGroupInfoResponse.builder()
+                .groupId(group.getId())
+                .groupName(group.getName())
+                .groupDescription(group.getDescription())
+                .build();
+
+        if (program != null) {
+            res.setProgramId(program.getId());
+            res.setProgramName(program.getName());
+            res.setProgramCode(program.getCode());
+            res.setProgramStartDate(program.getStartDate());
+            res.setProgramEndDate(program.getEndDate());
+        }
+
+        if (group.getMentorId() != null) {
+            res.setMentorId(group.getMentorId());
+            mentorRepository.findByIdWithUser(group.getMentorId()).ifPresent(m -> {
+                if (m.getUser() != null) {
+                    res.setMentorName(m.getUser().getFullName());
+                    res.setMentorEmail(m.getUser().getEmail());
+                    res.setMentorPhone(m.getUser().getPhone());
+                }
+                if (m.getDepartment() != null) {
+                    res.setMentorDepartment(m.getDepartment().getName());
+                }
+            });
+        }
+
+        List<GroupMember> groupMembers = memberRepository.findByGroupIdWithIntern(group.getId());
+        List<com.holaho.intern.shared.dto.response.MyGroupInfoResponse.CoInternDto> coInterns = groupMembers.stream()
+                .map(gm -> com.holaho.intern.shared.dto.response.MyGroupInfoResponse.CoInternDto.builder()
+                        .internId(gm.getIntern().getId())
+                        .fullName(gm.getIntern().getUser() != null ? gm.getIntern().getUser().getFullName() : null)
+                        .studentCode(gm.getIntern().getStudentCode())
+                        .email(gm.getIntern().getUser() != null ? gm.getIntern().getUser().getEmail() : null)
+                        .university(gm.getIntern().getUniversity())
+                        .major(gm.getIntern().getMajor())
+                        .joinedAt(gm.getJoinedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        res.setCoInterns(coInterns);
+        return res;
     }
-
-    private boolean hasDateOverlap(java.time.LocalDate start1, java.time.LocalDate end1, java.time.LocalDate start2,
-            java.time.LocalDate end2) {
-        // If undefined dates, assume infinite -> overlap
-        if (start1 == null && end1 == null)
-            return true;
-        if (start2 == null && end2 == null)
-            return true;
-
-        java.time.LocalDate s1 = start1 != null ? start1 : java.time.LocalDate.MIN;
-        java.time.LocalDate e1 = end1 != null ? end1 : java.time.LocalDate.MAX;
-        java.time.LocalDate s2 = start2 != null ? start2 : java.time.LocalDate.MIN;
-        java.time.LocalDate e2 = end2 != null ? end2 : java.time.LocalDate.MAX;
-
-        return s1.isBefore(e2) && s2.isBefore(e1);
-    }
-
 }

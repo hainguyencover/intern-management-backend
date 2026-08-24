@@ -10,6 +10,7 @@ import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.NotFoundException;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class InternTaskService {
@@ -22,9 +23,14 @@ public class InternTaskService {
         this.internProfileRepository = internProfileRepository;
     }
 
+    @Transactional(readOnly = true)
     public Page<TaskDto> myTasks(Long internUserId, String status, Pageable pageable) {
         InternProfile intern = internProfileRepository.findByUser_Id(internUserId)
-                .orElseThrow(() -> new NotFoundException("Intern profile for user", internUserId));
+                .orElseGet(() -> internProfileRepository.findById(internUserId).orElse(null));
+
+        if (intern == null) {
+            return Page.empty(pageable);
+        }
 
         Page<Task> page;
         if (status == null || status.isBlank()) {
@@ -37,15 +43,25 @@ public class InternTaskService {
             page = taskRepository.findByAssignee_IdAndStatus(intern.getId(), st, pageable);
         }
 
-        return page.map(t -> new TaskDto(
-                t.getId(),
-                t.getGroup() != null ? t.getGroup().getId() : null,
-                t.getTitle(),
-                t.getDescription(),
-                t.getDueDate(),
-                t.getStatus(),
-                intern.getId(),
-                intern.getUser() != null ? intern.getUser().getFullName() : null
-        ));
+        return page.map(t -> {
+            boolean isOverdue = t.getDueDate() != null && java.time.LocalDateTime.now().isAfter(t.getDueDate())
+                    && t.getStatus() != TaskStatus.APPROVED && t.getStatus() != TaskStatus.DONE && t.getStatus() != TaskStatus.CANCELLED;
+            return new TaskDto(
+                    t.getId(),
+                    t.getGroup() != null ? t.getGroup().getId() : null,
+                    t.getTitle(),
+                    t.getDescription(),
+                    t.getPriority(),
+                    t.getStatus(),
+                    t.getProgressPercent() != null ? t.getProgressPercent() : 0,
+                    t.getStartDate(),
+                    t.getDueDate(),
+                    t.getWeight(),
+                    isOverdue,
+                    intern.getId(),
+                    intern.getUser() != null ? intern.getUser().getFullName() : null,
+                    t.getCreatedAt()
+            );
+        });
     }
 }

@@ -27,10 +27,11 @@ public class DashboardController {
     private final StatisticsService statisticsService;
 
     @GetMapping("/overview")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
     public ResponseEntity<ApiResponse<DashboardOverviewResponse>> getOverview() {
         return ResponseEntity.ok(ApiResponse.success(statisticsService.getOverview()));
     }
+
 
     @GetMapping("/hr")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")

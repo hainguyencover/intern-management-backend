@@ -27,7 +27,7 @@ public class SystemConfigController {
     }
 
     @PutMapping("/{key}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
     public ResponseEntity<ApiResponse<com.holaho.intern.shared.dto.response.SystemConfigResponse>> updateConfig(
             @PathVariable String key,
             @RequestBody Map<String, String> payload) {

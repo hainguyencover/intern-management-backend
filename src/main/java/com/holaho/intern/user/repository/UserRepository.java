@@ -61,5 +61,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                         "(:keyword IS NULL OR :keyword = '' OR lower(u.fullName) LIKE lower(concat('%', :keyword, '%')) OR lower(u.email) LIKE lower(concat('%', :keyword, '%')))")
         Page<User> searchByRoleAndKeyword(@Param("role") String role, @Param("status") UserStatus status,
                         @Param("keyword") String keyword, Pageable pageable);
+
+        @Query("SELECT COUNT(u) FROM User u JOIN u.roles r WHERE (r.code = 'ADMIN' OR r.code = 'ROLE_ADMIN') AND u.status = com.holaho.intern.shared.enums.UserStatus.ACTIVE")
+        long countActiveAdmins();
 }
 

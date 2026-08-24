@@ -38,6 +38,7 @@ public class SecurityConfig {
     private final RateLimitFilter rateLimitFilter;
     private final TenantFilter tenantFilter;
     private final TraceIdFilter traceIdFilter;
+    private final com.holaho.intern.shared.security.IdempotencyFilter idempotencyFilter;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
@@ -46,12 +47,14 @@ public class SecurityConfig {
             CustomUserDetailsService customUserDetailsService,
             RateLimitFilter rateLimitFilter,
             TenantFilter tenantFilter,
-            TraceIdFilter traceIdFilter) {
+            TraceIdFilter traceIdFilter,
+            com.holaho.intern.shared.security.IdempotencyFilter idempotencyFilter) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.customUserDetailsService = customUserDetailsService;
         this.rateLimitFilter = rateLimitFilter;
         this.tenantFilter = tenantFilter;
         this.traceIdFilter = traceIdFilter;
+        this.idempotencyFilter = idempotencyFilter;
     }
 
     @Bean
@@ -86,8 +89,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin",
-                "Access-Control-Request-Method", "Access-Control-Request-Headers"));
-        config.setExposedHeaders(List.of("Authorization", "Link", "X-Total-Count"));
+                "Access-Control-Request-Method", "Access-Control-Request-Headers", "X-Idempotency-Key", "X-Tenant-ID", "X-Trace-ID"));
+        config.setExposedHeaders(List.of("Authorization", "Link", "X-Total-Count", "X-Idempotency-Key", "X-Cache-Lookup", "X-Trace-ID", "X-Span-ID"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
@@ -117,7 +120,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh-token", "/api/v1/internal/diag/**")
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh", "/api/v1/auth/refresh-token", "/api/v1/internal/diag/**")
                         .permitAll()
                         .requestMatchers("/api/v1/auth/2fa/**").authenticated()
                         .requestMatchers("/error").permitAll()
@@ -140,8 +143,11 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(401);
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            ObjectMapper mapper = new ObjectMapper();
+                            response.setCharacterEncoding("UTF-8");
+                            response.setContentType("application/json;charset=UTF-8");
+                            ObjectMapper mapper = new ObjectMapper()
+                                    .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                                    .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                             ApiResponse<Void> body = ApiResponse.error(401,
                                     "Phiên đăng nhập hết hạn hoặc bạn chưa đăng nhập",
                                     request.getRequestURI());
@@ -149,8 +155,11 @@ public class SecurityConfig {
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(403);
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            ObjectMapper mapper = new ObjectMapper();
+                            response.setCharacterEncoding("UTF-8");
+                            response.setContentType("application/json;charset=UTF-8");
+                            ObjectMapper mapper = new ObjectMapper()
+                                    .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                                    .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                             ApiResponse<Void> body = ApiResponse.error(403,
                                     "Bạn không có quyền truy cập tài nguyên này",
                                     request.getRequestURI());
@@ -160,6 +169,7 @@ public class SecurityConfig {
         http.addFilterBefore(traceIdFilter, org.springframework.security.web.session.DisableEncodeUrlFilter.class);
         http.addFilterBefore(tenantFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(idempotencyFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

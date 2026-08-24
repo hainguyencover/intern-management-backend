@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -71,18 +72,18 @@ class TaskPerformanceIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        if (roleRepository.findByCode("INTERN").isEmpty()) {
+        Role internRole = roleRepository.findByCode("INTERN").orElseGet(() -> {
             Role r = new Role();
             r.setCode("INTERN");
             r.setName("Intern");
-            roleRepository.save(r);
-        }
-        if (roleRepository.findByCode("MENTOR").isEmpty()) {
+            return roleRepository.save(r);
+        });
+        Role mentorRole = roleRepository.findByCode("MENTOR").orElseGet(() -> {
             Role r = new Role();
             r.setCode("MENTOR");
             r.setName("Mentor");
-            roleRepository.save(r);
-        }
+            return roleRepository.save(r);
+        });
 
         // Intern
         internUser = new User();
@@ -90,6 +91,8 @@ class TaskPerformanceIntegrationTest extends BaseIntegrationTest {
         internUser.setFullName("Intern Performance");
         internUser.setPasswordHash("hash");
         internUser.setStatus(UserStatus.ACTIVE);
+        internUser.setEmailVerified(true);
+        internUser.setRoles(Collections.singleton(internRole));
         internUser = userRepository.save(internUser);
 
         internProfile = new InternProfile();
@@ -104,6 +107,8 @@ class TaskPerformanceIntegrationTest extends BaseIntegrationTest {
         mentorUser.setFullName("Mentor Performance");
         mentorUser.setPasswordHash("hash");
         mentorUser.setStatus(UserStatus.ACTIVE);
+        mentorUser.setEmailVerified(true);
+        mentorUser.setRoles(Collections.singleton(mentorRole));
         mentorUser = userRepository.save(mentorUser);
 
         mentorProfile = new Mentor();
@@ -119,7 +124,7 @@ class TaskPerformanceIntegrationTest extends BaseIntegrationTest {
         taskReq.setTitle("Perform DB Tuning");
         taskReq.setDescription("Tune SQL queries");
         taskReq.setAssigneeId(internProfile.getId());
-        taskReq.setDueDate(LocalDateTime.now().plusDays(5));
+        taskReq.setDueDate(LocalDate.now().plusDays(5));
 
         mockMvc.perform(postWithTenant("/api/v1/tasks", taskReq)
                         .principal(() -> mentorUser.getEmail()))
@@ -128,26 +133,28 @@ class TaskPerformanceIntegrationTest extends BaseIntegrationTest {
 
         // 2. Submit Weekly Report (Intern)
         WeeklyReportRequest reportReq = new WeeklyReportRequest();
-        reportReq.setWeekStartDate(LocalDate.now().minusDays(5));
-        reportReq.setWeekEndDate(LocalDate.now());
-        reportReq.setTasksCompleted("Tuned 5 queries");
-        reportReq.setTasksPlanned("Next tasks");
-        reportReq.setIssuesFaced("No blockers");
-        reportReq.setHoursWorked(40);
+        reportReq.setWeekNumber(1);
+        reportReq.setReportDate(LocalDate.now());
+        reportReq.setWeekStart(LocalDate.now().minusDays(5));
+        reportReq.setWeekEnd(LocalDate.now());
+        reportReq.setCompletedWork("Tuned 5 queries");
+        reportReq.setPlannedWork("Next tasks");
+        reportReq.setChallenges("No blockers");
 
         mockMvc.perform(postWithTenant("/api/v1/reports/weekly", reportReq)
                         .principal(() -> internUser.getEmail()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.tasksCompleted").value("Tuned 5 queries"));
+                .andExpect(jsonPath("$.data.completedWork").value("Tuned 5 queries"));
 
         WeeklyReport report = weeklyReportRepository.findAll().get(0);
 
         // 3. Review Weekly Report (Mentor)
-        ReviewWeeklyReportRequest reviewReq = new ReviewWeeklyReportRequest("EXCELLENT", "Great work!");
+        ReviewWeeklyReportRequest reviewReq = new ReviewWeeklyReportRequest("Great work!", 5);
         mockMvc.perform(putWithTenant("/api/v1/reports/" + report.getId() + "/feedback", reviewReq)
                         .principal(() -> mentorUser.getEmail()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.mentorAssessment").value("EXCELLENT"));
+                .andExpect(jsonPath("$.data.mentorFeedback").value("Great work!"))
+                .andExpect(jsonPath("$.data.rating").value(5));
 
         // 4. Create Performance Evaluation (Mentor)
         EvaluationRequest evalReq = new EvaluationRequest();

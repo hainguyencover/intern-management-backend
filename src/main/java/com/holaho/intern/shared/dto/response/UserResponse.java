@@ -27,5 +27,6 @@ public class UserResponse {
     private Long internId;
     private String applicationStatus;
     private Boolean isTwoFactorEnabled;
+    private Boolean emailVerified;
 }
 

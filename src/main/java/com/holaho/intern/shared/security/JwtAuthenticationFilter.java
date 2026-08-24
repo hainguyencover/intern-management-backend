@@ -26,8 +26,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         String path = request.getServletPath();
 
         // Allow filter to run for all paths so that @PreAuthorize works correctly
@@ -45,14 +45,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (token != null && tokenProvider.validateToken(token)) {
-            String username = tokenProvider.getUsernameFromJWT(token);
-            UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails,
-                    null, userDetails.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            // Check Redis Token Blacklist for revoked JWTs
+            if (isTokenBlacklisted(token)) {
+                logger.warn("Attempted use of revoked JWT token: " + token);
+            } else {
+                String username = tokenProvider.getUsernameFromJWT(token);
+                UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails,
+                        null, userDetails.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isTokenBlacklisted(String token) {
+        try {
+            org.springframework.data.redis.core.StringRedisTemplate redisTemplate =
+                    com.holaho.intern.shared.config.ApplicationContextProvider.getBean(org.springframework.data.redis.core.StringRedisTemplate.class);
+            return redisTemplate != null && Boolean.TRUE.equals(redisTemplate.hasKey("token:blacklist:" + token));
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
 

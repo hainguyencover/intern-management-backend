@@ -33,6 +33,7 @@ public class AttendanceService {
     private final AttendanceRepository attendanceRepository;
     private final InternProfileRepository internProfileRepository;
     private final SystemConfigService systemConfigService;
+    private final com.holaho.intern.repository.LeaveRequestRepository leaveRequestRepository;
 
     @Transactional
     public AttendanceResponse checkIn(Long internId) {
@@ -40,6 +41,12 @@ public class AttendanceService {
                 .orElseThrow(() -> new NotFoundException("Intern profile", internId));
 
         LocalDate today = LocalDate.now();
+
+        // BR-03: Block check-in on approved leave dates
+        if (leaveRequestRepository.existsApprovedLeaveOnDate(internId, today)) {
+            throw new com.holaho.intern.shared.exception.BadRequestException("Không thể điểm danh vào ngày đã được duyệt nghỉ phép (BR-03)");
+        }
+
         if (attendanceRepository.existsByInternIdAndDate(internId, today)) {
             throw new ConflictException("Bạn đã chấm công vào hôm nay rồi");
         }

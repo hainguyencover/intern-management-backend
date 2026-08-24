@@ -9,7 +9,7 @@ public interface StorageService {
 
     StoredFile loadAsResource(String fileUrl);
 
-    // Return a Spring Resource for streaming file contents
     org.springframework.core.io.Resource loadFileAsResource(String fileUrl);
-}
 
+    void deleteFile(String fileUrl);
+}

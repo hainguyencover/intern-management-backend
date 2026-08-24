@@ -1,10 +1,7 @@
 package com.holaho.intern.intern.entity;
 
 import com.holaho.intern.entity.Application;
-
-
 import com.holaho.intern.shared.entity.BaseEntity;
-
 import com.holaho.intern.shared.enums.ContractStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,6 +12,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Entity
 @Table(
         name = "internship_contracts",
@@ -34,6 +32,21 @@ public class InternshipContract extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private ContractStatus status = ContractStatus.SENT;
-}
+    @Builder.Default
+    private ContractStatus status = ContractStatus.PENDING_CONFIRMATION;
 
+    @Column(name = "revision_reason", columnDefinition = "TEXT")
+    private String revisionReason;
+
+    @Column(name = "revision_requested_at")
+    private LocalDateTime revisionRequestedAt;
+
+    @Column(name = "document_hash", length = 64)
+    private String documentHash;
+
+    @Column(name = "signed_ip", length = 45)
+    private String signedIp;
+
+    @Column(name = "signed_user_agent", length = 500)
+    private String signedUserAgent;
+}

@@ -18,5 +18,25 @@ public class WebConfig {
         factoryBean.setValidationMessageSource(messageSource);
         return factoryBean;
     }
+
+    @Bean
+    public org.springframework.boot.web.servlet.FilterRegistrationBean<org.springframework.web.filter.ShallowEtagHeaderFilter> shallowEtagHeaderFilter() {
+        org.springframework.boot.web.servlet.FilterRegistrationBean<org.springframework.web.filter.ShallowEtagHeaderFilter> filter =
+                new org.springframework.boot.web.servlet.FilterRegistrationBean<>(new org.springframework.web.filter.ShallowEtagHeaderFilter());
+        filter.addUrlPatterns("/api/v1/*");
+        filter.setName("etagFilter");
+        return filter;
+    }
+
+    /**
+     * P-11: Enforce global pagination safety rules (Max size 100, default size 10)
+     */
+    @Bean
+    public org.springframework.data.web.config.PageableHandlerMethodArgumentResolverCustomizer pageableCustomizer() {
+        return resolver -> {
+            resolver.setMaxPageSize(100);
+            resolver.setFallbackPageable(org.springframework.data.domain.PageRequest.of(0, 10));
+        };
+    }
 }
 

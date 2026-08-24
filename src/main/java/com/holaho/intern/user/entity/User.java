@@ -32,10 +32,14 @@ public class User extends BaseEntity {
         @Column(length = 100)
         private String address;
 
+        @Column(name = "email_verified", nullable = false)
+        private Boolean emailVerified = false;
+
         @Enumerated(EnumType.STRING)
         @Column(nullable = false, length = 20)
         private UserStatus status = UserStatus.ACTIVE;
 
+        @org.hibernate.annotations.BatchSize(size = 30)
         @ManyToMany(fetch = FetchType.LAZY)
         @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
         private Set<Role> roles = new HashSet<>();
@@ -54,5 +58,8 @@ public class User extends BaseEntity {
 
         @Column(name = "lock_time")
         private java.time.Instant lockTime;
+
+        @Column(name = "security_version", nullable = false)
+        private Integer securityVersion = 1;
 }
 

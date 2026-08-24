@@ -1,4 +1,15 @@
-package com.holaho.intern.shared.enums;
-
-public enum NotificationType {SYSTEM, EMAIL, TASK, APPLICATION, OTHER}
+public enum NotificationType {
+    MEETING_CREATED,
+    MEETING_UPDATED,
+    MEETING_CANCELLED,
+    MEETING_REMINDER,
+    SYSTEM,
+    EMAIL,
+    TASK,
+    APPLICATION,
+    WEEKLY_REPORT,
+    INTERNSHIP_COMPLETED,
+    INTERNSHIP_TERMINATED,
+    OTHER
+}
 

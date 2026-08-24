@@ -105,11 +105,25 @@ public class TaskController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
 
-        Sort.Direction direction = sort.length > 1 && sort[1].equalsIgnoreCase("asc")
-                ? Sort.Direction.ASC
-                : Sort.Direction.DESC;
+        String sortProp = "createdAt";
+        Sort.Direction direction = Sort.Direction.DESC;
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort[0]));
+        if (sort != null && sort.length > 0 && sort[0] != null && !sort[0].isEmpty()) {
+            if (sort.length > 1) {
+                sortProp = sort[0];
+                direction = "asc".equalsIgnoreCase(sort[1]) ? Sort.Direction.ASC : Sort.Direction.DESC;
+            } else if (sort[0].contains(",")) {
+                String[] parts = sort[0].split(",");
+                sortProp = parts[0];
+                if (parts.length > 1 && "asc".equalsIgnoreCase(parts[1])) {
+                    direction = Sort.Direction.ASC;
+                }
+            } else {
+                sortProp = sort[0];
+            }
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortProp));
         Page<TaskResponse> tasks = taskService.getTasksByGroup(groupId, pageable);
         return ResponseEntity.ok(ApiResponse.successPage(tasks));
     }
@@ -137,15 +151,29 @@ public class TaskController {
     }
 
     /**
-     * Get all tasks (Mentor/HR)
+     * Get all tasks (Mentor/HR/Admin/Intern)
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN', 'INTERN')")
     public ResponseEntity<ApiResponse<List<TaskResponse>>> getAll(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        Long userId = getUserIdFromAuth(authentication);
+
+        boolean isIntern = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_INTERN") || a.getAuthority().equals("INTERN"));
+        boolean isStaff = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_HR") || a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_MENTOR"));
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        if (isIntern && !isStaff) {
+            Long internId = userService.getInternProfileIdByUserId(userId);
+            Page<TaskResponse> tasks = taskService.getMyAssignedTasks(internId, pageable);
+            return ResponseEntity.ok(ApiResponse.successPage(tasks));
+        }
+
         Page<TaskResponse> tasks = taskService.getAllTasks(pageable);
         return ResponseEntity.ok(ApiResponse.successPage(tasks));
     }
@@ -196,14 +224,113 @@ public class TaskController {
     }
 
     /**
+     * Update task progress (Intern)
+     */
+    @PatchMapping("/{id}/progress")
+    @PreAuthorize("hasRole('INTERN')")
+    public ResponseEntity<ApiResponse<TaskResponse>> updateProgress(
+            @PathVariable Long id,
+            @Valid @RequestBody TaskUpdateRequest request,
+            Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
+        Long internId = userService.getInternProfileIdByUserId(userId);
+
+        com.holaho.intern.shared.dto.request.UpdateTaskProgressRequest req = new com.holaho.intern.shared.dto.request.UpdateTaskProgressRequest();
+        req.setProgressPercent(request.getProgressPercent());
+        req.setContent(request.getContent());
+
+        TaskResponse res = taskService.updateTaskProgress(id, req, internId);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật tiến độ nhiệm vụ thành công", res));
+    }
+
+    /**
+     * Get progress history timeline for a task
+     */
+    @GetMapping("/{id}/progress-history")
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN', 'INTERN')")
+    public ResponseEntity<ApiResponse<List<com.holaho.intern.shared.dto.response.TaskProgressHistoryResponse>>> getProgressHistory(@PathVariable Long id) {
+        List<com.holaho.intern.shared.dto.response.TaskProgressHistoryResponse> history = taskService.getProgressHistory(id);
+        return ResponseEntity.ok(ApiResponse.success(history));
+    }
+
+    /**
+     * Intern submit completed task for mentor review
+     */
+    @PostMapping("/{id}/submit")
+    @PreAuthorize("hasRole('INTERN')")
+    public ResponseEntity<ApiResponse<TaskResponse>> submitTask(
+            @PathVariable Long id,
+            @RequestParam(required = false) String note,
+            Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
+        TaskResponse res = taskService.submitTask(id, userId, note);
+        return ResponseEntity.ok(ApiResponse.success("Đã nộp báo cáo hoàn thành nhiệm vụ", res));
+    }
+
+    /**
+     * Mentor approve submitted task
+     */
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<TaskResponse>> approveTask(
+            @PathVariable Long id,
+            @RequestParam(required = false) String note,
+            Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
+        TaskResponse res = taskService.approveTask(id, userId, note);
+        return ResponseEntity.ok(ApiResponse.success("Đã phê duyệt hoàn thành nhiệm vụ", res));
+    }
+
+    /**
+     * Mentor reject submitted task / request changes
+     */
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<TaskResponse>> rejectTask(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason,
+            Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
+        TaskResponse res = taskService.rejectTask(id, userId, reason);
+        return ResponseEntity.ok(ApiResponse.success("Đã yêu cầu thực tập sinh làm lại nhiệm vụ", res));
+    }
+
+    /**
+     * Mentor cancel task
+     */
+    @PatchMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<TaskResponse>> cancelTask(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason,
+            Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
+        TaskResponse res = taskService.cancelTask(id, userId, reason);
+        return ResponseEntity.ok(ApiResponse.success("Đã hủy nhiệm vụ", res));
+    }
+
+    /**
+     * Get overdue tasks for mentor
+     */
+    @GetMapping("/overdue")
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> getOverdueTasks(Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
+        List<TaskResponse> tasks = taskService.getOverdueTasksForMentor(userId);
+        return ResponseEntity.ok(ApiResponse.success(tasks));
+    }
+
+    /**
      * Delete task
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         taskService.deleteTask(id);
         return ResponseEntity.ok(ApiResponse.success("Task deleted successfully", null));
     }
+
+
 
     /**
      * Helper method to extract user ID from authentication

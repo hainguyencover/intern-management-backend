@@ -124,8 +124,18 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
             report.setMentor(intern.getMentor().getUser());
         }
 
-        report.setStatus(WeeklyReportStatus.SUBMITTED);
-        report.setSubmittedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        report.setSubmittedAt(now);
+
+        // BR-05 / BR-10: Sunday 23:59:59 deadline check
+        boolean isLate = false;
+        if (req.getWeekEnd() != null) {
+            LocalDateTime sundayDeadline = req.getWeekEnd().atTime(23, 59, 59);
+            if (now.isAfter(sundayDeadline)) {
+                isLate = true;
+            }
+        }
+        report.setStatus(isLate ? WeeklyReportStatus.LATE : WeeklyReportStatus.SUBMITTED);
 
         // Perform AI Sentiment Analysis
         try {
@@ -240,21 +250,30 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
     public List<FinalReportSummaryDto> getReportsSummary() {
         List<InternProfile> interns = internRepository.findAll();
 
+        Map<Long, Double> avgScoresMap = evaluationRepository.findAverageScoresGroupedByIntern().stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> ((Number) row[1]).doubleValue()
+                ));
+
+        Map<Long, Long> reportCountsMap = reportRepository.countReportsGroupedByIntern().stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> ((Number) row[1]).longValue()
+                ));
+
         return interns.stream().map(intern -> {
-            List<Evaluation> evaluations = evaluationRepository.findByInternId(intern.getId());
-            long reportCount = reportRepository.countByIntern_Id(intern.getId());
+            Double avgScore = avgScoresMap.get(intern.getId());
+            boolean noEvaluations = (avgScore == null);
+            double actualAvg = noEvaluations ? 0.0 : avgScore;
+            long reportCount = reportCountsMap.getOrDefault(intern.getId(), 0L);
 
-            Double avgScore = evaluations.stream()
-                    .mapToInt(e -> e.getScore() != null ? e.getScore() : 0)
-                    .average()
-                    .orElse(0.0);
-
-            String assessment = calculateAssessment(avgScore, evaluations.isEmpty());
+            String assessment = calculateAssessment(actualAvg, noEvaluations);
 
             return finalReportMapper.toSummaryDto(
                     intern,
                     getMentorName(intern),
-                    Math.round(avgScore * 100.0) / 100.0,
+                    Math.round(actualAvg * 100.0) / 100.0,
                     assessment,
                     (int) reportCount);
         }).toList();

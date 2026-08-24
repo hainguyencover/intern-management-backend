@@ -39,6 +39,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
+import com.holaho.intern.service.AuditLogService;
+import com.holaho.intern.intern.repository.specification.InternProfileSpecification;
+import com.holaho.intern.shared.config.TenantContext;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -53,6 +57,10 @@ public class InternProfileServiceImpl implements InternProfileService {
     private final InternMapper internMapper;
     private final SearchService searchService;
     private final AiService aiService;
+    private final AuditLogService auditLogService;
+
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @Override
     @Transactional
@@ -62,36 +70,33 @@ public class InternProfileServiceImpl implements InternProfileService {
             user = userRepository.findById(request.getUserId())
                     .orElseThrow(() -> new NotFoundException("User không tồn tại: " + request.getUserId()));
         } else if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+            String cleanEmail = request.getEmail().trim().toLowerCase();
+            Optional<User> userOpt = userRepository.findByEmail(cleanEmail);
             if (userOpt.isPresent()) {
                 user = userOpt.get();
             } else {
-                if (request.getFullName() == null || request.getFullName().isBlank()) {
-                    throw new BadRequestException("Họ tên là bắt buộc khi tạo user mới");
-                }
-                user = new User();
-                user.setEmail(request.getEmail());
-                user.setFullName(request.getFullName());
-
-                String passwordToUse;
-                if (request.getPassword() != null && !request.getPassword().isBlank()) {
-                    passwordToUse = request.getPassword();
-                } else {
-                    passwordToUse = UUID.randomUUID().toString().substring(0, 8);
-                }
-
-                user.setPasswordHash(passwordEncoder.encode(passwordToUse));
-                user.setStatus(UserStatus.ACTIVE);
-
+                // Auto-provision User account with INTERN role if not exists
                 Role internRole = roleRepository.findByCode("INTERN")
-                        .orElseThrow(() -> new NotFoundException("Role INTERN không tồn tại trong hệ thống"));
+                        .orElseGet(() -> {
+                            Role r = new Role();
+                            r.setCode("INTERN");
+                            r.setName("Intern / Candidate");
+                            return roleRepository.save(r);
+                        });
+
+                user = new User();
+                user.setEmail(cleanEmail);
+                user.setFullName(request.getFullName() != null && !request.getFullName().isBlank() ? request.getFullName() : cleanEmail);
+                user.setPasswordHash(passwordEncoder.encode("Intern@123456"));
+                user.setStatus(UserStatus.ACTIVE);
+                user.setTenantId(TenantContext.getCurrentTenantId() != null ? TenantContext.getCurrentTenantId() : 1L);
                 user.setRoles(Set.of(internRole));
 
                 user = userRepository.save(user);
-                log.info("Auto-created user {} with password: {}", user.getEmail(), passwordToUse);
+                log.info("Auto-created User account for email: {} with INTERN role", user.getEmail());
             }
         } else {
-            throw new BadRequestException("Cần cung cấp User ID hoặc Email");
+            throw new BadRequestException("Cần cung cấp User ID hoặc Email người dùng hợp lệ.");
         }
 
         if (internProfileRepository.existsByUser_Id(user.getId())) {
@@ -100,7 +105,13 @@ public class InternProfileServiceImpl implements InternProfileService {
 
         InternProfile profile = new InternProfile();
         profile.setUser(user);
-        profile.setStudentCode(request.getStudentCode());
+
+        String studentCode = request.getStudentCode();
+        if (studentCode == null || studentCode.isBlank()) {
+            studentCode = generateNextStudentCode();
+        }
+        profile.setStudentCode(studentCode);
+
         profile.setDob(request.getDob());
         profile.setUniversity(request.getUniversity());
         profile.setMajor(request.getMajor());
@@ -109,6 +120,7 @@ public class InternProfileServiceImpl implements InternProfileService {
         profile.setGpa(request.getGpa());
         profile.setStartDate(request.getStartDate());
         profile.setEndDate(request.getEndDate());
+        profile.setStatus("DRAFT"); // Mặc định hồ sơ mới tạo ở trạng thái DRAFT
 
         if (request.getMentorId() != null) {
             Mentor mentor = mentorRepository.findById(request.getMentorId())
@@ -118,7 +130,32 @@ public class InternProfileServiceImpl implements InternProfileService {
 
         profile = internProfileRepository.save(profile);
         searchService.indexIntern(profile);
-        log.info("Created intern profile for user: {}", user.getEmail());
+        log.info("Created intern profile ID: {} linked to user: {}", profile.getId(), user.getEmail());
+
+        // Audit Logging for US-001 & US-048
+        if (auditLogService != null) {
+            try {
+                String currentActorEmail = "system";
+                if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null) {
+                    currentActorEmail = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+                }
+                auditLogService.createAuditLog(
+                        null,
+                        currentActorEmail,
+                        "CREATE",
+                        "INTERN_PROFILE",
+                        profile.getId(),
+                        "SUCCESS",
+                        "Khởi tạo hồ sơ thực tập sinh cho email: " + user.getEmail(),
+                        null,
+                        null,
+                        null,
+                        null
+                );
+            } catch (Exception e) {
+                log.warn("Could not log audit event for intern profile creation: {}", e.getMessage());
+            }
+        }
 
         return mapToResponse(profile);
     }
@@ -130,11 +167,44 @@ public class InternProfileServiceImpl implements InternProfileService {
         InternProfile profile = internProfileRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại: " + id));
 
+        // Business Rule US-002 & BR-05: Status COMPLETED and REJECTED are locked and cannot be edited
+        if ("COMPLETED".equalsIgnoreCase(profile.getStatus())) {
+            throw new ConflictException("Hồ sơ đã hoàn thành và không thể chỉnh sửa.");
+        }
+        if ("REJECTED".equalsIgnoreCase(profile.getStatus())) {
+            throw new ConflictException("Hồ sơ đã bị từ chối và không thể chỉnh sửa. Theo BR-05, ứng viên cần khởi tạo hồ sơ mới.");
+        }
+
         updateProfileData(profile, request);
 
         profile = internProfileRepository.save(profile);
         searchService.indexIntern(profile);
         log.info("Updated intern profile: {}", id);
+
+        // Audit Logging for US-002 & US-048
+        if (auditLogService != null) {
+            try {
+                String currentActorEmail = "system";
+                if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null) {
+                    currentActorEmail = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+                }
+                auditLogService.createAuditLog(
+                        null,
+                        currentActorEmail,
+                        "UPDATE",
+                        "INTERN_PROFILE",
+                        profile.getId(),
+                        "SUCCESS",
+                        "Chỉnh sửa thông tin hồ sơ thực tập sinh ID: " + profile.getId(),
+                        null,
+                        null,
+                        null,
+                        null
+                );
+            } catch (Exception e) {
+                log.warn("Could not log audit event for intern profile update: {}", e.getMessage());
+            }
+        }
 
         return mapToResponse(profile);
     }
@@ -164,12 +234,28 @@ public class InternProfileServiceImpl implements InternProfileService {
     @Override
     @Transactional
     public void delete(Long id) {
-        if (!internProfileRepository.existsById(id)) {
-            throw new NotFoundException("Intern profile", id);
+        InternProfile profile = internProfileRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Hồ sơ thực tập sinh không tồn tại: " + id));
+
+        try {
+            // Clean up child table records linked to this intern
+            entityManager.createNativeQuery("DELETE FROM group_members WHERE intern_id = :id").setParameter("id", id).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM evaluations WHERE intern_id = :id").setParameter("id", id).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM attendances WHERE intern_id = :id").setParameter("id", id).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM applications WHERE intern_id = :id").setParameter("id", id).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM weekly_reports WHERE intern_id = :id").setParameter("id", id).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM leave_requests WHERE intern_id = :id").setParameter("id", id).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM allowances WHERE intern_id = :id").setParameter("id", id).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM intern_documents WHERE intern_id = :id").setParameter("id", id).executeUpdate();
+
+            internProfileRepository.delete(profile);
+            internProfileRepository.flush();
+            searchService.deleteIntern(id);
+            log.info("Deleted intern profile ID: {}", id);
+        } catch (Exception e) {
+            log.error("Failed to delete intern profile ID {}", id, e);
+            throw new ConflictException("Không thể xóa hồ sơ thực tập sinh này: " + e.getMessage());
         }
-        internProfileRepository.deleteById(id);
-        searchService.deleteIntern(id);
-        log.info("Deleted intern profile: {}", id);
     }
 
     @Override
@@ -191,54 +277,25 @@ public class InternProfileServiceImpl implements InternProfileService {
     @Override
     @Transactional(readOnly = true)
     public Page<InternProfileResponse> searchInterns(InternSearchCriteria criteria, Pageable pageable) {
-        Specification<InternProfile> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+        boolean hasFilters = criteria != null && (
+                (criteria.getKeyword() != null && !criteria.getKeyword().isBlank()) ||
+                (criteria.getUniversity() != null && !criteria.getUniversity().isBlank()) ||
+                (criteria.getMajor() != null && !criteria.getMajor().isBlank()) ||
+                (criteria.getStatus() != null && !criteria.getStatus().isBlank()) ||
+                Boolean.TRUE.equals(criteria.getExcludeBusy())
+        );
 
-            if (criteria.getUniversity() != null && !criteria.getUniversity().trim().isEmpty()) {
-                predicates.add(
-                        cb.like(cb.lower(root.get("university")), "%" + criteria.getUniversity().toLowerCase() + "%"));
-            }
+        Page<InternProfile> pageResult;
+        if (!hasFilters) {
+            // Default initial load: Fetch all profiles directly without spec filtering
+            pageResult = internProfileRepository.findAll(pageable);
+        } else {
+            Long tenantId = TenantContext.getCurrentTenantId();
+            Specification<InternProfile> spec = InternProfileSpecification.buildSpecification(criteria, tenantId);
+            pageResult = internProfileRepository.findAll(spec, pageable);
+        }
 
-            if (criteria.getMajor() != null && !criteria.getMajor().trim().isEmpty()) {
-                predicates.add(cb.like(cb.lower(root.get("major")), "%" + criteria.getMajor().toLowerCase() + "%"));
-            }
-
-            if (criteria.getMinGpa() != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("gpa"), criteria.getMinGpa()));
-            }
-
-            if (criteria.getMaxGpa() != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("gpa"), criteria.getMaxGpa()));
-            }
-
-            if (criteria.getMentorId() != null) {
-                predicates.add(cb.equal(root.get("mentor").get("id"), criteria.getMentorId()));
-            }
-
-            if (criteria.getKeyword() != null && !criteria.getKeyword().trim().isEmpty()) {
-                String likePattern = "%" + criteria.getKeyword().toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("user").get("fullName")), likePattern),
-                        cb.like(cb.lower(root.get("user").get("email")), likePattern),
-                        cb.like(cb.lower(root.get("studentCode")), likePattern),
-                        cb.like(cb.lower(root.get("university")), likePattern),
-                        cb.like(cb.lower(root.get("major")), likePattern),
-                        cb.like(root.get("gpa").as(String.class), likePattern)));
-            }
-
-            if (Boolean.TRUE.equals(criteria.getExcludeBusy())) {
-                jakarta.persistence.criteria.Subquery<Long> subquery = query.subquery(Long.class);
-                jakarta.persistence.criteria.Root<GroupMember> gm = subquery.from(GroupMember.class);
-                subquery.select(gm.get("intern").get("id"));
-                subquery.where(cb.equal(gm.get("group").get("status"), GroupStatus.ACTIVE));
-                predicates.add(cb.not(root.get("id").in(subquery)));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        return internProfileRepository.findAll(spec, pageable)
-                .map(this::mapToResponse);
+        return pageResult.map(this::mapToResponse);
     }
 
     @Override
@@ -366,5 +423,27 @@ public class InternProfileServiceImpl implements InternProfileService {
                     .orElseThrow(() -> new NotFoundException("Mentor không tồn tại: " + request.getMentorId()));
             profile.setMentor(mentor);
         }
+    }
+
+    private synchronized String generateNextStudentCode() {
+        int year = java.time.Year.now().getValue();
+        String prefix = "TTS" + year + "-";
+
+        List<InternProfile> existing = internProfileRepository.findAll();
+        long highest = 0;
+        for (InternProfile p : existing) {
+            if (p.getStudentCode() != null && p.getStudentCode().startsWith(prefix)) {
+                try {
+                    String seqStr = p.getStudentCode().substring(prefix.length());
+                    long seq = Long.parseLong(seqStr);
+                    if (seq > highest) {
+                        highest = seq;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        long nextSeq = Math.max(highest + 1, existing.size() + 1);
+        return String.format("%s%03d", prefix, nextSeq);
     }
 }

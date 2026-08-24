@@ -1,6 +1,13 @@
 package com.holaho.intern.shared.enums;
 
 public enum ProgramStatus {
-    DRAFT, ACTIVE, CLOSED
+    DRAFT,
+    UPCOMING,
+    ACTIVE,
+    COMPLETED,
+    CANCELLED,
+    ARCHIVED,
+    CLOSED
 }
+
 

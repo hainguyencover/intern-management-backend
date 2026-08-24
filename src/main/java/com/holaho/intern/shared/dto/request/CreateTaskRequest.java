@@ -27,8 +27,15 @@ public class CreateTaskRequest {
     @Size(max = 4000)
     private String description;
 
+    private com.holaho.intern.shared.enums.TaskPriority priority;
+
+    private LocalDateTime startDate;
+
     private LocalDateTime dueDate;
 
     private Long assigneeId;
+
+    private Integer weight;
+
 }
 

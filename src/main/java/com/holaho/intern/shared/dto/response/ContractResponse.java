@@ -15,9 +15,18 @@ public class ContractResponse {
     private Long applicationId;
     private Long internId;
     private String internName;
+    private String fileName;
     private String fileUrl;
+    private Long fileSize;
+    private String mimeType;
     private String status;
+    private LocalDateTime uploadedAt;
+    private LocalDateTime hrConfirmedAt;
+    private LocalDateTime internConfirmedAt;
     private LocalDateTime signedAt;
     private LocalDateTime createdAt;
+    private String revisionReason;
+    private LocalDateTime revisionRequestedAt;
+    private String documentHash;
+    private String signedIp;
 }
-

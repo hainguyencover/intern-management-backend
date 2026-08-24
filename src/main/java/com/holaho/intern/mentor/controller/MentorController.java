@@ -1,15 +1,16 @@
 package com.holaho.intern.mentor.controller;
 
-import com.holaho.intern.mentor.entity.Mentor;
+import com.holaho.intern.mentor.dto.CreateMentorRequest;
+import com.holaho.intern.mentor.dto.MentorStatusUpdateRequest;
+import com.holaho.intern.mentor.dto.UpdateMentorRequest;
+import com.holaho.intern.mentor.service.MentorService;
+import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.dto.response.InternProfileResponse;
 import com.holaho.intern.shared.dto.response.MentorDashboardStats;
 import com.holaho.intern.shared.dto.response.MentorResponse;
-
-
-import com.holaho.intern.shared.dto.request.CreateMentorRequest;
-import com.holaho.intern.shared.dto.response.ApiResponse;
+import com.holaho.intern.shared.enums.MentorStatus;
 import com.holaho.intern.shared.security.CustomUserDetails;
-import com.holaho.intern.mentor.service.MentorService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,31 +29,31 @@ public class MentorController {
 
     private final MentorService mentorService;
 
-    // POST /api/v1/mentors
     @PostMapping
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
-    public ResponseEntity<ApiResponse<MentorResponse>> createMentor(@RequestBody CreateMentorRequest req) {
+    public ResponseEntity<ApiResponse<MentorResponse>> createMentor(@Valid @RequestBody CreateMentorRequest req) {
         MentorResponse created = mentorService.createMentor(req);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Mentor created successfully", created));
     }
 
-    // GET /api/v1/mentors
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<MentorResponse>>> getMentors(
+    @PreAuthorize("hasAnyRole('HR','ADMIN','MENTOR')")
+    public ResponseEntity<ApiResponse<Page<MentorResponse>>> searchMentors(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) MentorStatus status,
+            @RequestParam(required = false) Long departmentId,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(mentorService.getMentors(pageable)));
+        return ResponseEntity.ok(ApiResponse.success(mentorService.searchMentors(search, status, departmentId, pageable)));
     }
 
-    // GET /api/v1/mentors/{id}
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR','ADMIN')")
+    @PreAuthorize("hasAnyRole('HR','ADMIN','MENTOR')")
     public ResponseEntity<ApiResponse<MentorResponse>> getMentorById(@PathVariable Long id) {
         MentorResponse mentor = mentorService.getMentorById(id);
         return ResponseEntity.ok(ApiResponse.success(mentor));
     }
 
-    // GET /api/v1/mentors/user/{userId}
     @GetMapping("/user/{userId}")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<ApiResponse<MentorResponse>> getMentorByUserId(@PathVariable Long userId) {
@@ -60,7 +61,6 @@ public class MentorController {
         return ResponseEntity.ok(ApiResponse.success(mentor));
     }
 
-    // GET /api/v1/mentors/me/dashboard
     @GetMapping("/me/dashboard")
     @PreAuthorize("hasRole('MENTOR')")
     public ResponseEntity<ApiResponse<MentorDashboardStats>> getDashboardStats(
@@ -69,9 +69,8 @@ public class MentorController {
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
-    // GET /api/v1/mentors/assigned-interns
-    @GetMapping("/assigned-interns")
-    @PreAuthorize("hasRole('MENTOR')")
+    @GetMapping({"/assigned-interns", "/assigned-to-me"})
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Page<InternProfileResponse>>> getAssignedInterns(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
@@ -82,23 +81,28 @@ public class MentorController {
         return ResponseEntity.ok(ApiResponse.success(page));
     }
 
-    // GET /api/v1/mentors/interns/{id}
     @GetMapping("/interns/{id}")
     @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<InternProfileResponse>> getInternDetail(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(mentorService.getInternDetail(id)));
     }
 
-    // PUT /api/v1/mentors/{id}
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<ApiResponse<MentorResponse>> updateMentor(
-            @PathVariable Long id, @RequestBody CreateMentorRequest req) {
+            @PathVariable Long id, @Valid @RequestBody UpdateMentorRequest req) {
         MentorResponse updated = mentorService.updateMentor(id, req);
         return ResponseEntity.ok(ApiResponse.success("Mentor updated successfully", updated));
     }
 
-    // DELETE /api/v1/mentors/{id}
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('HR','ADMIN')")
+    public ResponseEntity<ApiResponse<MentorResponse>> updateMentorStatus(
+            @PathVariable Long id, @Valid @RequestBody MentorStatusUpdateRequest req) {
+        MentorResponse updated = mentorService.updateMentorStatus(id, req);
+        return ResponseEntity.ok(ApiResponse.success("Mentor status updated successfully", updated));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR','ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteMentor(@PathVariable Long id) {
@@ -106,4 +110,3 @@ public class MentorController {
         return ResponseEntity.ok(ApiResponse.success("Mentor deleted successfully", null));
     }
 }
-

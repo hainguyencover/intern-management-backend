@@ -14,11 +14,21 @@ import java.util.regex.Pattern;
  * Hibernate {@link StatementInspector} that automatically appends a
  * {@code tenant_id} filter to SELECT queries for multi-tenant isolation.
  * <p>
- * This is a transparent approach: existing repository methods do not need
- * to be changed. The inspector rewrites SQL statements at the JDBC level.
+ * <strong>Architecture & Security Design:</strong>
+ * <ul>
+ *   <li><strong>Transparent Interception:</strong> Existing Spring Data JPA repository queries
+ *       automatically receive tenant filters without modifying custom finder methods.</li>
+ *   <li><strong>Scope:</strong> Intercepts <code>SELECT</code> SQL statements produced by Hibernate ORM.</li>
+ * </ul>
  * <p>
- * <strong>Limitation:</strong> Only processes SELECT statements. INSERT/UPDATE
- * should set {@code tenant_id} via the entity lifecycle ({@link BaseEntity}).
+ * <strong>Critical Limitations & Guidelines (S-11):</strong>
+ * <ul>
+ *   <li><strong>Native Queries (INSERT/UPDATE/DELETE):</strong> This inspector only modifies <code>SELECT</code> queries.
+ *       For <code>INSERT</code> or <code>UPDATE</code> statements executed via <code>@Modifying @Query(nativeQuery = true)</code>,
+ *       developers <em>MUST</em> explicitly set <code>tenant_id = :tenantId</code> or rely on {@link BaseEntity} lifecycle hooks.</li>
+ *   <li><strong>Cross-Tenant Admin Operations:</strong> System-level admin queries that intentionally bypass tenant isolation
+ *       must clear the context using <code>TenantContext.clear()</code> before execution.</li>
+ * </ul>
  */
 @Slf4j
 public class TenantInterceptor implements StatementInspector {
@@ -36,7 +46,7 @@ public class TenantInterceptor implements StatementInspector {
     @Override
     public String inspect(String sql) {
         Long tenantId = TenantContext.getCurrentTenantId();
-        if (tenantId == null) {
+        if (tenantId == null || tenantId <= 0) {
             return sql;
         }
 
@@ -53,6 +63,14 @@ public class TenantInterceptor implements StatementInspector {
             if (pattern.matcher(lowerSql).find()) {
                 // Find the appropriate alias for the table
                 String alias = findTableAlias(lowerSql, table);
+                
+                // Sanitize alias to ensure it only contains valid SQL identifier characters
+                if (alias != null && !alias.matches("^[a-zA-Z0-9_]+$")) {
+                    log.warn("Invalid table alias format detected: '{}'. Skipping tenant filter injection.", alias);
+                    return sql;
+                }
+
+                // S-17 Safety: tenantId is a type-safe Long guaranteed > 0
                 String tenantCondition = (alias != null)
                         ? alias + ".tenant_id=" + tenantId
                         : table + ".tenant_id=" + tenantId;

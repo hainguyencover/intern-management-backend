@@ -23,6 +23,7 @@ public class GroupResponse {
     private String mentorName;
     private GroupStatus status;
     private Long totalMembers;
+    private java.util.List<GroupMemberResponse> members;
     private java.time.LocalDateTime createdAt;
 
     private java.time.LocalTime workStartTime;

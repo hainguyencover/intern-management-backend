@@ -34,7 +34,7 @@ public class StatisticsService {
     private final com.holaho.intern.repository.GroupMemberRepository groupMemberRepository;
 
     @Transactional(readOnly = true)
-    @org.springframework.cache.annotation.Cacheable(value = "dashboardOverview")
+    @org.springframework.cache.annotation.Cacheable(value = "dashboardOverview", keyGenerator = "tenantAwareKeyGenerator")
     public DashboardOverviewResponse getOverview() {
         return DashboardOverviewResponse.builder()
                 .totalInterns(internProfileRepository.count())
@@ -205,9 +205,7 @@ public class StatisticsService {
         if (totalInterns == 0)
             return 0.0;
 
-        long completedInterns = internProfileRepository.findAll().stream()
-                .filter(i -> i.getEndDate() != null && i.getEndDate().isBefore(java.time.LocalDate.now()))
-                .count();
+        long completedInterns = internProfileRepository.countCompletedInterns(java.time.LocalDate.now());
 
         return ((double) completedInterns / totalInterns) * 100.0;
     }

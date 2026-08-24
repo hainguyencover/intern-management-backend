@@ -41,15 +41,26 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
                         @Param("departmentId") Long departmentId,
                         @Param("status") ProgramStatus status);
 
+        boolean existsByCode(String code);
+
+        boolean existsByCodeAndIdNot(String code, Long id);
+
         // Search với filter nâng cao
         @EntityGraph(attributePaths = {"department"})
-        @Query("SELECT p FROM Program p " +
+        @Query(value = "SELECT p FROM Program p " +
                         "WHERE (:departmentId IS NULL OR p.department.id = :departmentId) " +
                         "AND (:status IS NULL OR p.status = :status) " +
-                        "AND (:keyword IS NULL OR :keyword = '' OR " +
+                        "AND (:keyword IS NULL OR " +
                         "     LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-                        "     LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-                        "ORDER BY p.createdAt DESC")
+                        "     LOWER(p.code) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "     LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%')))",
+               countQuery = "SELECT COUNT(p) FROM Program p " +
+                        "WHERE (:departmentId IS NULL OR p.department.id = :departmentId) " +
+                        "AND (:status IS NULL OR p.status = :status) " +
+                        "AND (:keyword IS NULL OR " +
+                        "     LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "     LOWER(p.code) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "     LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
         Page<Program> search(
                         @Param("departmentId") Long departmentId,
                         @Param("status") ProgramStatus status,

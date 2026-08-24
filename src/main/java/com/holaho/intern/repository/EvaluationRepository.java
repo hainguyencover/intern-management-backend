@@ -66,5 +66,18 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
                         @Param("period") String period,
                         @Param("keyword") String keyword,
                         Pageable pageable);
+
+        @Query("SELECT e.intern.id, AVG(e.score) FROM Evaluation e WHERE e.score IS NOT NULL GROUP BY e.intern.id")
+        List<Object[]> findAverageScoresGroupedByIntern();
+
+        @Query("SELECT e FROM Evaluation e WHERE " +
+                        "(:period IS NULL OR e.period = :period) " +
+                        "AND (:keyword IS NULL OR LOWER(e.intern.user.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(e.intern.studentCode) LIKE LOWER(CONCAT('%', :keyword, '%'))) "
+                        +
+                        "ORDER BY e.createdAt DESC")
+        Page<Evaluation> findAllEvaluationsWithFilters(
+                        @Param("period") String period,
+                        @Param("keyword") String keyword,
+                        Pageable pageable);
 }
 

@@ -24,5 +24,9 @@ public class TicketComment extends BaseEntity {
 
     @Column(nullable = false, length = 4000)
     private String content;
+
+    @Column(name = "is_internal", nullable = false)
+    private boolean isInternal = false;
 }
+
 

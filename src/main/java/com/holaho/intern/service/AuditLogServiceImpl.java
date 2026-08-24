@@ -1,10 +1,11 @@
 package com.holaho.intern.service;
 
-import com.holaho.intern.shared.dto.response.AuditLogResponse;
 import com.holaho.intern.entity.AuditLog;
-import com.holaho.intern.shared.mapper.AuditLogMapper;
 import com.holaho.intern.repository.AuditLogRepository;
-import com.holaho.intern.service.AuditLogService;
+import com.holaho.intern.shared.dto.response.AuditLogResponse;
+import com.holaho.intern.shared.events.AuditEvent;
+import com.holaho.intern.shared.mapper.AuditLogMapper;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -14,7 +15,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,11 +30,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Override
     @Transactional
     public void log(Long actorId, String actorEmail, String action, String entityType,
-            Long entityId, String status, String message) {
-        // The original createAuditLog set status to "SUCCESS".
-        // The new createAuditLog does not set status.
-        // For consistency with the original behavior of `log` method,
-        // we pass the status parameter to the new createAuditLog.
+                    Long entityId, String status, String message) {
         createAuditLog(actorId, actorEmail, action, entityType, entityId, status, message, null, null, null, null);
     }
 
@@ -42,61 +38,108 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Async
     @Transactional
     public void createAuditLog(Long actorId, String actorEmail, String action, String entityType,
-            Long entityId, String status, String message, String beforeJson, String afterJson, String ipAddress,
-            String userAgent) {
-        log.info("Saving async audit log for action: {}", action);
-        AuditLog auditLog = new AuditLog();
-        auditLog.setActorId(actorId);
-        auditLog.setActorEmail(actorEmail);
-        auditLog.setAction(action);
-        auditLog.setEntityType(entityType);
-        auditLog.setEntityId(entityId);
-        auditLog.setStatus(status); // Set status from parameter
-        auditLog.setMessage(message);
-        auditLog.setBeforeJson(beforeJson);
-        auditLog.setAfterJson(afterJson);
-        auditLog.setIpAddress(ipAddress);
-        auditLog.setUserAgent(userAgent);
-        auditLog.setCreatedAt(LocalDateTime.now());
+                                Long entityId, String status, String message, String beforeJson, String afterJson,
+                                String ipAddress, String userAgent) {
+        AuditEvent event = AuditEvent.builder()
+                .actorId(actorId)
+                .actorEmail(actorEmail)
+                .action(action)
+                .entityType(entityType)
+                .resourceType(entityType)
+                .entityId(entityId)
+                .resourceId(entityId != null ? String.valueOf(entityId) : null)
+                .status(status != null ? status : "SUCCESS")
+                .result(status != null ? status : "SUCCESS")
+                .message(message)
+                .beforeJson(beforeJson)
+                .afterJson(afterJson)
+                .ipAddress(ipAddress)
+                .userAgent(userAgent)
+                .build();
+        createAuditLog(event);
+    }
+
+    @Override
+    @Transactional
+    public void createAuditLog(AuditEvent event) {
+        log.debug("Persisting audit log for action: {}", event.getAction());
+        AuditLog auditLog = AuditLog.builder()
+                .tenantId(event.getTenantId())
+                .actorId(event.getActorId())
+                .actorUsername(event.getActorUsername())
+                .actorEmail(event.getActorEmail())
+                .actorRole(event.getActorRole())
+                .action(event.getAction())
+                .resourceType(event.getResourceType() != null ? event.getResourceType() : event.getEntityType())
+                .resourceId(event.getResourceId() != null ? event.getResourceId() : (event.getEntityId() != null ? String.valueOf(event.getEntityId()) : null))
+                .entityType(event.getEntityType())
+                .entityId(event.getEntityId())
+                .result(event.getResult() != null ? event.getResult() : (event.getStatus() != null ? event.getStatus() : "SUCCESS"))
+                .status(event.getStatus() != null ? event.getStatus() : "SUCCESS")
+                .ipAddress(event.getIpAddress())
+                .userAgent(event.getUserAgent())
+                .requestId(event.getRequestId())
+                .message(event.getMessage())
+                .beforeJson(event.getBeforeJson())
+                .afterJson(event.getAfterJson())
+                .oldValue(event.getOldValue())
+                .newValue(event.getNewValue())
+                .metadata(event.getMetadata())
+                .createdAt(LocalDateTime.now())
+                .build();
 
         auditLogRepository.save(auditLog);
-        log.debug("Audit log created: {} on {} (ID: {})", action, entityType, entityId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<AuditLogResponse> getAuditLogs(
+            Long tenantId,
             Long actorId,
+            String actorUsername,
+            String actorRole,
             String action,
-            String entityType,
+            String resourceType,
+            String result,
             LocalDateTime fromDate,
             LocalDateTime toDate,
             Pageable pageable) {
+
         Specification<AuditLog> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            if (tenantId != null) {
+                predicates.add(cb.equal(root.get("tenantId"), tenantId));
+            }
             if (actorId != null) {
                 predicates.add(cb.equal(root.get("actorId"), actorId));
             }
-
+            if (actorUsername != null && !actorUsername.trim().isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("actorUsername")), "%" + actorUsername.trim().toLowerCase() + "%"));
+            }
+            if (actorRole != null && !actorRole.trim().isEmpty()) {
+                predicates.add(cb.equal(root.get("actorRole"), actorRole.trim()));
+            }
             if (action != null && !action.trim().isEmpty()) {
-                predicates.add(cb.equal(root.get("action"), action));
+                predicates.add(cb.equal(root.get("action"), action.trim()));
             }
-
-            if (entityType != null && !entityType.trim().isEmpty()) {
-                predicates.add(cb.equal(root.get("entityType"), entityType));
+            if (resourceType != null && !resourceType.trim().isEmpty()) {
+                predicates.add(cb.or(
+                        cb.equal(root.get("resourceType"), resourceType.trim()),
+                        cb.equal(root.get("entityType"), resourceType.trim())
+                ));
             }
-
+            if (result != null && !result.trim().isEmpty()) {
+                predicates.add(cb.equal(root.get("result"), result.trim()));
+            }
             if (fromDate != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), fromDate));
             }
-
             if (toDate != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), toDate));
             }
 
             query.orderBy(cb.desc(root.get("createdAt")));
-
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
@@ -107,7 +150,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Transactional(readOnly = true)
     public AuditLogResponse getAuditLogById(Long id) {
         AuditLog auditLog = auditLogRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Audit log not found: " + id));
+                .orElseThrow(() -> new RuntimeException("Audit log not found with ID: " + id));
         return auditLogMapper.toResponse(auditLog);
     }
 
@@ -118,4 +161,3 @@ public class AuditLogServiceImpl implements AuditLogService {
                 .stream().map(auditLogMapper::toResponse).toList();
     }
 }
-

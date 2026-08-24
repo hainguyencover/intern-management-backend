@@ -25,7 +25,7 @@ public class HrExportController {
      *
      * format: xlsx | pdf
      */
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     @GetMapping
     public ResponseEntity<byte[]> export(
             @RequestParam String report,

@@ -23,12 +23,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/program-groups")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+@PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
 public class ProgramGroupController {
 
     private final ProgramGroupService groupService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
     public ResponseEntity<ApiResponse<Page<GroupResponse>>> getAll(
             @RequestParam(required = false) Long programId,
             @RequestParam(required = false) String status,
@@ -39,18 +40,21 @@ public class ProgramGroupController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
     public ResponseEntity<ApiResponse<GroupResponse>> getById(@PathVariable Long id) {
         GroupResponse group = groupService.getById(id);
         return ResponseEntity.ok(ApiResponse.success(group));
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
     public ResponseEntity<ApiResponse<GroupResponse>> create(@Valid @RequestBody GroupRequest request) {
         GroupResponse group = groupService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Group created successfully", group));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
     public ResponseEntity<ApiResponse<GroupResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateGroupRequest request) {
@@ -59,6 +63,7 @@ public class ProgramGroupController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         groupService.delete(id);
         return ResponseEntity.ok(ApiResponse.success("Group deleted successfully", null));
@@ -67,12 +72,15 @@ public class ProgramGroupController {
     // ========== MEMBER MANAGEMENT ==========
 
     @GetMapping("/{id}/members")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
     public ResponseEntity<ApiResponse<List<GroupMemberResponse>>> getMembers(@PathVariable Long id) {
         List<GroupMemberResponse> members = groupService.getMembers(id);
         return ResponseEntity.ok(ApiResponse.success(members));
     }
 
+
     @PostMapping("/{id}/members")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
     public ResponseEntity<ApiResponse<Void>> assignIntern(
             @PathVariable Long id,
             @Valid @RequestBody AssignInternRequest request) {
@@ -82,6 +90,7 @@ public class ProgramGroupController {
     }
 
     @PostMapping("/{id}/members/bulk")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
     public ResponseEntity<ApiResponse<Void>> assignInterns(
             @PathVariable Long id,
             @Valid @RequestBody AssignInternsRequest request) {
@@ -91,11 +100,13 @@ public class ProgramGroupController {
     }
 
     @DeleteMapping("/{groupId}/members/{internId}")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
     public ResponseEntity<ApiResponse<Void>> removeIntern(
             @PathVariable Long groupId,
             @PathVariable Long internId) {
         groupService.removeIntern(groupId, internId);
         return ResponseEntity.ok(ApiResponse.success("Intern removed from group successfully", null));
     }
+
 }
 

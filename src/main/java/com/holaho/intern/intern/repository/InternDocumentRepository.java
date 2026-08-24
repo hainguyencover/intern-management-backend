@@ -15,7 +15,8 @@ import java.util.Optional;
 public interface InternDocumentRepository extends JpaRepository<InternDocument, Long> {
     List<InternDocument> findByInternId(Long internId);
 
-    @Query(value = "SELECT d FROM InternDocument d JOIN FETCH d.intern i JOIN FETCH i.user WHERE d.status = 'PENDING' ORDER BY d.uploadedAt DESC", countQuery = "SELECT count(d) FROM InternDocument d WHERE d.status = 'PENDING'")
+    @Query(value = "SELECT d FROM InternDocument d JOIN FETCH d.intern i JOIN FETCH i.user WHERE d.status = 'PENDING' ORDER BY d.uploadedAt DESC", 
+           countQuery = "SELECT count(d) FROM InternDocument d WHERE d.status = 'PENDING'")
     Page<InternDocument> findPendingDocuments(Pageable pageable);
 
     @Query("SELECT d FROM InternDocument d JOIN FETCH d.intern i JOIN FETCH i.user WHERE d.id = :id")
@@ -51,5 +52,19 @@ public interface InternDocumentRepository extends JpaRepository<InternDocument, 
     long countByInternIdAndStatus(Long internId, String status);
 
     boolean existsByInternIdAndType(Long internId, String type);
-}
 
+    boolean existsByIntern_IdAndTypeAndStatus(Long internId, String type, String status);
+
+    @Query(value = "SELECT d FROM InternDocument d JOIN d.intern i JOIN i.user u " +
+           "WHERE (:tenantId IS NULL OR d.tenantId = :tenantId) " +
+           "AND (:status IS NULL OR :status = '' OR d.status = :status) " +
+           "AND (:type IS NULL OR :type = '' OR d.type = :type)",
+           countQuery = "SELECT count(d) FROM InternDocument d " +
+           "WHERE (:tenantId IS NULL OR d.tenantId = :tenantId) " +
+           "AND (:status IS NULL OR :status = '' OR d.status = :status) " +
+           "AND (:type IS NULL OR :type = '' OR d.type = :type)")
+    Page<InternDocument> findFilteredDocuments(@Param("tenantId") Long tenantId,
+                                                @Param("status") String status,
+                                                @Param("type") String type,
+                                                Pageable pageable);
+}

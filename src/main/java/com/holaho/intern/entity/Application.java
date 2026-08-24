@@ -51,4 +51,7 @@ public class Application extends BaseEntity {
 
     @Column(name = "ai_recommendation", columnDefinition = "TEXT")
     private String aiRecommendation;
+
+    @Version
+    private Long version;
 }

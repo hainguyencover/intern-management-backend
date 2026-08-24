@@ -7,6 +7,7 @@ import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.mentor.entity.Mentor;
 import com.holaho.intern.user.entity.Role;
 import com.holaho.intern.user.entity.User;
+import com.holaho.intern.shared.enums.ApplicationStatus;
 import com.holaho.intern.shared.enums.ProgramStatus;
 import com.holaho.intern.shared.enums.UserStatus;
 import com.holaho.intern.shared.enums.ReviewDecision;
@@ -154,14 +155,14 @@ class InternLifecycleIntegrationTest extends BaseIntegrationTest {
         org.junit.jupiter.api.Assertions.assertTrue(hasInternRole);
 
         // 2. HR transitions profile status to ACTIVE
-        mockMvc.perform(putWithTenant("/api/v1/interns/profiles/" + profile.getId() + "/status?status=ACTIVE"))
+        mockMvc.perform(putWithTenant("/api/v1/interns/profiles/" + profile.getId() + "/status?status=ACTIVE", ""))
                 .andExpect(status().isOk());
 
         profile = internProfileRepository.findById(profile.getId()).orElseThrow();
         org.junit.jupiter.api.Assertions.assertEquals("ACTIVE", profile.getStatus());
 
         // 3. HR assigns Mentor to Intern
-        mockMvc.perform(putWithTenant("/api/v1/interns/profiles/" + profile.getId() + "/assign-mentor?mentorUserId=" + mentorUser.getId()))
+        mockMvc.perform(putWithTenant("/api/v1/interns/profiles/" + profile.getId() + "/assign-mentor?mentorUserId=" + mentorUser.getId(), ""))
                 .andExpect(status().isOk());
 
         profile = internProfileRepository.findById(profile.getId()).orElseThrow();

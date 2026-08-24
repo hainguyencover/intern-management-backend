@@ -48,6 +48,9 @@ class InternProfileServiceImplTest {
     @Mock
     private com.holaho.intern.service.AiService aiService;
 
+    @Mock
+    private com.holaho.intern.service.AuditLogService auditLogService;
+
     @InjectMocks
     private InternProfileServiceImpl internProfileService;
 
@@ -80,35 +83,75 @@ class InternProfileServiceImplTest {
     }
 
     @Test
-    void createIntern_NewUser_Success() {
+    void createIntern_UserNotFound_ThrowsBadRequestExceptionForBR09() {
         // Arrange
         InternProfileRequest request = new InternProfileRequest();
-        request.setEmail("new_intern@example.com");
-        request.setFullName("New Intern");
-        request.setStudentCode("ST002");
+        // No userId or email provided to trigger BadRequestException
 
-        Role internRole = new Role();
-        internRole.setCode("INTERN");
+        // Act & Assert
+        assertThrows(com.holaho.intern.shared.exception.BadRequestException.class,
+                () -> internProfileService.createIntern(request));
+    }
 
-        User savedUser = new User();
-        savedUser.setId(2L);
-        savedUser.setEmail("new_intern@example.com");
+    @Test
+    void updateIntern_StatusCompleted_ThrowsConflictException() {
+        // Arrange
+        InternProfile profile = new InternProfile();
+        profile.setStatus("COMPLETED");
 
-        when(userRepository.findByEmail("new_intern@example.com")).thenReturn(Optional.empty());
-        when(roleRepository.findByCode("INTERN")).thenReturn(Optional.of(internRole));
-        when(passwordEncoder.encode(anyString())).thenReturn("hashed_pass");
-        when(userRepository.save(any(User.class))).thenReturn(savedUser);
-        when(internProfileRepository.existsByUser_Id(2L)).thenReturn(false);
-        when(internProfileRepository.save(any(InternProfile.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(internProfileRepository.findById(1L)).thenReturn(Optional.of(profile));
+
+        InternProfileRequest request = new InternProfileRequest();
+        request.setUniversity("HUST");
+
+        // Act & Assert
+        assertThrows(com.holaho.intern.shared.exception.ConflictException.class,
+                () -> internProfileService.updateIntern(1L, request));
+    }
+
+    @Test
+    void updateIntern_StatusRejected_ThrowsConflictException() {
+        // Arrange
+        InternProfile profile = new InternProfile();
+        profile.setStatus("REJECTED");
+
+        when(internProfileRepository.findById(1L)).thenReturn(Optional.of(profile));
+
+        InternProfileRequest request = new InternProfileRequest();
+        request.setUniversity("HUST");
+
+        // Act & Assert
+        assertThrows(com.holaho.intern.shared.exception.ConflictException.class,
+                () -> internProfileService.updateIntern(1L, request));
+    }
+
+    @Test
+    void updateIntern_ValidProfile_Success() {
+        // Arrange
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("intern@example.com");
+
+        InternProfile profile = new InternProfile();
+        profile.setId(1L);
+        profile.setUser(user);
+        profile.setStatus("INTERNING");
+
+        when(internProfileRepository.findById(1L)).thenReturn(Optional.of(profile));
+        when(internProfileRepository.save(any(InternProfile.class))).thenReturn(profile);
         when(internMapper.toResponse(any(), any())).thenReturn(new InternProfileResponse());
 
+        InternProfileRequest request = new InternProfileRequest();
+        request.setUniversity("Đại học Bách Khoa");
+        request.setMajor("Công nghệ Thông tin");
+
         // Act
-        InternProfileResponse response = internProfileService.createIntern(request);
+        InternProfileResponse response = internProfileService.updateIntern(1L, request);
 
         // Assert
         assertNotNull(response);
-        verify(userRepository).save(any(User.class));
-        verify(internProfileRepository).save(any(InternProfile.class));
+        verify(internProfileRepository).save(profile);
+        verify(auditLogService).createAuditLog(any(), anyString(), eq("UPDATE"), eq("INTERN_PROFILE"), eq(1L), eq("SUCCESS"), anyString(), any(), any(), any(), any());
     }
 
     @Test

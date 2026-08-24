@@ -1,0 +1,22 @@
+# ========================================================
+# BENCHMARK Profile Configuration (DO NOT USE IN PRODUCTION)
+# Enables Hibernate Statistics & Slow Query Diagnostics
+# ========================================================
+spring:
+  config:
+    activate:
+      on-profile: benchmark
+  jpa:
+    show-sql: true
+    properties:
+      "[hibernate.generate_statistics]": true
+      "[hibernate.session.events.log.LOG_QUERIES_SLOWER_THAN_MS]": 100
+      "[hibernate.format_sql]": true
+      "[hibernate.use_sql_comments]": true
+
+logging:
+  level:
+    org.hibernate.stat: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+    com.holaho.intern: DEBUG

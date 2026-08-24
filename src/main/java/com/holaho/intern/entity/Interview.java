@@ -30,6 +30,7 @@ public class Interview extends BaseEntity {
     @JoinColumn(name = "interviewer_id", nullable = false)
     private User interviewer;
 
+    @Builder.Default
     @Column(nullable = false, length = 30)
     private String status = "SCHEDULED"; // SCHEDULED, COMPLETED, CANCELLED
 

@@ -43,7 +43,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 .limitForPeriod(100)
                 .timeoutDuration(Duration.ZERO)
                 .build();
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = new ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @Override
@@ -65,7 +67,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } else {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
 
             ApiResponse<Void> apiResponse = ApiResponse.error(429,
                     "Quá nhiều yêu cầu. Vui lòng thử lại sau.",

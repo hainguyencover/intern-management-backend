@@ -23,6 +23,7 @@ import java.util.Set;
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final com.holaho.intern.repository.UniversityUserRepository universityUserRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,7 +52,11 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         log.info("User {} has authorities: {}", normalized, authorities);
 
-        return new CustomUserDetails(user);
+        Long universityId = universityUserRepository.findByUserId(user.getId())
+                .map(uu -> uu.getUniversity().getId())
+                .orElse(null);
+
+        return new CustomUserDetails(user, universityId);
     }
 }
 

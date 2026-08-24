@@ -16,10 +16,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@RestController
-@RequestMapping("/api/v1/mentor/weekly-reports")
+//@RestController
+//@RequestMapping("/api/v1/mentor/weekly-reports")
 @RequiredArgsConstructor
-public class MentorWeeklyReportController {
+@Deprecated
+class MentorWeeklyReportController {
 
     private final WeeklyReportService weeklyReportService;
 

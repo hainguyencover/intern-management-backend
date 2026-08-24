@@ -105,7 +105,8 @@ class SecurityIntegrationTest extends BaseIntegrationTest {
         String tokenStr = rt.getToken();
 
         com.holaho.intern.shared.dto.request.TokenRefreshRequest refreshRequest =
-                new com.holaho.intern.shared.dto.request.TokenRefreshRequest(tokenStr);
+                new com.holaho.intern.shared.dto.request.TokenRefreshRequest();
+        refreshRequest.setRefreshToken(tokenStr);
 
         // First refresh should succeed and rotate token
         mockMvc.perform(postWithTenant("/api/v1/auth/refresh", refreshRequest))

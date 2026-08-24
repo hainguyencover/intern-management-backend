@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Cập nhật lịch họp</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #fb8c00, #f57c00); color: #ffffff; padding: 24px; text-align: center; }
+        .content { padding: 24px; }
+        .details-box { background: #fff8e1; border-left: 4px solid #fb8c00; padding: 16px; margin: 16px 0; border-radius: 4px; }
+        .footer { text-align: center; padding: 16px; font-size: 12px; color: #78909c; background: #eceff1; }
+        .btn { display: inline-block; padding: 12px 24px; background: #fb8c00; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 16px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>THAY ĐỔI LỊCH HỌP</h2>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong>${internName}</strong>,</p>
+        <p>Lịch họp <strong>${meetingTitle}</strong> của bạn đã có thay đổi thông tin:</p>
+        <div class="details-box">
+            <p><strong>Tiêu đề:</strong> ${meetingTitle}</p>
+            <p><strong>Thời gian mới:</strong> ${meetingDate} lúc ${meetingTime}</p>
+            <p><strong>Địa điểm / Link mới:</strong> ${meetingUrl}</p>
+        </div>
+        <p>Vui lòng kiểm tra lại thời gian biểu mới.</p>
+        <div style="text-align: center;">
+            <a href="${meetingUrl}" class="btn">Xem Thông Tin Mới</a>
+        </div>
+    </div>
+    <div class="footer">
+        <p>© 2026 HoLaHo IMS - Intern Management System</p>
+    </div>
+</div>
+</body>
+</html>

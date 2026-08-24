@@ -62,6 +62,30 @@ public class AuthController {
     }
 
     /**
+     * Verify email with token
+     * POST /api/v1/auth/email-verification/verify
+     */
+    @PostMapping("/email-verification/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(
+            @Valid @RequestBody com.holaho.intern.auth.dto.request.VerifyEmailRequest request) {
+        log.info("Email verification request");
+        authService.verifyEmail(request);
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully", null));
+    }
+
+    /**
+     * Resend verification email
+     * POST /api/v1/auth/email-verification/resend
+     */
+    @PostMapping("/email-verification/resend")
+    public ResponseEntity<ApiResponse<Void>> resendVerification(
+            @Valid @RequestBody com.holaho.intern.auth.dto.request.ResendVerificationRequest request) {
+        log.info("Resend email verification request for email: {}", request.getEmail());
+        authService.resendVerification(request);
+        return ResponseEntity.ok(ApiResponse.success("Verification email sent", null));
+    }
+
+    /**
      * Get current logged-in user info
      * GET /api/v1/auth/me
      */

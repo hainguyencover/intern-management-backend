@@ -25,6 +25,12 @@ public interface TaskService {
     void updateStatus(Long id, TaskStatus status);
     void addUpdate(Long id, TaskUpdateRequest request, Long internId);
     List<TaskUpdate> getTaskUpdates(Long taskId);
+    List<com.holaho.intern.shared.dto.response.TaskProgressHistoryResponse> getProgressHistory(Long taskId);
+    TaskResponse submitTask(Long taskId, Long internUserId, String note);
+    TaskResponse approveTask(Long taskId, Long mentorUserId, String note);
+    TaskResponse rejectTask(Long taskId, Long mentorUserId, String reason);
+    TaskResponse cancelTask(Long taskId, Long mentorUserId, String reason);
+    List<TaskResponse> getOverdueTasksForMentor(Long mentorUserId);
     void deleteTask(Long id);
     TaskResponse getById(Long id);
     TaskUpdateDto internCreateUpdate(Long taskId, Long userId, TaskUpdateRequest req);
@@ -35,4 +41,6 @@ public interface TaskService {
     Page<TaskResponse> getTasksByAssignee(Long assigneeId, Pageable pageable);
     Page<TaskResponse> getAssignedTasks(Long creatorId, Long assigneeId, Long groupId, String status, String keyword, Pageable pageable);
 }
+
+
 

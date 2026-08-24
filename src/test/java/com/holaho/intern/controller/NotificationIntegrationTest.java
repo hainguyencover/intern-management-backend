@@ -14,6 +14,7 @@ import com.holaho.intern.notification.entity.EmailQueue;
 import com.holaho.intern.notification.repository.EmailQueueRepository;
 import com.holaho.intern.user.entity.Role;
 import com.holaho.intern.user.entity.User;
+import com.holaho.intern.shared.enums.GroupStatus;
 import com.holaho.intern.shared.enums.ProgramStatus;
 import com.holaho.intern.shared.enums.UserStatus;
 import com.holaho.intern.user.repository.RoleRepository;
@@ -134,6 +135,7 @@ class NotificationIntegrationTest extends BaseIntegrationTest {
         group.setName("Backend Group 1");
         group.setProgram(program);
         group.setMentorId(mentorUser.getId());
+        group.setStatus(GroupStatus.ACTIVE);
         group = groupRepository.save(group);
     }
 
@@ -163,7 +165,7 @@ class NotificationIntegrationTest extends BaseIntegrationTest {
         taskReq.setTitle("Event Testing Task");
         taskReq.setDescription("Testing the domain event system");
         taskReq.setAssigneeId(internProfile.getId());
-        taskReq.setDueDate(LocalDateTime.now().plusDays(2));
+        taskReq.setDueDate(java.time.LocalDate.now().plusDays(2));
 
         mockMvc.perform(postWithTenant("/api/v1/tasks", taskReq)
                         .principal(() -> mentorUser.getEmail()))

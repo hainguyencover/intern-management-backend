@@ -56,5 +56,8 @@ public interface WeeklyReportRepository extends JpaRepository<WeeklyReport, Long
         long countByIntern_Id(Long internId);
 
         List<WeeklyReport> findTop5ByMentor_IdOrderByWeekNumberDesc(Long mentorId);
+
+        @Query("SELECT r.intern.id, COUNT(r.id) FROM WeeklyReport r GROUP BY r.intern.id")
+        List<Object[]> countReportsGroupedByIntern();
 }
 

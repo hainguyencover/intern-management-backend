@@ -12,6 +12,10 @@ public record CreateMentorTaskRequest(
         @NotEmpty List<Long> internIds,
         @NotBlank String title,
         String description,
-        LocalDateTime dueDate
+        com.holaho.intern.shared.enums.TaskPriority priority,
+        LocalDateTime startDate,
+        LocalDateTime dueDate,
+        Integer weight
 ) {}
+
 

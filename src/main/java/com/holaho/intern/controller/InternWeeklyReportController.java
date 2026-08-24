@@ -14,10 +14,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@RestController
-@RequestMapping("/api/v1/interns/me/weekly-reports")
+//@RestController
+//@RequestMapping("/api/v1/interns/me/weekly-reports")
 @RequiredArgsConstructor
-public class InternWeeklyReportController {
+@Deprecated
+class InternWeeklyReportController {
 
     private final WeeklyReportService weeklyReportService;
     private final UserService userService;

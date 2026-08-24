@@ -6,9 +6,11 @@ import com.holaho.intern.entity.Program;
 import com.holaho.intern.shared.dto.request.AssignInternRequest;
 import com.holaho.intern.shared.dto.request.GroupRequest;
 import com.holaho.intern.shared.dto.request.CreateProgramRequest;
+import com.holaho.intern.shared.dto.request.UpdateProgramTimelineRequest;
 import com.holaho.intern.shared.dto.response.ApiResponse;
 import com.holaho.intern.shared.dto.response.GroupResponse;
 import com.holaho.intern.shared.dto.response.ProgramResponse;
+import com.holaho.intern.shared.dto.response.ProgramTimelineResponse;
 import com.holaho.intern.shared.enums.ProgramStatus;
 import com.holaho.intern.service.ProgramGroupService;
 import com.holaho.intern.service.ProgramService;
@@ -42,9 +44,25 @@ public class ProgramController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(
-                sort[1].equals("asc") ? Sort.Direction.ASC : Sort.Direction.DESC,
-                sort[0]));
+        String sortProp = "createdAt";
+        Sort.Direction sortDir = Sort.Direction.DESC;
+
+        if (sort != null && sort.length > 0 && sort[0] != null && !sort[0].isEmpty()) {
+            if (sort.length > 1) {
+                sortProp = sort[0];
+                sortDir = "asc".equalsIgnoreCase(sort[1]) ? Sort.Direction.ASC : Sort.Direction.DESC;
+            } else if (sort[0].contains(",")) {
+                String[] parts = sort[0].split(",");
+                sortProp = parts[0];
+                if (parts.length > 1 && "asc".equalsIgnoreCase(parts[1])) {
+                    sortDir = Sort.Direction.ASC;
+                }
+            } else {
+                sortProp = sort[0];
+            }
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDir, sortProp));
 
         Page<ProgramResponse> response = programService.search(departmentId, status, keyword, pageable);
         return ResponseEntity.ok(ApiResponse.successPage(response));
@@ -72,6 +90,22 @@ public class ProgramController {
         return ResponseEntity.ok(ApiResponse.success("Program updated successfully", response));
     }
 
+    @GetMapping("/{id}/timeline")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
+    public ResponseEntity<ApiResponse<ProgramTimelineResponse>> getTimeline(@PathVariable Long id) {
+        ProgramTimelineResponse response = programService.getProgramTimelineDetails(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PutMapping("/{id}/timeline")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<ProgramResponse>> updateTimeline(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateProgramTimelineRequest req) {
+        ProgramResponse response = programService.updateProgramTimeline(id, req);
+        return ResponseEntity.ok(ApiResponse.success("Program timeline updated successfully", response));
+    }
+
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> updateStatus(
@@ -83,26 +117,34 @@ public class ProgramController {
 
     // Group endpoints
     @PostMapping("/groups")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
     public ResponseEntity<ApiResponse<GroupResponse>> createGroup(@Valid @RequestBody GroupRequest req) {
         GroupResponse response = programGroupService.create(req);
         return ResponseEntity.ok(ApiResponse.success("Group created successfully", response));
     }
 
     @GetMapping("/{programId}/groups")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
     public ResponseEntity<ApiResponse<List<GroupResponse>>> getGroups(@PathVariable Long programId) {
         List<GroupResponse> response = programGroupService.getGroupsByProgramId(programId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/groups/{groupId}/members")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
     public ResponseEntity<ApiResponse<Void>> assignIntern(
             @PathVariable Long groupId,
             @Valid @RequestBody AssignInternRequest req) {
         programGroupService.assignIntern(groupId, req.getInternId());
         return ResponseEntity.ok(ApiResponse.success("Intern assigned to group successfully", null));
+    }
+
+
+    @GetMapping("/{id}/capacity")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
+    public ResponseEntity<ApiResponse<com.holaho.intern.shared.dto.response.ProgramCapacityResponse>> getCapacity(@PathVariable Long id) {
+        com.holaho.intern.shared.dto.response.ProgramCapacityResponse res = programService.getProgramCapacity(id);
+        return ResponseEntity.ok(ApiResponse.success(res));
     }
 
     /**

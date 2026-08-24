@@ -39,20 +39,23 @@ public interface InternMapper {
     InternProfileResponse toResponse(InternProfile profile, GroupMember member);
 
     default String calculateStatus(InternProfile profile, GroupMember member) {
+        if (profile.getStatus() != null && !profile.getStatus().isBlank()) {
+            return profile.getStatus();
+        }
         if (member != null && member.getGroup() != null) {
             if (member.getGroup().getProgram() != null
                     && "CLOSED".equals(member.getGroup().getProgram().getStatus().name())) {
-                return "FINISHED";
+                return "COMPLETED";
             }
-            return "ACTIVE";
+            return "INTERNING";
         }
         LocalDate now = LocalDate.now();
         if (profile.getEndDate() != null && profile.getEndDate().isBefore(now)) {
-            return "FINISHED";
+            return "COMPLETED";
         } else if (profile.getStartDate() != null && profile.getStartDate().isAfter(now)) {
-            return "WAITING";
+            return "DRAFT";
         } else {
-            return "ACTIVE";
+            return "INTERNING";
         }
     }
 
@@ -70,4 +73,3 @@ public interface InternMapper {
         return profile.getEndDate();
     }
 }
-

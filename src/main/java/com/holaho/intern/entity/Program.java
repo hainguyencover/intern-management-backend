@@ -22,9 +22,12 @@ import java.time.LocalDate;
 })
 public class Program extends BaseEntity {
 
-        @ManyToOne(fetch = FetchType.LAZY, optional = false)
-        @JoinColumn(name = "department_id", nullable = false)
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "department_id")
         private Department department;
+
+        @Column(length = 50, unique = true)
+        private String code;
 
         @Column(nullable = false, length = 255)
         private String name;
@@ -39,7 +42,10 @@ public class Program extends BaseEntity {
         private LocalDate endDate;
 
         @Enumerated(EnumType.STRING)
-        @Column(nullable = false, length = 20)
+        @Column(nullable = false, length = 30)
         private ProgramStatus status = ProgramStatus.ACTIVE;
+
+        @Column(name = "max_interns")
+        private Integer maxInterns;
 }
 

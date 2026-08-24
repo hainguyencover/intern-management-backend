@@ -46,4 +46,18 @@ public class NotificationPreferenceService {
         preferenceRepository.save(pref);
         log.info("Updated notification preference for user: {}, event: {}", userId, request.getEventType());
     }
+
+    @Transactional(readOnly = true)
+    public boolean isChannelEnabled(Long userId, String eventType, com.holaho.intern.notification.enums.NotificationChannel channel) {
+        Optional<NotificationPreference> opt = preferenceRepository.findByUser_IdAndEventType(userId, eventType);
+        if (opt.isEmpty()) {
+            return true; // Default enabled
+        }
+        NotificationPreference pref = opt.get();
+        return switch (channel) {
+            case EMAIL -> pref.isEmailEnabled();
+            case IN_APP -> pref.isInAppEnabled();
+        };
+    }
 }
+

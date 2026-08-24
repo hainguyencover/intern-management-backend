@@ -25,6 +25,14 @@ public class ProgramGroup extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String name;
 
+    @Column(length = 50)
+    private String code;
+
+    @Column(length = 500)
+    private String description;
+
+    private Integer capacity;
+
     // Không dùng entity Department/Mentor nữa -> chỉ lưu id
     @Column(name = "department_id")
     private Long departmentId;

@@ -57,6 +57,9 @@ public class EmailService {
         mailSender.send(mimeMessage);
     }
 
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.username:}")
+    private String mailUsername;
+
     /**
      * Scheduled worker to process email queue
      */
@@ -64,13 +67,19 @@ public class EmailService {
     public void processEmailQueue() {
         List<EmailQueue> pendingEmails = emailQueueRepository.findByStatus("PENDING");
         for (EmailQueue eq : pendingEmails) {
+            if (mailUsername == null || mailUsername.isBlank()) {
+                eq.setStatus("SENT_DEV_MOCK");
+                emailQueueRepository.save(eq);
+                log.info("[DEV MOCK EMAIL] Mail credentials empty. Email enqueued for {} subject '{}' marked as SENT_DEV_MOCK", eq.getRecipient(), eq.getSubject());
+                continue;
+            }
             try {
                 sendMailImmediately(eq);
                 eq.setStatus("SENT");
                 emailQueueRepository.save(eq);
                 log.info("Email queue sent successfully to: {}", eq.getRecipient());
             } catch (Exception e) {
-                log.error("Failed to send queued email to: {}", eq.getRecipient(), e);
+                log.warn("Could not send queued email to: {} ({})", eq.getRecipient(), e.getMessage());
                 eq.setRetryCount(eq.getRetryCount() + 1);
                 eq.setLastError(e.getMessage());
                 if (eq.getRetryCount() >= 3) {
@@ -130,5 +139,38 @@ public class EmailService {
         vars.put("resetLink", "https://holaho.com/reset-password?token=" + token);
         String htmlBody = templateEngine.render("password-reset", vars);
         queueEmail(to, "Yêu cầu đặt lại mật khẩu - HoLaHo Intern Management", htmlBody);
+    }
+
+    public void sendEmailVerificationToken(String to, String name, String token) {
+        String body = String.format(
+                "<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">" +
+                "<h2>Xác thực địa chỉ Email</h2>" +
+                "<p>Xin chào <strong>%s</strong>,</p>" +
+                "<p>Cảm ơn bạn đã đăng ký tài khoản tại <strong>HoLaHo IMS</strong>.</p>" +
+                "<p>Vui lòng sử dụng mã/token xác thực sau hoặc click vào liên kết bên dưới để xác thực email của bạn:</p>" +
+                "<div style=\"background: #f4f6f8; padding: 15px; border-radius: 8px; font-weight: bold; font-size: 18px; text-align: center; letter-spacing: 2px; margin: 20px 0;\">%s</div>" +
+                "<p>Mã có hiệu lực trong vòng 24 giờ.</p>" +
+                "<br/><p>Trân trọng,<br/>Đội ngũ HoLaHo IMS</p>" +
+                "</div>",
+                name, token);
+        queueEmail(to, "[HoLaHo IMS] Xác thực địa chỉ Email đăng ký", body);
+    }
+
+    public void sendApplicationSubmittedEmail(String to, String name, String programName, String applicationId) {
+        String body = String.format(
+                "<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">" +
+                "<h2>Xác nhận đã nhận hồ sơ thực tập</h2>" +
+                "<p>Xin chào <strong>%s</strong>,</p>" +
+                "<p>Hệ thống đã nhận hồ sơ đăng ký tham gia chương trình thực tập của bạn:</p>" +
+                "<ul>" +
+                "  <li><strong>Chương trình:</strong> %s</li>" +
+                "  <li><strong>Mã hồ sơ:</strong> APP-%s</li>" +
+                "  <li><strong>Trạng thái:</strong> SUBMITTED (Đã nộp)</li>" +
+                "</ul>" +
+                "<p>Bạn có thể đăng nhập vào hệ thống bất kỳ lúc nào để theo dõi tiến trình xét duyệt hồ sơ.</p>" +
+                "<br/><p>Trân trọng,<br/>HoLaHo IMS</p>" +
+                "</div>",
+                name, programName, applicationId);
+        queueEmail(to, "[HoLaHo IMS] Xác nhận đã nhận hồ sơ thực tập", body);
     }
 }

@@ -13,8 +13,8 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class TaskRequest {
 
-    @NotNull(message = "Group ID is required")
     private Long groupId;
+
 
     @NotBlank(message = "Title is required")
     private String title;

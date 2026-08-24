@@ -19,7 +19,13 @@ public class EvaluationResponse {
     private String mentorName;
     private String period;
     private Integer score;
+    private Double technicalScore;
+    private Double workQualityScore;
+    private Double attitudeScore;
+    private Double softSkillScore;
+    private Double weightedScore;
+    private String resultStatus;
+    private String grade;
     private String comment;
     private LocalDateTime createdAt;
 }
-

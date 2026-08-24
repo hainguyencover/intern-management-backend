@@ -3,8 +3,10 @@ package com.holaho.intern.service;
 import com.holaho.intern.entity.Attendance;
 import com.holaho.intern.intern.entity.InternProfile;
 import com.holaho.intern.repository.AttendanceRepository;
+import com.holaho.intern.repository.LeaveRequestRepository;
 import com.holaho.intern.intern.repository.InternProfileRepository;
 import com.holaho.intern.shared.dto.response.AttendanceResponse;
+import com.holaho.intern.shared.exception.BadRequestException;
 import com.holaho.intern.shared.exception.ConflictException;
 import com.holaho.intern.shared.exception.NotFoundException;
 import com.holaho.intern.user.entity.User;
@@ -36,6 +38,9 @@ class AttendanceServiceTest {
     @Mock
     private SystemConfigService systemConfigService;
 
+    @Mock
+    private LeaveRequestRepository leaveRequestRepository;
+
     @InjectMocks
     private AttendanceService attendanceService;
 
@@ -57,6 +62,7 @@ class AttendanceServiceTest {
     void checkIn_Success_Normal() {
         // Arrange
         when(internProfileRepository.findById(1L)).thenReturn(Optional.of(intern));
+        when(leaveRequestRepository.existsApprovedLeaveOnDate(eq(1L), any(LocalDate.class))).thenReturn(false);
         when(attendanceRepository.existsByInternIdAndDate(eq(1L), any(LocalDate.class))).thenReturn(false);
         when(systemConfigService.getValue("work.start_time", "08:30")).thenReturn("08:30");
 
@@ -87,9 +93,21 @@ class AttendanceServiceTest {
     }
 
     @Test
+    void checkIn_Fail_OnApprovedLeave() {
+        // Arrange
+        when(internProfileRepository.findById(1L)).thenReturn(Optional.of(intern));
+        when(leaveRequestRepository.existsApprovedLeaveOnDate(eq(1L), any(LocalDate.class))).thenReturn(true);
+
+        // Act & Assert
+        assertThrows(BadRequestException.class, () -> attendanceService.checkIn(1L));
+        verify(attendanceRepository, never()).save(any(Attendance.class));
+    }
+
+    @Test
     void checkIn_Fail_AlreadyCheckedIn() {
         // Arrange
         when(internProfileRepository.findById(1L)).thenReturn(Optional.of(intern));
+        when(leaveRequestRepository.existsApprovedLeaveOnDate(eq(1L), any(LocalDate.class))).thenReturn(false);
         when(attendanceRepository.existsByInternIdAndDate(eq(1L), any(LocalDate.class))).thenReturn(true);
 
         // Act & Assert

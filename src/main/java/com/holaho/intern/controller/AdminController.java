@@ -53,6 +53,7 @@ public class AdminController {
     // ========== USER MANAGEMENT ==========
 
     @GetMapping("/users")
+    @PreAuthorize("hasAuthority('USER_READ') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers(
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String status,

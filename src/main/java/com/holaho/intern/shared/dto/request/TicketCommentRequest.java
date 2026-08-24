@@ -8,5 +8,6 @@ public class TicketCommentRequest {
     @NotBlank
     @Size(max = 4000)
     private String content;
-}
 
+    private boolean isInternal = false;
+}

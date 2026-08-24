@@ -23,7 +23,11 @@ public interface InternProfileRepository
         extends JpaRepository<InternProfile, Long>, JpaSpecificationExecutor<InternProfile> {
 
     @Override
-    @EntityGraph(attributePaths = { "user", "mentor", "mentor.user" })
+    @EntityGraph(attributePaths = { "user" })
+    Page<InternProfile> findAll(Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = { "user" })
     Page<InternProfile> findAll(Specification<InternProfile> spec, Pageable pageable);
 
     @EntityGraph(attributePaths = { "user" })
@@ -147,4 +151,9 @@ public interface InternProfileRepository
 
     @Query("SELECT i FROM InternProfile i JOIN FETCH i.user WHERE i.dob IS NOT NULL AND MONTH(i.dob) = :month ORDER BY DAY(i.dob)")
     List<InternProfile> findByBirthdayMonth(@Param("month") int month);
+
+    @Query("SELECT COUNT(i) FROM InternProfile i WHERE i.endDate IS NOT NULL AND i.endDate < :today")
+    long countCompletedInterns(@Param("today") java.time.LocalDate today);
+
+    long countByTenantId(Long tenantId);
 }

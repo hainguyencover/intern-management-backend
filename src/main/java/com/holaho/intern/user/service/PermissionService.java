@@ -69,6 +69,14 @@ public class PermissionService {
         }
 
         role = roleRepository.save(role);
+
+        // Increment securityVersion for all users with this role
+        List<User> affectedUsers = userRepository.findByRoleCode(role.getCode());
+        for (User u : affectedUsers) {
+            u.setSecurityVersion((u.getSecurityVersion() != null ? u.getSecurityVersion() : 1) + 1);
+        }
+        userRepository.saveAll(affectedUsers);
+
         return getRoleWithPermissions(role.getId());
     }
 

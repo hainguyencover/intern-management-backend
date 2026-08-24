@@ -227,8 +227,13 @@ public class HrExportService {
     }
 
     private void autosize(Sheet sheet, int cols) {
-        for (int i = 0; i < cols; i++)
-            sheet.autoSizeColumn(i);
+        try {
+            for (int i = 0; i < cols; i++) {
+                sheet.autoSizeColumn(i);
+            }
+        } catch (Throwable ignored) {
+            // Ignore headless AWT font measurement failures gracefully
+        }
     }
 
     private CellStyle createHeaderStyle(Workbook wb) {

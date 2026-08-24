@@ -16,6 +16,7 @@ import java.time.LocalDate;
 public class ProgramResponse {
 
     private Long id;
+    private String code;
     private Long departmentId;
     private String departmentName;
     private String name;
@@ -23,6 +24,7 @@ public class ProgramResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private ProgramStatus status;
+    private Integer maxInterns;
     private Long totalGroups;
     private Long totalInterns;
     private java.time.LocalDateTime createdAt;
@@ -31,6 +33,7 @@ public class ProgramResponse {
     // Constructor từ entity
     public ProgramResponse(com.holaho.intern.entity.Program program) {
         this.id = program.getId();
+        this.code = program.getCode();
         this.departmentId = program.getDepartment() != null ? program.getDepartment().getId() : null;
         this.departmentName = program.getDepartment() != null ? program.getDepartment().getName() : null;
         this.name = program.getName();
@@ -38,6 +41,7 @@ public class ProgramResponse {
         this.startDate = program.getStartDate();
         this.endDate = program.getEndDate();
         this.status = program.getStatus();
+        this.maxInterns = program.getMaxInterns();
         this.createdAt = program.getCreatedAt();
         this.updatedAt = program.getUpdatedAt();
     }

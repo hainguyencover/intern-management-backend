@@ -44,33 +44,23 @@ public class AdminUserService {
     private final MentorRepository mentorRepository;
     private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+    private final AccountActivationService accountActivationService;
 
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
-        // Validate email unique
         String email = request.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmail(email)) {
             throw new ConflictException("Email đã tồn tại: " + email);
         }
 
-        // Use custom password if provided, otherwise generate random
-        String passwordToUse;
-        if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            passwordToUse = request.getPassword();
-        } else {
-            passwordToUse = generateRandomPassword();
-        }
-
-        // Create user
         User user = new User();
         user.setEmail(email);
         user.setFullName(request.getFullName());
         user.setPhone(request.getPhone());
-        user.setPasswordHash(passwordEncoder.encode(passwordToUse));
-        user.setStatus(UserStatus.ACTIVE);
+        user.setPasswordHash(passwordEncoder.encode(generateRandomPassword()));
+        user.setStatus(UserStatus.INVITED);
+        user.setSecurityVersion(1);
 
-        // Assign roles
         Set<Role> roles = new HashSet<>();
         if (request.getRoleCodes() != null) {
             for (String roleCode : request.getRoleCodes()) {
@@ -79,18 +69,22 @@ public class AdminUserService {
                 roles.add(role);
             }
         }
+        if (roles.isEmpty()) {
+            roleRepository.findByCode("INTERN").ifPresent(roles::add);
+        }
         user.setRoles(roles);
 
         user = userRepository.save(user);
-
-        // Create profile based on role
         createProfileForRole(user, request);
 
-        log.info("Created user {} with password provided: {}", email,
-                (request.getPassword() != null ? "YES" : "NO - Generated: " + passwordToUse));
-        
-        // Send email with credentials
-        emailService.sendAccountCreatedEmail(user.getEmail(), user.getFullName(), passwordToUse);
+        String activationToken = accountActivationService.createActivationToken(user);
+        log.info("Created user {} with activation token generated", email);
+
+        try {
+            emailService.sendAccountCreatedEmail(user.getEmail(), user.getFullName(), "Kích hoạt tại: /activate?token=" + activationToken);
+        } catch (Exception e) {
+            log.error("Failed to send welcome email to {}: {}", email, e.getMessage());
+        }
 
         return mapToResponse(user);
     }
@@ -149,7 +143,15 @@ public class AdminUserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
+        boolean isAdmin = user.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getCode()) || "ROLE_ADMIN".equalsIgnoreCase(r.getCode()));
+        if (isAdmin && (request.getStatus() == UserStatus.DISABLED || request.getStatus() == UserStatus.LOCKED || request.getStatus() == UserStatus.SUSPENDED)) {
+            if (userRepository.countActiveAdmins() <= 1) {
+                throw new ConflictException("Không thể vô hiệu hóa tài khoản Quản trị viên (ADMIN) duy nhất còn lại trong hệ thống (BR-09)");
+            }
+        }
+
         user.setStatus(request.getStatus());
+        user.setSecurityVersion((user.getSecurityVersion() != null ? user.getSecurityVersion() : 1) + 1);
         userRepository.save(user);
         log.info("Updated user {} status to {}", user.getEmail(), request.getStatus());
 
@@ -161,6 +163,13 @@ public class AdminUserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
+        boolean isAdminCurrently = user.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getCode()) || "ROLE_ADMIN".equalsIgnoreCase(r.getCode()));
+        boolean willBeAdmin = roleCodes.stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r) || "ROLE_ADMIN".equalsIgnoreCase(r));
+
+        if (isAdminCurrently && !willBeAdmin && userRepository.countActiveAdmins() <= 1) {
+            throw new ConflictException("Không thể gỡ vai trò Quản trị viên (ADMIN) duy nhất còn lại trong hệ thống (BR-09)");
+        }
+
         Set<Role> roles = new HashSet<>();
         for (String roleCode : roleCodes) {
             Role role = roleRepository.findByCode(roleCode)
@@ -169,6 +178,7 @@ public class AdminUserService {
         }
 
         user.setRoles(roles);
+        user.setSecurityVersion((user.getSecurityVersion() != null ? user.getSecurityVersion() : 1) + 1);
         userRepository.save(user);
 
         // Auto-create profiles if needed
@@ -190,6 +200,10 @@ public class AdminUserService {
                 .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
         if (user.getStatus() == UserStatus.ACTIVE) {
+            boolean isAdmin = user.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getCode()) || "ROLE_ADMIN".equalsIgnoreCase(r.getCode()));
+            if (isAdmin && userRepository.countActiveAdmins() <= 1) {
+                throw new ConflictException("Không thể khóa tài khoản Quản trị viên (ADMIN) duy nhất còn lại trong hệ thống (BR-09)");
+            }
             user.setStatus(UserStatus.LOCKED);
             log.info("Locked user {}", user.getEmail());
         } else if (user.getStatus() == UserStatus.LOCKED) {
@@ -197,6 +211,7 @@ public class AdminUserService {
             log.info("Unlocked user {}", user.getEmail());
         }
 
+        user.setSecurityVersion((user.getSecurityVersion() != null ? user.getSecurityVersion() : 1) + 1);
         userRepository.save(user);
     }
 
@@ -207,11 +222,10 @@ public class AdminUserService {
 
         String newPassword = generateRandomPassword();
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setSecurityVersion((user.getSecurityVersion() != null ? user.getSecurityVersion() : 1) + 1);
         userRepository.save(user);
 
         log.info("Reset password for user {}, new password: {}", user.getEmail(), newPassword);
-        
-        // Send email with new password
         emailService.sendPasswordResetEmail(user.getEmail(), user.getFullName(), newPassword);
 
         return newPassword;
@@ -222,18 +236,15 @@ public class AdminUserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User không tồn tại: " + id));
 
-        // Delete associated profiles first
-        try {
-            internProfileRepository.findByUser_Id(id).ifPresent(internProfileRepository::delete);
-            mentorRepository.findByUser_Id(id).ifPresent(mentorRepository::delete);
-        } catch (Exception e) {
-            log.error("Error cleaning up user profiles for user {}: {}", id, e.getMessage());
-            // Continue to delete user - if DB constraints fail, it will throw exception
-            // then
+        boolean isAdmin = user.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getCode()) || "ROLE_ADMIN".equalsIgnoreCase(r.getCode()));
+        if (isAdmin && userRepository.countActiveAdmins() <= 1) {
+            throw new ConflictException("Không thể vô hiệu hóa tài khoản Quản trị viên (ADMIN) duy nhất còn lại trong hệ thống (BR-09)");
         }
 
-        userRepository.delete(user);
-        log.info("Deleted user: {}", id);
+        user.setStatus(UserStatus.DISABLED);
+        user.setSecurityVersion((user.getSecurityVersion() != null ? user.getSecurityVersion() : 1) + 1);
+        userRepository.save(user);
+        log.info("Soft-deleted (disabled) user: {}", id);
     }
 
     private UserResponse mapToResponse(User user) {

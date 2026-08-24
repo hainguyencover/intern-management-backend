@@ -1,4 +1,9 @@
 package com.holaho.intern.shared.enums;
 
-public enum UserStatus { ACTIVE, INACTIVE, LOCKED }
-
+public enum UserStatus {
+    INVITED,
+    ACTIVE,
+    LOCKED,
+    SUSPENDED,
+    DISABLED
+}

@@ -43,7 +43,6 @@ public class LocalStorageService implements StorageService {
             Path target = dir.resolve(filename);
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
 
-            // Lưu path tương đối
             String fileUrl = "interns/" + internId + "/" + filename;
             long size = Files.size(target);
 
@@ -83,6 +82,16 @@ public class LocalStorageService implements StorageService {
             throw e;
         } catch (Exception e) {
             throw new FileStorageException("Không thể tải file dưới dạng resource", e);
+        }
+    }
+
+    @Override
+    public void deleteFile(String fileUrl) {
+        if (fileUrl == null || fileUrl.isBlank()) return;
+        try {
+            Path path = rootDir.resolve(fileUrl).normalize();
+            Files.deleteIfExists(path);
+        } catch (Exception ignored) {
         }
     }
 }

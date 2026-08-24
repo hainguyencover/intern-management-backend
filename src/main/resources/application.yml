@@ -12,6 +12,12 @@ spring:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:changeme}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      idle-timeout: 300000
+      connection-timeout: 20000
+      leak-detection-threshold: 5000
   elasticsearch:
     uris: ${ES_URIS:http://localhost:9200}
   profiles:
@@ -85,6 +91,10 @@ server:
   port: ${SERVER_PORT:8080}
   servlet:
     context-path: /
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
   tomcat:
     max-swallow-size: 52428800
 
@@ -111,7 +121,7 @@ app:
   elasticsearch:
     enabled: ${APP_ES_ENABLED:false} # Disabled by default for local development
   jwt:
-    secret: ${JWT_SECRET:change-me-in-production-use-at-least-256-bit-key-here!!}
+    secret: ${JWT_SECRET}  # REQUIRED: No default — app fails to start if missing. Generate with: openssl rand -base64 64
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
   cors:
@@ -121,7 +131,15 @@ app:
     max-size: 10485760
   backup:
     dir: ${BACKUP_DIR:./backups}
-    retention-days: 30
+    schedule: ${BACKUP_SCHEDULE:0 0 2 * * *}
+    retention-cron: ${BACKUP_RETENTION_CRON:0 0 3 * * *}
+    tool-path: ${BACKUP_TOOL_PATH:mysqldump}
+    mysql-client-path: ${MYSQL_CLIENT_PATH:mysql}
+    max-retry-attempts: 3
+    retention:
+      daily-days: 7
+      weekly-weeks: 4
+      monthly-months: 12
 
 # ===============================
 # Resilience4j Configuration

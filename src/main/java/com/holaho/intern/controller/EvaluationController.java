@@ -25,6 +25,25 @@ public class EvaluationController {
 
     private final EvaluationService evaluationService;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN', 'INTERN')")
+    public ResponseEntity<ApiResponse<java.util.List<EvaluationResponse>>> getEvaluations(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            Pageable pageable) {
+        if (principal != null && principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_INTERN"))) {
+            return ResponseEntity.ok(ApiResponse.success(evaluationService.getInternEvaluations(principal.getId())));
+        }
+        if (principal != null && principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_MENTOR"))) {
+            org.springframework.data.domain.Page<EvaluationResponse> page = evaluationService.getMentorEvaluations(principal.getId(), period, keyword, pageable);
+            return ResponseEntity.ok(ApiResponse.successPage(page));
+        }
+        org.springframework.data.domain.Page<EvaluationResponse> page = evaluationService.getAllEvaluations(period, keyword, pageable);
+        return ResponseEntity.ok(ApiResponse.successPage(page));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('MENTOR')")
     public ResponseEntity<ApiResponse<EvaluationResponse>> create(

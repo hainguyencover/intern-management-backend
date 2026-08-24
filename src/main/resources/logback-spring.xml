@@ -66,9 +66,23 @@
             </encoder>
         </appender>
 
+        <appender name="AUDIT_FALLBACK_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/audit-fallback.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/audit-fallback.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                <maxFileSize>50MB</maxFileSize>
+                <maxHistory>60</maxHistory>
+                <totalSizeCap>2GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
         <root level="INFO">
             <appender-ref ref="JSON_CONSOLE" />
             <appender-ref ref="JSON_FILE" />
+            <appender-ref ref="AUDIT_FALLBACK_FILE" />
         </root>
     </springProfile>
 

@@ -31,19 +31,24 @@ public class TraceIdFilter extends OncePerRequestFilter {
             traceId = UUID.randomUUID().toString();
         }
 
+        String spanId = UUID.randomUUID().toString().substring(0, 8);
+
         // Set in MDC for logging format patterns
         MDC.put(MDC_KEY, traceId);
+        MDC.put("spanId", spanId);
         
         // Set in request attribute for GlobalExceptionHandler
         request.setAttribute(MDC_KEY, traceId);
 
-        // Set in response header for client tracking
+        // Set in response headers for client tracking
         response.setHeader(TRACE_ID_HEADER, traceId);
+        response.setHeader("X-Span-ID", spanId);
 
         try {
             filterChain.doFilter(request, response);
         } finally {
             MDC.remove(MDC_KEY);
+            MDC.remove("spanId");
         }
     }
 }

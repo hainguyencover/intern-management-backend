@@ -37,5 +37,9 @@ public interface AuthService {
     void verifyAndEnableTwoFactor(Long userId, TwoFactorVerifyRequest request);
 
     void disableTwoFactor(Long userId);
+
+    void verifyEmail(com.holaho.intern.auth.dto.request.VerifyEmailRequest request);
+
+    void resendVerification(com.holaho.intern.auth.dto.request.ResendVerificationRequest request);
 }
 

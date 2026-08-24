@@ -28,6 +28,24 @@ public class InternDocument extends BaseEntity {
     @Column(name = "file_url", nullable = false, length = 1000)
     private String fileUrl;
 
+    @Column(name = "original_file_name")
+    private String originalFileName;
+
+    @Column(name = "stored_file_name")
+    private String storedFileName;
+
+    @Column(name = "storage_key", length = 500)
+    private String storageKey;
+
+    @Column(name = "content_type")
+    private String contentType;
+
+    @Column(name = "file_size")
+    private Long fileSize;
+
+    @Column(name = "checksum", length = 64)
+    private String checksum;
+
     @Column(nullable = false, length = 30)
     private String status;
 
@@ -43,5 +61,9 @@ public class InternDocument extends BaseEntity {
 
     @Column(name = "review_note", length = 1000)
     private String reviewNote;
+
+    @Column(name = "rejection_reason", length = 1000)
+    private String rejectionReason;
 }
+
 

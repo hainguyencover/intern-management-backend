@@ -21,6 +21,8 @@ public class CreateProgramRequest {
     @NotNull(message = "Department ID is required")
     private Long departmentId;
 
+    private String code;
+
     @NotBlank(message = "Program name is required")
     private String name;
 
@@ -31,5 +33,7 @@ public class CreateProgramRequest {
 
     @NotNull(message = "End date is required")
     private LocalDate endDate;
+
+    private Integer maxInterns;
 }
 

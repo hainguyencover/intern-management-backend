@@ -112,9 +112,8 @@ public class GlobalExceptionHandler {
         public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(
                         org.springframework.dao.DataIntegrityViolationException ex, HttpServletRequest request) {
                 log.error("DataIntegrityViolationException: {}", ex.getMessage());
-                return buildErrorResponse(ErrorCode.CONFLICT,
-                                "Dữ liệu đã tồn tại trong hệ thống. Vui lòng kiểm tra lại.", null,
-                                request);
+                String msg = "Dữ liệu đang được liên kết với các thông tin khác trong hệ thống (như Nhiệm vụ, Đánh giá, Điểm danh) nên không thể xóa.";
+                return buildErrorResponse(ErrorCode.CONFLICT, msg, null, request);
         }
 
         @ExceptionHandler(FileStorageException.class)
@@ -124,6 +123,18 @@ public class GlobalExceptionHandler {
                 return buildErrorResponse(ErrorCode.SYSTEM_ERROR,
                                 "Lỗi xử lý file: " + ex.getMessage(), null, request);
         }
+
+        @ExceptionHandler({
+            org.springframework.web.multipart.MultipartException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class
+        })
+        public ResponseEntity<ApiResponse<Void>> handleMultipartException(
+                        Exception ex, HttpServletRequest request) {
+                log.error("MultipartException at {}: {}", request.getRequestURI(), ex.getMessage());
+                return buildErrorResponse(ErrorCode.INVALID_REQUEST,
+                                "Yêu cầu tệp tải lên không hợp lệ hoặc thiếu Multipart parameter ('file')", null, request);
+        }
+
 
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ApiResponse<Void>> handleGlobalException(

@@ -46,18 +46,26 @@ public class NotificationEventListener {
 
         // 1. In-App Notification
         if (isChannelEnabled(userId, eventType, "IN_APP")) {
-            Notification n = new Notification();
-            n.setUser(user);
-            n.setTitle(title);
-            n.setContent(content);
-            n.setType(type);
-            n.setRead(false);
-            notificationService.save(n);
+            try {
+                Notification n = new Notification();
+                n.setUser(user);
+                n.setTitle(title);
+                n.setContent(content);
+                n.setType(type);
+                n.setRead(false);
+                notificationService.save(n);
+            } catch (Exception e) {
+                log.error("Failed to save in-app notification for user: {}", userId, e);
+            }
         }
 
         // 2. Email
         if (isChannelEnabled(userId, eventType, "EMAIL")) {
-            emailService.sendSimpleEmail(user.getEmail(), title, "<p>" + content + "</p>");
+            try {
+                emailService.sendSimpleEmail(user.getEmail(), title, "<p>" + content + "</p>");
+            } catch (Exception e) {
+                log.error("Failed to send email notification to: {}", user.getEmail(), e);
+            }
         }
 
         // 3. WebSocket Realtime Push
@@ -70,7 +78,7 @@ public class NotificationEventListener {
                 );
                 log.info("WebSocket notification pushed to: {}", user.getEmail());
             } catch (Exception e) {
-                log.error("Failed to push websocket notification", e);
+                log.error("Failed to push websocket notification to: {}", user.getEmail(), e);
             }
         }
     }
@@ -83,6 +91,18 @@ public class NotificationEventListener {
                 "ApplicationAcceptedEvent",
                 "Chúc mừng! Đơn ứng tuyển được chấp nhận",
                 String.format("Xin chào %s, đơn ứng tuyển của bạn đã được duyệt thành công.", event.getCandidateName()),
+                NotificationType.APPLICATION
+        );
+    }
+
+    @EventListener
+    public void handleApplicationRejected(ApplicationRejectedEvent event) {
+        log.info("Handling ApplicationRejectedEvent for application ID: {}", event.getApplicationId());
+        dispatch(
+                event.getUserId(),
+                "ApplicationRejectedEvent",
+                "Thông báo kết quả xét duyệt hồ sơ",
+                String.format("Xin chào %s, rất tiếc hồ sơ ứng tuyển của bạn chưa được phê duyệt. Lý do: %s", event.getCandidateName(), event.getReason() != null ? event.getReason() : "Chưa đáp ứng yêu cầu tuyển dụng."),
                 NotificationType.APPLICATION
         );
     }

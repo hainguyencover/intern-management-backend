@@ -87,5 +87,21 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Query("SELECT a FROM Attendance a " +
                         "WHERE a.date = :date")
         List<Attendance> findByDate(@Param("date") LocalDate date);
+
+        @Query("SELECT a FROM Attendance a WHERE a.tenantId = :tenantId " +
+                        "AND (:internId IS NULL OR a.intern.id = :internId) " +
+                        "AND (:status IS NULL OR a.status = :status) " +
+                        "AND (:fromDate IS NULL OR a.date >= :fromDate) " +
+                        "AND (:toDate IS NULL OR a.date <= :toDate) " +
+                        "AND (:keyword IS NULL OR LOWER(a.intern.user.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(a.intern.studentCode) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+                        "ORDER BY a.date DESC")
+        Page<Attendance> findWithFilters(
+                        @Param("tenantId") Long tenantId,
+                        @Param("internId") Long internId,
+                        @Param("status") String status,
+                        @Param("fromDate") LocalDate fromDate,
+                        @Param("toDate") LocalDate toDate,
+                        @Param("keyword") String keyword,
+                        Pageable pageable);
 }
 

@@ -1,56 +1,59 @@
-//package com.holaho.intern.controller.hr;
-//
-//import com.holaho.intern.shared.dto.request.AssignMemberRequest;
-//import com.holaho.intern.shared.dto.request.CreateGroupRequest;
-//import com.holaho.intern.shared.dto.response.GroupResponse;
-//import com.holaho.intern.shared.dto.response.MemberResponse;
-//import com.holaho.intern.service.ProgramGroupService;
-//import jakarta.validation.Valid;
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.security.access.prepost.PreAuthorize;
-//import org.springframework.web.bind.annotation.*;
-//
-//import java.util.List;
-//
-//@RestController
-//@RequiredArgsConstructor
-//@PreAuthorize("hasRole('HR')")
-//@RequestMapping("/api/hr")
-//public class HrProgramGroupController {
-//
-//    private final ProgramGroupService programGroupService;
-//
-//    @PostMapping("/programs/{programId}/groups")
-//    public ResponseEntity<GroupResponse> createGroup(@PathVariable Long programId,
-//                                                     @Valid @RequestBody CreateGroupRequest req) {
-//        return ResponseEntity.ok(programGroupService.createGroupHr(programId, req));
-//    }
-//
-//    @GetMapping("/programs/{programId}/groups")
-//    public ResponseEntity<List<GroupResponse>> listGroups(@PathVariable Long programId) {
-//        return ResponseEntity.ok(programGroupService.listGroups(programId));
-//    }
-//
-//    @PostMapping("/groups/{groupId}/members")
-//    public ResponseEntity<Void> assignMember(@PathVariable Long groupId,
-//                                             @Valid @RequestBody AssignMemberRequest req) {
-//        // reuse assignIntern(req) trong service qua DTO cÅ©
-//        var old = new com.holaho.intern.shared.dto.request.AssignInternRequest();
-//        old.setInternId(req.getInternId());
-//        programGroupService.assignIntern(groupId, old);
-//        return ResponseEntity.ok().build();
-//    }
-//
-//    @GetMapping("/groups/{groupId}/members")
-//    public ResponseEntity<List<MemberResponse>> listMembers(@PathVariable Long groupId) {
-//        return ResponseEntity.ok(programGroupService.listMembers(groupId));
-//    }
-//
-//    @DeleteMapping("/groups/{groupId}/members/{internId}")
-//    public ResponseEntity<Void> removeMember(@PathVariable Long groupId, @PathVariable Long internId) {
-//        programGroupService.removeIntern(groupId, internId);
-//        return ResponseEntity.noContent().build();
-//    }
-//}
+package com.holaho.intern.controller;
+
+import com.holaho.intern.shared.dto.request.AssignInternRequest;
+import com.holaho.intern.shared.dto.request.GroupRequest;
+import com.holaho.intern.shared.dto.response.ApiResponse;
+import com.holaho.intern.shared.dto.response.GroupMemberResponse;
+import com.holaho.intern.shared.dto.response.GroupResponse;
+import com.holaho.intern.service.ProgramGroupService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+@RequestMapping("/api/v1/hr")
+public class HrProgramGroupController {
+
+    private final ProgramGroupService programGroupService;
+
+    @PostMapping("/programs/{programId}/groups")
+    public ResponseEntity<ApiResponse<GroupResponse>> createGroup(@PathVariable Long programId,
+                                                     @Valid @RequestBody GroupRequest req) {
+        req.setProgramId(programId);
+        GroupResponse response = programGroupService.create(req);
+        return ResponseEntity.ok(ApiResponse.success("Tạo nhóm thành công", response));
+    }
+
+    @GetMapping("/programs/{programId}/groups")
+    public ResponseEntity<ApiResponse<List<GroupResponse>>> listGroups(@PathVariable Long programId) {
+        List<GroupResponse> response = programGroupService.getGroupsByProgramId(programId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/groups/{groupId}/members")
+    public ResponseEntity<ApiResponse<Void>> assignMember(@PathVariable Long groupId,
+                                             @Valid @RequestBody AssignInternRequest req) {
+        programGroupService.assignIntern(groupId, req.getInternId());
+        return ResponseEntity.ok(ApiResponse.success("Thêm thành viên vào nhóm thành công", null));
+    }
+
+    @GetMapping("/groups/{groupId}/members")
+    public ResponseEntity<ApiResponse<List<GroupMemberResponse>>> listMembers(@PathVariable Long groupId) {
+        List<GroupMemberResponse> response = programGroupService.getMembers(groupId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @DeleteMapping("/groups/{groupId}/members/{internId}")
+    public ResponseEntity<ApiResponse<Void>> removeMember(@PathVariable Long groupId, @PathVariable Long internId) {
+        programGroupService.removeIntern(groupId, internId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa thành viên khỏi nhóm thành công", null));
+    }
+}
+
 

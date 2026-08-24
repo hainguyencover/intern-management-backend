@@ -30,6 +30,9 @@ public class TenantFilter extends OncePerRequestFilter {
     private final TenantRepository tenantRepository;
     private final ObjectMapper objectMapper;
 
+    @org.springframework.beans.factory.annotation.Value("${app.tenant.strict-header:true}")
+    private boolean strictTenantHeader;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                      HttpServletResponse response,
@@ -37,24 +40,27 @@ public class TenantFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String header = request.getHeader(TENANT_HEADER);
-
-        // 1. Missing Header
-        if (header == null || header.isBlank()) {
-            log.warn("Missing X-Tenant-ID header for request: {}", request.getRequestURI());
-            writeErrorResponse(response, HttpStatus.BAD_REQUEST, "TENANT_MISSING",
-                    "Yêu cầu cần có Header X-Tenant-ID để định danh doanh nghiệp", request.getRequestURI());
-            return;
-        }
-
-        // 2. Parse ID
         Long tenantId;
-        try {
-            tenantId = Long.parseLong(header.trim());
-        } catch (NumberFormatException e) {
-            log.warn("Invalid X-Tenant-ID format: '{}' for request: {}", header, request.getRequestURI());
-            writeErrorResponse(response, HttpStatus.BAD_REQUEST, "INVALID_TENANT_FORMAT",
-                    "Header X-Tenant-ID không đúng định dạng số", request.getRequestURI());
-            return;
+
+        // 1. Parse or Fallback / Reject Missing Header
+        if (header == null || header.isBlank()) {
+            if (strictTenantHeader) {
+                log.warn("Missing mandatory X-Tenant-ID header for request: {}", request.getRequestURI());
+                writeErrorResponse(response, HttpStatus.BAD_REQUEST, "MISSING_TENANT_HEADER",
+                        "Header X-Tenant-ID là bắt buộc đối với mọi truy vấn", request.getRequestURI());
+                return;
+            }
+            tenantId = 1L; // Fallback only if strict mode disabled
+            log.debug("Missing X-Tenant-ID header for request: {}. Defaulting to tenant 1 (non-strict mode)", request.getRequestURI());
+        } else {
+            try {
+                tenantId = Long.parseLong(header.trim());
+            } catch (NumberFormatException e) {
+                log.warn("Invalid X-Tenant-ID format: '{}' for request: {}", header, request.getRequestURI());
+                writeErrorResponse(response, HttpStatus.BAD_REQUEST, "INVALID_TENANT_FORMAT",
+                        "Header X-Tenant-ID không đúng định dạng số", request.getRequestURI());
+                return;
+            }
         }
 
         // 3. Database Check

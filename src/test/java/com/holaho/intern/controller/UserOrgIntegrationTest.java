@@ -144,7 +144,8 @@ class UserOrgIntegrationTest extends BaseIntegrationTest {
         progReq.setCode("PROG_TEST");
         progReq.setName("Test Program");
         progReq.setDepartmentId(dept.getId());
-        progReq.setStatus(ProgramStatus.ACTIVE);
+        progReq.setStartDate(java.time.LocalDate.now());
+        progReq.setEndDate(java.time.LocalDate.now().plusMonths(3));
 
         mockMvc.perform(postWithTenant("/api/v1/programs", progReq))
                 .andExpect(status().isOk())

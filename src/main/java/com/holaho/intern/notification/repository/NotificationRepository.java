@@ -1,7 +1,7 @@
 package com.holaho.intern.notification.repository;
 
 import com.holaho.intern.notification.entity.Notification;
-import com.holaho.intern.shared.enums.NotificationType;
+import com.holaho.intern.notification.enums.NotificationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,58 +11,41 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
-    List<Notification> findByUser_IdOrderByCreatedAtDesc(Long userId);
 
-    Page<Notification> findByUser_Id(Long userId, Pageable pageable);
+    Page<Notification> findByRecipientIdOrderByCreatedAtDesc(Long recipientId, Pageable pageable);
 
-    long countByUser_IdAndReadFalse(Long userId);
+    Page<Notification> findByRecipientIdAndStatusOrderByCreatedAtDesc(
+        Long recipientId, NotificationStatus status, Pageable pageable
+    );
 
-    List<Notification> findByUserId(Long userId);
+    long countByRecipientIdAndStatus(Long recipientId, NotificationStatus status);
 
-    Page<Notification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
-
-    List<Notification> findByUserIdAndRead(Long userId, boolean read);
-
-    Page<Notification> findByUserIdAndReadOrderByCreatedAtDesc(
-            Long userId,
-            boolean read,
-            Pageable pageable);
-
-    @Query("SELECT n FROM Notification n " +
-            "WHERE n.user.id = :userId AND n.read = false " +
-            "ORDER BY n.createdAt DESC")
-    List<Notification> findUnreadByUserId(@Param("userId") Long userId);
-
-    List<Notification> findByType(NotificationType type);
-
-    List<Notification> findByUserIdAndType(Long userId, NotificationType type);
-
-    @Query("SELECT n FROM Notification n " +
-            "WHERE n.user.id = :userId " +
-            "AND n.createdAt >= :since " +
-            "ORDER BY n.createdAt DESC")
-    List<Notification> findRecentByUserId(
-            @Param("userId") Long userId,
-            @Param("since") LocalDateTime since);
-
-    long countByUserIdAndRead(Long userId, boolean read);
+    Optional<Notification> findByIdAndRecipientId(Long id, Long recipientId);
 
     @Modifying
-    @Query("UPDATE Notification n SET n.read = true WHERE n.user.id = :userId")
-    void markAllAsReadByUserId(@Param("userId") Long userId);
+    @Query("UPDATE Notification n SET n.status = 'READ', n.readAt = :now WHERE n.recipient.id = :recipientId AND n.status = 'UNREAD'")
+    int markAllAsReadForRecipient(@Param("recipientId") Long recipientId, @Param("now") LocalDateTime now);
+
+    // University isolated methods
+    Page<Notification> findByUniversityIdOrderByCreatedAtDesc(Long universityId, Pageable pageable);
+
+    Page<Notification> findByUniversityIdAndStatusOrderByCreatedAtDesc(Long universityId, NotificationStatus status, Pageable pageable);
+
+    Page<Notification> findByUniversityIdAndTypeOrderByCreatedAtDesc(Long universityId, com.holaho.intern.shared.enums.NotificationType type, Pageable pageable);
+
+    Page<Notification> findByUniversityIdAndStatusAndTypeOrderByCreatedAtDesc(Long universityId, NotificationStatus status, com.holaho.intern.shared.enums.NotificationType type, Pageable pageable);
+
+    long countByUniversityIdAndStatus(Long universityId, NotificationStatus status);
+
+    Optional<Notification> findByIdAndUniversityId(Long id, Long universityId);
 
     @Modifying
-    @Query("UPDATE Notification n SET n.read = true WHERE n.id IN :ids")
-    void markAsReadByIds(@Param("ids") List<Long> ids);
+    @Query("UPDATE Notification n SET n.status = 'READ', n.readAt = :now WHERE n.universityId = :universityId AND n.status = 'UNREAD'")
+    int markAllAsReadForUniversity(@Param("universityId") Long universityId, @Param("now") LocalDateTime now);
 
-    @Modifying
-    @Query("DELETE FROM Notification n WHERE n.createdAt < :date")
-    void deleteOlderThan(@Param("date") LocalDateTime date);
-
-    List<Notification> findByUser_IdAndReadFalseOrderByCreatedAtDesc(Long userId);
+    boolean existsByReferenceTypeAndReferenceIdAndRecipientId(String referenceType, Long referenceId, Long recipientId);
 }
-

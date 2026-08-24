@@ -37,8 +37,8 @@ public class MentorTaskController {
 
     @PreAuthorize("hasRole('MENTOR')")
     @GetMapping("/tasks")
-    public ResponseEntity<ApiResponse<Page<TaskDto>>> listTasks(
-            @RequestParam Long groupId,
+    public ResponseEntity<ApiResponse<List<TaskDto>>> listTasks(
+            @RequestParam(required = false) Long groupId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -46,8 +46,36 @@ public class MentorTaskController {
             @AuthenticationPrincipal CustomUserDetails principal) {
         Sort s = parseSort(sort);
         Pageable pageable = PageRequest.of(page, size, s);
-        return ResponseEntity
-                .ok(ApiResponse.success(mentorTaskService.listTasks(groupId, status, pageable, principal.getId())));
+        Page<TaskDto> taskPage = mentorTaskService.listTasks(groupId, status, pageable, principal.getId());
+        return ResponseEntity.ok(ApiResponse.successPage(taskPage));
+    }
+
+    @PreAuthorize("hasRole('MENTOR')")
+    @GetMapping("/tasks/{taskId}")
+    public ResponseEntity<ApiResponse<TaskDto>> getTaskDetail(
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal CustomUserDetails principal) {
+        return ResponseEntity.ok(ApiResponse.success(
+                mentorTaskService.getTaskDetail(taskId, principal.getId())));
+    }
+
+    @PreAuthorize("hasRole('MENTOR')")
+    @PutMapping("/tasks/{taskId}")
+    public ResponseEntity<ApiResponse<TaskDto>> updateTask(
+            @PathVariable Long taskId,
+            @Valid @RequestBody CreateMentorTaskRequest req,
+            @AuthenticationPrincipal CustomUserDetails principal) {
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật nhiệm vụ thành công",
+                mentorTaskService.updateTask(taskId, req, principal.getId())));
+    }
+
+    @PreAuthorize("hasRole('MENTOR')")
+    @DeleteMapping("/tasks/{taskId}")
+    public ResponseEntity<ApiResponse<Void>> deleteTask(
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal CustomUserDetails principal) {
+        mentorTaskService.deleteTask(taskId, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa nhiệm vụ thành công", null));
     }
 
     @PreAuthorize("hasRole('MENTOR')")

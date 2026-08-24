@@ -18,12 +18,18 @@ public class CustomUserDetails implements UserDetails {
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
     private final com.holaho.intern.shared.enums.UserStatus status;
+    private final Long universityId;
 
     public CustomUserDetails(User user) {
+        this(user, null);
+    }
+
+    public CustomUserDetails(User user, Long universityId) {
         this.id = user.getId();
         this.email = user.getEmail();
         this.password = user.getPasswordHash();
         this.status = user.getStatus();
+        this.universityId = universityId;
 
         var finalPermissions = new java.util.HashSet<String>();
         var roleAuthorities = new java.util.ArrayList<SimpleGrantedAuthority>();
@@ -63,6 +69,10 @@ public class CustomUserDetails implements UserDetails {
 
     public Long getId() {
         return id;
+    }
+
+    public Long getUniversityId() {
+        return universityId;
     }
 
     @Override

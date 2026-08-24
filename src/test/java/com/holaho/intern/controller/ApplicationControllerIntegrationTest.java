@@ -65,6 +65,7 @@ class ApplicationControllerIntegrationTest extends BaseIntegrationTest {
         internUser.setPasswordHash(passwordEncoder.encode("password123"));
         internUser.setFullName("Intern Test");
         internUser.setStatus(UserStatus.ACTIVE);
+        internUser.setEmailVerified(true);
         internUser.setRoles(Collections.singleton(internRole));
         internUser = userRepository.save(internUser);
 

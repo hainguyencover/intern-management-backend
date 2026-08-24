@@ -1,16 +1,12 @@
 package com.holaho.intern.intern.controller;
 
-import com.holaho.intern.mentor.entity.Mentor;
-import com.holaho.intern.user.entity.User;
-import com.holaho.intern.shared.dto.InternCountStatDto;
-import com.holaho.intern.shared.security.CustomUserDetails;
-
-
+import com.holaho.intern.intern.service.InternProfileService;
+import com.holaho.intern.service.AuditLogService;
 import com.holaho.intern.shared.dto.InternSearchCriteria;
 import com.holaho.intern.shared.dto.request.InternProfileRequest;
 import com.holaho.intern.shared.dto.response.ApiResponse;
+import com.holaho.intern.shared.dto.response.AuditLogResponse;
 import com.holaho.intern.shared.dto.response.InternProfileResponse;
-import com.holaho.intern.intern.service.InternProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Intern Profile Controller - CRUD Intern Profiles
+ * Intern Profile Controller - CRUD & Audit History for Intern Profiles
  * Endpoints: /api/v1/interns/**
  */
 @RestController
@@ -33,20 +29,42 @@ import org.springframework.web.bind.annotation.*;
 public class InternController {
 
     private final InternProfileService internProfileService;
+    private final AuditLogService auditLogService;
+    private final com.holaho.intern.service.ProgramGroupService programGroupService;
+    private final com.holaho.intern.mentor.service.MentorService mentorService;
+
+    /**
+     * Get interns assigned to current logged in mentor
+     * GET /api/v1/interns/assigned-to-me
+     */
+    @GetMapping("/assigned-to-me")
+    @PreAuthorize("hasAnyRole('MENTOR', 'HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Page<InternProfileResponse>>> getAssignedToMe(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.holaho.intern.shared.security.CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Authentication required"));
+        }
+        Page<InternProfileResponse> page = mentorService.getAssignedInterns(userDetails.getEmail(), keyword, status, pageable);
+        return ResponseEntity.ok(ApiResponse.success(page));
+    }
 
     /**
      * Search/Filter interns (HR/Admin/Mentor)
-     * GET /api/v1/interns/search?university=&major=&keyword=&status=&page=0&size=10
+     * GET /api/v1/interns or GET /api/v1/interns/search
      */
-    @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR')")
+    @GetMapping({ "", "/search" })
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'READ')")
+
     public ResponseEntity<ApiResponse<java.util.List<InternProfileResponse>>> searchInterns(
             @RequestParam(required = false) String university,
             @RequestParam(required = false) String major,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Boolean excludeBusy,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 10, sort = "studentCode", direction = Sort.Direction.DESC) Pageable pageable) {
         log.info("Search interns - university: {}, major: {}, keyword: {}", university, major, keyword);
         InternSearchCriteria criteria = InternSearchCriteria.builder()
                 .university(university)
@@ -60,11 +78,11 @@ public class InternController {
     }
 
     /**
-     * Get intern by ID
-     * GET /api/v1/interns/profiles/{id}
+     * Get intern by ID (US-047 Detail View)
+     * GET /api/v1/interns/{id} or GET /api/v1/interns/profiles/{id}
      */
-    @GetMapping("/profiles/{id}")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN')")
+    @GetMapping({ "/{id:\\d+}", "/profiles/{id:\\d+}" })
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MENTOR', 'INTERN', 'READ')")
     public ResponseEntity<ApiResponse<InternProfileResponse>> getInternById(@PathVariable Long id) {
         log.info("Get intern profile: {}", id);
         InternProfileResponse intern = internProfileService.getInternProfileById(id);
@@ -72,10 +90,22 @@ public class InternController {
     }
 
     /**
-     * Create intern profile (HR/Admin)
-     * POST /api/v1/interns/profiles
+     * Get intern change history (US-048 Profile Audit History)
+     * GET /api/v1/interns/profiles/{id}/history
      */
-    @PostMapping("/profiles")
+    @GetMapping({ "/{id:\\d+}/history", "/profiles/{id:\\d+}/history" })
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'READ')")
+    public ResponseEntity<ApiResponse<java.util.List<AuditLogResponse>>> getInternHistory(@PathVariable Long id) {
+        log.info("Get audit history for intern profile ID: {}", id);
+        java.util.List<AuditLogResponse> history = auditLogService.getEntityHistory("INTERN_PROFILE", id);
+        return ResponseEntity.ok(ApiResponse.success(history));
+    }
+
+    /**
+     * Create intern profile (HR/Admin) - US-001
+     * POST /api/v1/interns or POST /api/v1/interns/profiles
+     */
+    @PostMapping({ "", "/profiles" })
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<InternProfileResponse>> createIntern(
             @Valid @RequestBody InternProfileRequest request) {
@@ -85,10 +115,10 @@ public class InternController {
     }
 
     /**
-     * Update intern profile (HR/Admin or own profile)
-     * PUT /api/v1/interns/profiles/{id}
+     * Update intern profile (HR/Admin or own profile) - US-002
+     * PUT /api/v1/interns/{id} or PUT /api/v1/interns/profiles/{id}
      */
-    @PutMapping("/profiles/{id}")
+    @PutMapping({ "/{id:\\d+}", "/profiles/{id:\\d+}" })
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'INTERN')")
     public ResponseEntity<ApiResponse<InternProfileResponse>> updateIntern(
             @PathVariable Long id,
@@ -100,9 +130,9 @@ public class InternController {
 
     /**
      * Delete intern profile (HR/Admin only)
-     * DELETE /api/v1/interns/profiles/{id}
+     * DELETE /api/v1/interns/{id} or DELETE /api/v1/interns/profiles/{id}
      */
-    @DeleteMapping("/profiles/{id}")
+    @DeleteMapping({ "/{id:\\d+}", "/profiles/{id:\\d+}" })
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteIntern(@PathVariable Long id) {
         log.info("Delete intern profile: {}", id);
@@ -124,6 +154,19 @@ public class InternController {
         }
         InternProfileResponse profile = internProfileService.getMyProfile(userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(profile));
+    }
+
+    /**
+     * Get my group, program, mentor, and co-interns (Intern Portal)
+     * GET /api/v1/interns/me/group
+     */
+    @GetMapping("/me/group")
+    @PreAuthorize("hasAnyRole('INTERN', 'HR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<com.holaho.intern.shared.dto.response.MyGroupInfoResponse>> getMyGroupInfo(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.holaho.intern.shared.security.CustomUserDetails userDetails) {
+        log.info("Get group info for intern user ID: {}", userDetails.getId());
+        com.holaho.intern.shared.dto.response.MyGroupInfoResponse info = programGroupService.getMyGroupInfoByUserId(userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success(info));
     }
 
     /**

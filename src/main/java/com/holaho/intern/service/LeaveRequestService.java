@@ -85,6 +85,17 @@ public class LeaveRequestService {
         User approver = userRepository.findById(approverId)
                 .orElseThrow(() -> new NotFoundException("Approver not found"));
 
+        // BR-07: Leave requests > 2 days require HR/ADMIN approval
+        long leaveDays = java.time.temporal.ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate()) + 1;
+        if (leaveDays > 2) {
+            boolean isHrOrAdmin = approver.getRoles().stream()
+                    .anyMatch(r -> "ROLE_HR".equalsIgnoreCase(r.getCode()) || "ROLE_ADMIN".equalsIgnoreCase(r.getCode())
+                            || "HR".equalsIgnoreCase(r.getCode()) || "ADMIN".equalsIgnoreCase(r.getCode()));
+            if (!isHrOrAdmin) {
+                throw new BadRequestException("Đơn nghỉ phép trên 2 ngày (" + leaveDays + " ngày) bắt buộc phải do HR/Admin phê duyệt (BR-07).");
+            }
+        }
+
         request.setStatus(LeaveStatus.APPROVED);
         request.setApprovedBy(approver);
 
